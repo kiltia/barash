@@ -6,6 +6,7 @@ import (
 )
 
 func main() {
+
 	config := NewRunnerConfig()
 	runner := NewRunner(*config)
 	if runner == nil {
@@ -27,11 +28,4 @@ func main() {
 	elapsed := time.Since(start)
 	fmt.Printf("Binomial took %s", elapsed)
 
-	/*
-		client, err := NewClickHouseClient(*NewClickHouseConfig())
-		if err != nil {
-			return
-		}
-		client.AsyncInsertBatch([]VerifyParams{verifyParams, verifyParams}, []float64{0.01, 0.2})
-	*/
 }

@@ -36,12 +36,13 @@ func NewClickHouseClient(config ClickHouseConfig) (*ClickHouseClient, error) {
 	return &ClickHouseClient{Connection: conn}, nil
 }
 
-func (client ClickHouseClient) AsyncInsertBatch(verifyParamsBatch []VerifyParams, scoresBatch []float64) error {
+func (client ClickHouseClient) AsyncInsertBatch(batch []Triple) error {
 	ctx := context.Background()
-	for i := 0; i < len(verifyParamsBatch); i++ {
+	for i := 0; i < len(batch); i++ {
 		id := uuid.New().String()
-		verifyParams := verifyParamsBatch[i]
-		score := scoresBatch[i]
+		verifyParams := batch[i].VerifyParams
+		score := batch[i].VerificationResult.Score
+		statusCode := batch[i].StatusCode
 		err := client.Connection.AsyncInsert(
 			ctx,
 			INSERT,
@@ -62,6 +63,7 @@ func (client ClickHouseClient) AsyncInsertBatch(verifyParamsBatch []VerifyParams
 			verifyParams.LocZip,
 			verifyParams.LocCountry,
 			score,
+			statusCode,
 		)
 		if err != nil {
 			fmt.Printf("Insertion to the ClickHouse database was unsuccessful! Gotten error: %s", err)

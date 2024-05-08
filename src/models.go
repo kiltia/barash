@@ -30,6 +30,16 @@ type VerifyParams struct {
 	LocCountry            *string `json:"loc_country"`
 }
 
+type VerificationResult struct {
+	Score *float64 `json:"score"`
+}
+
+type Triple struct {
+	StatusCode         int
+	VerifyParams       VerifyParams
+	VerificationResult VerificationResult
+}
+
 func (verifyGetRequest VerifyGetRequest) CreateVerifyGetRequestLink() (string, error) {
 	var url string = verifyGetRequest.Host + ":" + verifyGetRequest.Port + verifyGetRequest.Method
 	var params_string string = ""
