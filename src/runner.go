@@ -14,6 +14,8 @@ import (
 type Runner struct {
 	clickHouseClient ClickHouseClient
 	verifierCreds    VerifierConfig
+	httpClient       http.Client
+	goroutineTimeout time.Duration
 }
 
 func NewRunner(config RunnerConfig) *Runner {
@@ -21,12 +23,19 @@ func NewRunner(config RunnerConfig) *Runner {
 	if err != nil {
 		return nil
 	}
-	var verifierCreds = config.VerifierConfig
-	return &Runner{clickHouseClient: *clickHouseClient, verifierCreds: verifierCreds}
+	var verifierCreds = config.VerifierCreds
+	return &Runner{
+		clickHouseClient: *clickHouseClient,
+		verifierCreds:    verifierCreds,
+		httpClient: http.Client{
+			Timeout: time.Duration(config.VerifierTimeout) * time.Second,
+		},
+		goroutineTimeout: time.Duration(config.GoroutineTimeout),
+	}
 }
 
 func (runner Runner) SendGetRequest(url string) (*VerificationResult, int) {
-	response, err := http.Get(url)
+	response, err := runner.httpClient.Get(url)
 	if err != nil {
 		fmt.Printf("Gotten error %s", err)
 		return nil, 500
@@ -51,7 +60,7 @@ func (runner Runner) producer(tasks *chan VerifyGetRequest, results *chan Triple
 			link, _ := task.CreateVerifyGetRequestLink()
 			result, statusCode := runner.SendGetRequest(link)
 			*results <- Triple{VerifyParams: task.VerifyParams, VerificationResult: *result, StatusCode: statusCode}
-		case <-time.After(300 * time.Second):
+		case <-time.After(runner.goroutineTimeout * time.Second):
 			break
 		}
 	}
@@ -74,7 +83,7 @@ func (runner Runner) consumer(results *chan Triple, numTasks *int, wg *sync.Wait
 			}
 			bar.Add(1)
 			*numTasks = *numTasks - 1
-		case <-time.After(300 * time.Second):
+		case <-time.After(runner.goroutineTimeout * time.Second):
 			break
 		}
 	}

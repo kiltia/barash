@@ -2,17 +2,30 @@ package main
 
 import (
 	"os"
+	"strconv"
 )
 
 type RunnerConfig struct {
-	VerifierConfig   VerifierConfig
+	VerifierCreds    VerifierConfig
 	ClickHouseConfig ClickHouseConfig
+	VerifierTimeout  int
+	GoroutineTimeout int
 }
 
 func NewRunnerConfig() *RunnerConfig {
+	verifierTimeout, err := strconv.Atoi(getEnv("VERIFIER_TIMEOUT", "300"))
+	if err != nil {
+		return nil
+	}
+	goroutineTimeout, err := strconv.Atoi(getEnv("GOROUTINE_TIMEOUT", "300"))
+	if err != nil {
+		return nil
+	}
 	return &RunnerConfig{
-		VerifierConfig:   *NewVerifierConfig(),
+		VerifierCreds:    *NewVerifierConfig(),
 		ClickHouseConfig: *NewClickHouseConfig(),
+		VerifierTimeout:  verifierTimeout,
+		GoroutineTimeout: goroutineTimeout,
 	}
 }
 

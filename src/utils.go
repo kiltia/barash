@@ -1,6 +1,11 @@
 package main
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"os"
+
+	"github.com/jszwec/csvutil"
+)
 
 func structToMap[T comparable](data T) (map[string]*string, error) {
 	dataBytes, err := json.Marshal(data)
@@ -13,4 +18,11 @@ func structToMap[T comparable](data T) (map[string]*string, error) {
 		return nil, err
 	}
 	return mapData, nil
+}
+
+func loadVerifyParamsFromCSV(path string) []VerifyParams {
+	content, _ := os.ReadFile(path)
+	var paramsList []VerifyParams
+	csvutil.Unmarshal(content, &paramsList)
+	return paramsList
 }

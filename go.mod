@@ -17,6 +17,7 @@ require (
 	github.com/go-faster/errors v0.7.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/joho/godotenv v1.5.1
+	github.com/jszwec/csvutil v1.10.0
 	github.com/klauspost/compress v1.17.7 // indirect
 	github.com/mailru/go-clickhouse v1.8.0
 	github.com/mailru/go-clickhouse/v2 v2.2.1
