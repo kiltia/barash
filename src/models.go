@@ -37,7 +37,7 @@ type VerificationResult struct {
 type Triple struct {
 	StatusCode         int
 	VerifyParams       VerifyParams
-	VerificationResult VerificationResult
+	VerificationResult *VerificationResult
 }
 
 func (verifyGetRequest VerifyGetRequest) CreateVerifyGetRequestLink() (string, error) {

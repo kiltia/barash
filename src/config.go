@@ -10,6 +10,8 @@ type RunnerConfig struct {
 	ClickHouseConfig ClickHouseConfig
 	VerifierTimeout  int
 	GoroutineTimeout int
+	ProducerWorkers  int
+	ConsumerWorkers  int
 }
 
 func NewRunnerConfig() *RunnerConfig {
@@ -21,11 +23,21 @@ func NewRunnerConfig() *RunnerConfig {
 	if err != nil {
 		return nil
 	}
+	producerWorkers, err := strconv.Atoi(getEnv("PRODUCER_WORKERS", "10"))
+	if err != nil {
+		return nil
+	}
+	consumerWorkers, err := strconv.Atoi(getEnv("CONSUMER_WORKERS", "1"))
+	if err != nil {
+		return nil
+	}
 	return &RunnerConfig{
 		VerifierCreds:    *NewVerifierConfig(),
 		ClickHouseConfig: *NewClickHouseConfig(),
 		VerifierTimeout:  verifierTimeout,
 		GoroutineTimeout: goroutineTimeout,
+		ProducerWorkers:  producerWorkers,
+		ConsumerWorkers:  consumerWorkers,
 	}
 }
 
@@ -37,7 +49,7 @@ type VerifierConfig struct {
 
 func NewVerifierConfig() *VerifierConfig {
 	return &VerifierConfig{
-		Host:   getEnv("VERIFIER_HOST", "127.0.0.1"),
+		Host:   getEnv("VERIFIER_HOST", "http://127.0.0.1"),
 		Port:   getEnv("VERIFIER_PORT", "8081"),
 		Method: getEnv("VERIFIER_METHOD", "/verify"),
 	}

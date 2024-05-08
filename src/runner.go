@@ -16,6 +16,8 @@ type Runner struct {
 	verifierCreds    VerifierConfig
 	httpClient       http.Client
 	goroutineTimeout time.Duration
+	producerWorkers  int
+	consumerWorkers  int
 }
 
 func NewRunner(config RunnerConfig) *Runner {
@@ -31,6 +33,8 @@ func NewRunner(config RunnerConfig) *Runner {
 			Timeout: time.Duration(config.VerifierTimeout) * time.Second,
 		},
 		goroutineTimeout: time.Duration(config.GoroutineTimeout),
+		producerWorkers:  config.ProducerWorkers,
+		consumerWorkers:  config.ConsumerWorkers,
 	}
 }
 
@@ -38,12 +42,12 @@ func (runner Runner) SendGetRequest(url string) (*VerificationResult, int) {
 	response, err := runner.httpClient.Get(url)
 	if err != nil {
 		fmt.Printf("Gotten error %s", err)
-		return nil, 500
+		return &VerificationResult{Score: nil}, 599
 	}
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		fmt.Printf("Gotten error %s", err)
-		return nil, 500
+		return &VerificationResult{Score: nil}, 599
 	}
 	var result VerificationResult
 	json.Unmarshal(body, &result)
@@ -59,7 +63,7 @@ func (runner Runner) producer(tasks *chan VerifyGetRequest, results *chan Triple
 			}
 			link, _ := task.CreateVerifyGetRequestLink()
 			result, statusCode := runner.SendGetRequest(link)
-			*results <- Triple{VerifyParams: task.VerifyParams, VerificationResult: *result, StatusCode: statusCode}
+			*results <- Triple{VerifyParams: task.VerifyParams, VerificationResult: result, StatusCode: statusCode}
 		case <-time.After(runner.goroutineTimeout * time.Second):
 			break
 		}
@@ -93,20 +97,27 @@ func (runner Runner) consumer(results *chan Triple, numTasks *int, wg *sync.Wait
 	wg.Done()
 }
 
-func (runner Runner) Run(producerSize int, consumerSize int, verifyGetRequestList []VerifyGetRequest) {
-	tasks := make(chan VerifyGetRequest, len(verifyGetRequestList))
+func (runner Runner) Run(verifyParamsList []VerifyParams) {
+	tasks := make(chan VerifyGetRequest, len(verifyParamsList))
 	var wg sync.WaitGroup
-	for _, task := range verifyGetRequestList {
-		tasks <- task
+	for _, verifyParams := range verifyParamsList {
+		verifyGetRequest := NewVerifyGetRequest(
+			runner.verifierCreds.Host,
+			runner.verifierCreds.Port,
+			runner.verifierCreds.Method,
+			verifyParams,
+		)
+
+		tasks <- *verifyGetRequest
 	}
-	results := make(chan Triple, consumerSize)
-	for i := 0; i < producerSize; i++ {
+	results := make(chan Triple, runner.consumerWorkers)
+	for i := 0; i < runner.producerWorkers; i++ {
 		wg.Add(1)
 		go runner.producer(&tasks, &results, &wg)
 	}
-	var numTasks int = len(verifyGetRequestList)
+	var numTasks int = len(verifyParamsList)
 	bar := progressbar.Default(int64(numTasks))
-	for i := 0; i < consumerSize; i++ {
+	for i := 0; i < runner.consumerWorkers; i++ {
 		wg.Add(1)
 		go runner.consumer(&results, &numTasks, &wg, bar)
 	}
