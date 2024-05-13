@@ -5,6 +5,13 @@ import (
 	"strings"
 )
 
+type JSONString string
+
+func (js *JSONString) UnmarshalJSON(b []byte) error {
+	*js = JSONString(b)
+	return nil
+}
+
 type VerifyGetRequest struct {
 	Host         string
 	Port         string
@@ -30,29 +37,43 @@ type VerifyParams struct {
 	LocCountry            *string `json:"loc_country" csv:"loc_country"`
 }
 
-type VerificationResult struct {
-	Score *float64 `json:"score"`
+type VerificationResponse struct {
+	Score     *float64  `json:"score"`
+	Error     *string   `json:"component_error"`
+	MatchMask MatchMask `json:"match_mask"`
+	DebugInfo DebugInfo `json:"debug"`
 }
 
-type Triple struct {
-	StatusCode         int
-	VerifyParams       VerifyParams
-	VerificationResult *VerificationResult
+type DebugInfo struct {
+	Features     *JSONString `json:"features"`
+	CrawlerDebug *JSONString `json:"crawler_debug"`
+}
+
+type MatchMask struct {
+	MatchMaskSummary *JSONString `json:"match_mask_summary"`
+	MatchMaskDetails *JSONString `json:"match_mask_details"`
+}
+
+type VerificationResult struct {
+	StatusCode           int
+	VerifyParams         VerifyParams
+	VerificationLink     string
+	VerificationResponse *VerificationResponse
 }
 
 func (verifyGetRequest VerifyGetRequest) CreateVerifyGetRequestLink() (string, error) {
 	var url string = verifyGetRequest.Host + ":" + verifyGetRequest.Port + verifyGetRequest.Method
-	var params_string string = ""
-	params_map, err := structToMap(verifyGetRequest.VerifyParams)
-	for field, value := range params_map {
+	var paramsString string = ""
+	paramsMap, err := structToMap(verifyGetRequest.VerifyParams)
+	for field, value := range paramsMap {
 		if value != nil {
-			params_string += field + "=" + strings.ReplaceAll(*value, " ", "+") + "&"
+			paramsString += field + "=" + strings.ReplaceAll(*value, " ", "+") + "&"
 		}
 	}
-	if err != nil || len(params_string) == 0 {
+	if err != nil || len(paramsString) == 0 {
 		return "", fmt.Errorf("Unable to create verify link")
 	}
-	return url + "?" + params_string[:len(params_string)-1], nil
+	return url + "?" + paramsString[:len(paramsString)-1], nil
 }
 
 func NewVerifyGetRequest(host string, port string, method string, verifyParams VerifyParams) *VerifyGetRequest {

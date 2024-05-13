@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 
 	"github.com/jszwec/csvutil"
@@ -25,4 +26,9 @@ func loadVerifyParamsFromCSV(path string) []VerifyParams {
 	var paramsList []VerifyParams
 	csvutil.Unmarshal(content, &paramsList)
 	return paramsList
+}
+
+func unmarshalJson(body []byte, result *VerificationResponse) {
+	json.Unmarshal(body, result)
+	fmt.Println(string(body))
 }
