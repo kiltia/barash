@@ -45,13 +45,37 @@ type VerificationResponse struct {
 }
 
 type DebugInfo struct {
-	Features     *JSONString `json:"features"`
-	CrawlerDebug *JSONString `json:"crawler_debug"`
+	Features     *JSONString  `json:"features"`
+	CrawlerDebug CrawlerDebug `json:"crawler_debug"`
+}
+
+type CrawlerDebug struct {
+	CrawlerErrors []*JSONString `json:"crawler_errors"`
+	CrawlFails    []*JSONString `json:"crawl_fails"`
+	CrawledPages  []*JSONString `json:"crawled_pages"`
+	FailStatus    *string       `json:"fail_status"`
+	PageStats     PageStats     `json:"page_stats"`
+}
+
+type PageStats struct {
+	Fails     *int `json:"fails"`
+	Errors    *int `json:"errors"`
+	Successes *int `json:"successes"`
 }
 
 type MatchMask struct {
-	MatchMaskSummary *JSONString `json:"match_mask_summary"`
-	MatchMaskDetails *JSONString `json:"match_mask_details"`
+	MatchMaskSummary MatchMaskSummary `json:"match_mask_summary"`
+	MatchMaskDetails *JSONString      `json:"match_mask_details"`
+}
+
+type MatchMaskSummary struct {
+	Name                 *string  `json:"name"`
+	Address1             *string  `json:"address1"`
+	Address2             *string  `json:"address2"`
+	City                 *string  `json:"city"`
+	State                *string  `json:"state"`
+	Country              *string  `json:"country"`
+	DomainNameSimilarity *float64 `json:"domain_name_similarity"`
 }
 
 type VerificationResult struct {

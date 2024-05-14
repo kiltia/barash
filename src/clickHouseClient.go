@@ -47,11 +47,21 @@ func (client ClickHouseClient) AsyncInsertBatch(batch []VerificationResult) erro
 		score := response.Score
 		componentError := response.Error
 		matchMask := response.MatchMask
+		matchMaskSummary := matchMask.MatchMaskSummary
 		debugInfo := response.DebugInfo
+		crawlerDebug := debugInfo.CrawlerDebug
+		crawlerErrors := crawlerDebug.CrawlerErrors
+		crawlFails := crawlerDebug.CrawlFails
+		crawledPages := crawlerDebug.CrawledPages
+		failStatus := crawlerDebug.FailStatus
+		pageStats := crawlerDebug.PageStats
+		numErrors := pageStats.Errors
+		numFails := pageStats.Fails
+		numSuccesses := pageStats.Successes
 		err := client.Connection.AsyncInsert(
 			ctx,
 			INSERT,
-			true,
+			false,
 			id,
 			verifyParams.Url,
 			verifyParams.Name,
@@ -69,11 +79,23 @@ func (client ClickHouseClient) AsyncInsertBatch(batch []VerificationResult) erro
 			verifyParams.LocCountry,
 			link,
 			componentError,
+			failStatus,
 			statusCode,
-			matchMask.MatchMaskSummary,
-			matchMask.MatchMaskDetails,
-			debugInfo.CrawlerDebug,
+			crawlerErrors,
+			crawlFails,
+			crawledPages,
+			numErrors,
+			numFails,
+			numSuccesses,
 			debugInfo.Features,
+			matchMask.MatchMaskDetails,
+			matchMaskSummary.Name,
+			matchMaskSummary.Address1,
+			matchMaskSummary.Address2,
+			matchMaskSummary.City,
+			matchMaskSummary.State,
+			matchMaskSummary.Country,
+			matchMaskSummary.DomainNameSimilarity,
 			score,
 		)
 		if err != nil {

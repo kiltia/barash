@@ -51,6 +51,9 @@ func (runner Runner) SendGetRequest(url string) (*VerificationResponse, int) {
 	}
 	var result VerificationResponse
 	json.Unmarshal(body, &result)
+	if result.Score == nil {
+		result.Score = &NAN
+	}
 	return &result, response.StatusCode
 }
 

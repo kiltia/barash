@@ -3,10 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 
 	"github.com/jszwec/csvutil"
 )
+
+var NAN = math.NaN()
 
 func structToMap[T comparable](data T) (map[string]*string, error) {
 	dataBytes, err := json.Marshal(data)
