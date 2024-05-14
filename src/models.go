@@ -20,21 +20,21 @@ type VerifyGetRequest struct {
 }
 
 type VerifyParams struct {
-	Url                   string  `json:"url" csv:"url"`
+	Url                   string  `json:"url"                     csv:"url"`
 	DomainCrawlerStrategy *string `json:"domain_crawler_strategy"`
-	Name                  *string `json:"name" csv:"name"`
-	LocAddress1           *string `json:"loc_address1" csv:"loc_address1"`
-	LocAddress2           *string `json:"loc_address2" csv:"loc_address2"`
-	MailAddress1          *string `json:"mail_address1" csv:"mail_address1"`
-	MailAddress2          *string `json:"mail_address2" csv:"mail_address2"`
-	MailCity              *string `json:"mail_city" csv:"mail_city"`
-	LocCity               *string `json:"loc_city" csv:"loc_city"`
-	LocState              *string `json:"loc_state" csv:"loc_state"`
-	MailState             *string `json:"mail_state" csv:"mail_state"`
-	MailZip               *string `json:"mail_zip" csv:"mail_zip"`
-	LocZip                *string `json:"loc_zip" csv:"loc_zip"`
-	MailCountry           *string `json:"mail_country" csv:"mail_country"`
-	LocCountry            *string `json:"loc_country" csv:"loc_country"`
+	Name                  *string `json:"name"                    csv:"name"`
+	LocAddress1           *string `json:"loc_address1"            csv:"loc_address1"`
+	LocAddress2           *string `json:"loc_address2"            csv:"loc_address2"`
+	MailAddress1          *string `json:"mail_address1"           csv:"mail_address1"`
+	MailAddress2          *string `json:"mail_address2"           csv:"mail_address2"`
+	MailCity              *string `json:"mail_city"               csv:"mail_city"`
+	LocCity               *string `json:"loc_city"                csv:"loc_city"`
+	LocState              *string `json:"loc_state"               csv:"loc_state"`
+	MailState             *string `json:"mail_state"              csv:"mail_state"`
+	MailZip               *string `json:"mail_zip"                csv:"mail_zip"`
+	LocZip                *string `json:"loc_zip"                 csv:"loc_zip"`
+	MailCountry           *string `json:"mail_country"            csv:"mail_country"`
+	LocCountry            *string `json:"loc_country"             csv:"loc_country"`
 }
 
 type VerificationResponse struct {
@@ -91,7 +91,11 @@ func (verifyGetRequest VerifyGetRequest) CreateVerifyGetRequestLink() (string, e
 	paramsMap, err := structToMap(verifyGetRequest.VerifyParams)
 	for field, value := range paramsMap {
 		if value != nil {
-			paramsString += field + "=" + strings.ReplaceAll(*value, " ", "+") + "&"
+			paramsString += field + "=" + strings.ReplaceAll(
+				*value,
+				" ",
+				"+",
+			) + "&"
 		}
 	}
 	if err != nil || len(paramsString) == 0 {
@@ -100,6 +104,11 @@ func (verifyGetRequest VerifyGetRequest) CreateVerifyGetRequestLink() (string, e
 	return url + "?" + paramsString[:len(paramsString)-1], nil
 }
 
-func NewVerifyGetRequest(host string, port string, method string, verifyParams VerifyParams) *VerifyGetRequest {
+func NewVerifyGetRequest(
+	host string,
+	port string,
+	method string,
+	verifyParams VerifyParams,
+) *VerifyGetRequest {
 	return &VerifyGetRequest{host, port, method, verifyParams}
 }

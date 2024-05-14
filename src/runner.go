@@ -57,7 +57,11 @@ func (runner Runner) SendGetRequest(url string) (*VerificationResponse, int) {
 	return &result, response.StatusCode
 }
 
-func (runner Runner) producer(tasks *chan VerifyGetRequest, results *chan VerificationResult, wg *sync.WaitGroup) {
+func (runner Runner) producer(
+	tasks *chan VerifyGetRequest,
+	results *chan VerificationResult,
+	wg *sync.WaitGroup,
+) {
 	for len(*tasks) != 0 {
 		select {
 		case task, ok := <-*tasks:
@@ -79,7 +83,12 @@ func (runner Runner) producer(tasks *chan VerifyGetRequest, results *chan Verifi
 	wg.Done()
 }
 
-func (runner Runner) consumer(results *chan VerificationResult, numTasks *int, wg *sync.WaitGroup, bar *progressbar.ProgressBar) {
+func (runner Runner) consumer(
+	results *chan VerificationResult,
+	numTasks *int,
+	wg *sync.WaitGroup,
+	bar *progressbar.ProgressBar,
+) {
 	var batch []VerificationResult
 	for *numTasks != 0 {
 		select {

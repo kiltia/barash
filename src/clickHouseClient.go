@@ -23,12 +23,18 @@ func NewClickHouseClient(config ClickHouseConfig) (*ClickHouseClient, error) {
 		},
 	})
 	if err != nil {
-		fmt.Printf("Connection to the ClickHouse database was unsuccessful! Gotten error: %s", err)
+		fmt.Printf(
+			"Connection to the ClickHouse database was unsuccessful! Gotten error: %s",
+			err,
+		)
 		return nil, err
 	}
 	v, err := conn.ServerVersion()
 	if err != nil {
-		fmt.Printf("Connection to the ClickHouse database was unsuccessful! Gotten error: %s", err)
+		fmt.Printf(
+			"Connection to the ClickHouse database was unsuccessful! Gotten error: %s",
+			err,
+		)
 		return nil, err
 	}
 	fmt.Println("Connection to the ClickHouse database was successful!")
@@ -36,7 +42,9 @@ func NewClickHouseClient(config ClickHouseConfig) (*ClickHouseClient, error) {
 	return &ClickHouseClient{Connection: conn}, nil
 }
 
-func (client ClickHouseClient) AsyncInsertBatch(batch []VerificationResult) error {
+func (client ClickHouseClient) AsyncInsertBatch(
+	batch []VerificationResult,
+) error {
 	ctx := context.Background()
 	for i := 0; i < len(batch); i++ {
 		id := uuid.New().String()
@@ -99,7 +107,10 @@ func (client ClickHouseClient) AsyncInsertBatch(batch []VerificationResult) erro
 			score,
 		)
 		if err != nil {
-			fmt.Printf("Insertion to the ClickHouse database was unsuccessful! Gotten error: %s", err)
+			fmt.Printf(
+				"Insertion to the ClickHouse database was unsuccessful! Gotten error: %s",
+				err,
+			)
 			return err
 		}
 	}
