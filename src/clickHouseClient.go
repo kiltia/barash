@@ -6,7 +6,6 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
-	"github.com/google/uuid"
 )
 
 type ClickHouseClient struct {
@@ -47,7 +46,6 @@ func (client ClickHouseClient) AsyncInsertBatch(
 ) error {
 	ctx := context.Background()
 	for i := 0; i < len(batch); i++ {
-		id := uuid.New().String()
 		verifyParams := batch[i].VerifyParams
 		link := batch[i].VerificationLink
 		statusCode := batch[i].StatusCode
@@ -70,7 +68,7 @@ func (client ClickHouseClient) AsyncInsertBatch(
 			ctx,
 			INSERT,
 			false,
-			id,
+			verifyParams.Duns,
 			verifyParams.Url,
 			verifyParams.Name,
 			verifyParams.MailAddress1,

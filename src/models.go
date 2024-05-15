@@ -20,6 +20,7 @@ type VerifyGetRequest struct {
 }
 
 type VerifyParams struct {
+	Duns                  string  `json:"duns"                    csv:"duns"`
 	Url                   string  `json:"url"                     csv:"url"`
 	DomainCrawlerStrategy *string `json:"domain_crawler_strategy"`
 	Name                  *string `json:"name"                    csv:"name"`
