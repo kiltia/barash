@@ -1,88 +1,60 @@
 package main
 
 import (
+	"fmt"
 	"os"
-	"strconv"
+
+	"gopkg.in/yaml.v2"
 )
 
 type RunnerConfig struct {
-	VerifierCreds    VerifierConfig
-	ClickHouseConfig ClickHouseConfig
-	VerifierTimeout  int
-	GoroutineTimeout int
-	ProducerWorkers  int
-	ConsumerWorkers  int
-	BatchSize        int
-}
-
-func NewRunnerConfig() *RunnerConfig {
-	verifierTimeout, err := strconv.Atoi(getEnv("VERIFIER_TIMEOUT", "300"))
-	if err != nil {
-		return nil
-	}
-	goroutineTimeout, err := strconv.Atoi(getEnv("GOROUTINE_TIMEOUT", "300"))
-	if err != nil {
-		return nil
-	}
-	producerWorkers, err := strconv.Atoi(getEnv("PRODUCER_WORKERS", "10"))
-	if err != nil {
-		return nil
-	}
-	consumerWorkers, err := strconv.Atoi(getEnv("CONSUMER_WORKERS", "1"))
-	if err != nil {
-		return nil
-	}
-	batchSize, err := strconv.Atoi(getEnv("BATCH_SIZE", "500"))
-	if err != nil {
-		return nil
-	}
-	return &RunnerConfig{
-		VerifierCreds:    *NewVerifierConfig(),
-		ClickHouseConfig: *NewClickHouseConfig(),
-		VerifierTimeout:  verifierTimeout,
-		GoroutineTimeout: goroutineTimeout,
-		ProducerWorkers:  producerWorkers,
-		ConsumerWorkers:  consumerWorkers,
-		BatchSize:        batchSize,
-	}
+	VerifierConfig   VerifierConfig   `yaml:"verifier"`
+	ClickHouseConfig ClickHouseConfig `yaml:"clickhouse"`
+	Timeouts         Timeouts         `yaml:"timeouts"`
+	RunConfig        RunConfig        `yaml:"run"`
 }
 
 type VerifierConfig struct {
-	Host   string
-	Port   string
-	Method string
-}
-
-func NewVerifierConfig() *VerifierConfig {
-	return &VerifierConfig{
-		Host:   getEnv("VERIFIER_HOST", "http://127.0.0.1"),
-		Port:   getEnv("VERIFIER_PORT", "8081"),
-		Method: getEnv("VERIFIER_METHOD", "/verify"),
-	}
+	Host   string `yaml:"host"`
+	Port   string `yaml:"port"`
+	Method string `yaml:"method"`
 }
 
 type ClickHouseConfig struct {
-	Username string
-	Database string
-	Password string
-	Host     string
-	Port     string
+	Username string `yaml:"user"`
+	Database string `yaml:"db"`
+	Password string `yaml:"password"`
+	Host     string `yaml:"host"`
+	Port     string `yaml:"port"`
 }
 
-func NewClickHouseConfig() *ClickHouseConfig {
-	return &ClickHouseConfig{
-		Username: getEnv("CLICKHOUSE_USER", "user"),
-		Database: getEnv("CLICKHOUSE_DB", "orb"),
-		Password: getEnv("CLICKHOUSE_PASSWORD", "12345"),
-		Host:     getEnv("CLICKHOUSE_HOST", "127.0.0.1"),
-		Port:     getEnv("CLICKHOUSE_PORT", "9000"),
+type Timeouts struct {
+	VerifierTimeout  int `yaml:"verifier_timeout"`
+	GoroutineTimeout int `yaml:"goroutine_timeout"`
+}
+
+type RunConfig struct {
+	ProducerWorkers int               `yaml:"producer_workers"`
+	ConsumerWorkers int               `yaml:"consumer_workers"`
+	BatchSize       int               `yaml:"batch_size"`
+	ExtraParams     map[string]string `yaml:"extra_params"`
+}
+
+func NewRunnerConfig() *RunnerConfig {
+	filepath := fmt.Sprintf("configs/%s.yaml", getEnv("MOD", "dev"))
+	content, err := os.ReadFile(filepath)
+	if err != nil {
+		fmt.Printf("Gotten error: %v", err)
+		return nil
 	}
+	var runnerConfig RunnerConfig
+	yaml.Unmarshal(content, &runnerConfig)
+	return &runnerConfig
 }
 
 func getEnv(key string, defaultVal string) string {
 	if value, exists := os.LookupEnv(key); exists {
 		return value
 	}
-
 	return defaultVal
 }

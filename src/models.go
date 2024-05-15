@@ -86,25 +86,27 @@ type VerificationResult struct {
 	VerificationResponse *VerificationResponse
 }
 
-func (verifyGetRequest VerifyGetRequest) CreateVerifyGetRequestLink() (string, error) {
-	var baseUrl string = verifyGetRequest.Host + ":" + verifyGetRequest.Port
+func (verifyGetRequest VerifyGetRequest) CreateVerifyGetRequestLink(extraParams map[string]string) (string, error) {
+	baseURL := &url.URL{
+		Scheme: "http",
+		Host:   fmt.Sprintf("%s:%s", verifyGetRequest.Host, verifyGetRequest.Port),
+		Path:   verifyGetRequest.Method,
+	}
 	params := url.Values{}
 	paramsMap, err := structToMap(verifyGetRequest.VerifyParams)
 	if err != nil {
-		return "", fmt.Errorf("Unable to create verify link. Reason: %s", err)
+		return "", fmt.Errorf("Unable to create verify link. Reason: %v", err)
 	}
 	for field, value := range paramsMap {
 		if value != nil {
 			params.Add(field, *value)
 		}
 	}
-	u, err := url.ParseRequestURI(baseUrl)
-	if err != nil {
-		return "", fmt.Errorf("Unable to create verify link. Reason: %s", err)
+	for field, value := range extraParams {
+		params.Add(field, value)
 	}
-	u.Path = verifyGetRequest.Method
-	u.RawQuery = params.Encode()
-	urlString := fmt.Sprintf("%v", u)
+	baseURL.RawQuery = params.Encode()
+	urlString := baseURL.String()
 	return urlString, nil
 }
 

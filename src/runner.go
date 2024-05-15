@@ -16,9 +16,7 @@ type Runner struct {
 	verifierCreds    VerifierConfig
 	httpClient       http.Client
 	goroutineTimeout time.Duration
-	producerWorkers  int
-	consumerWorkers  int
-	batchSize        int
+	runConfig        RunConfig
 }
 
 func NewRunner(config RunnerConfig) *Runner {
@@ -26,17 +24,15 @@ func NewRunner(config RunnerConfig) *Runner {
 	if err != nil {
 		return nil
 	}
-	var verifierCreds = config.VerifierCreds
+	var verifierCreds = config.VerifierConfig
 	return &Runner{
 		clickHouseClient: *clickHouseClient,
 		verifierCreds:    verifierCreds,
 		httpClient: http.Client{
-			Timeout: time.Duration(config.VerifierTimeout) * time.Second,
+			Timeout: time.Duration(config.Timeouts.VerifierTimeout) * time.Second,
 		},
-		goroutineTimeout: time.Duration(config.GoroutineTimeout),
-		producerWorkers:  config.ProducerWorkers,
-		consumerWorkers:  config.ConsumerWorkers,
-		batchSize:        config.BatchSize,
+		goroutineTimeout: time.Duration(config.Timeouts.GoroutineTimeout),
+		runConfig:        config.RunConfig,
 	}
 }
 
@@ -70,7 +66,7 @@ func (runner Runner) producer(
 			if !ok {
 				break
 			}
-			link, _ := task.CreateVerifyGetRequestLink()
+			link, _ := task.CreateVerifyGetRequestLink(runner.runConfig.ExtraParams)
 			response, statusCode := runner.SendGetRequest(link)
 			*results <- VerificationResult{
 				VerifyParams:         task.VerifyParams,
@@ -99,7 +95,7 @@ func (runner Runner) consumer(
 				break
 			}
 			batch = append(batch, result)
-			if len(batch) == runner.batchSize {
+			if len(batch) == runner.runConfig.BatchSize {
 				runner.clickHouseClient.AsyncInsertBatch(batch)
 				batch = make([]VerificationResult, 0)
 			}
@@ -128,14 +124,14 @@ func (runner Runner) Run(verifyParamsList []VerifyParams) {
 
 		tasks <- *verifyGetRequest
 	}
-	results := make(chan VerificationResult, runner.consumerWorkers)
-	for i := 0; i < runner.producerWorkers; i++ {
+	results := make(chan VerificationResult, runner.runConfig.ConsumerWorkers)
+	for i := 0; i < runner.runConfig.ProducerWorkers; i++ {
 		wg.Add(1)
 		go runner.producer(&tasks, &results, &wg)
 	}
 	var numTasks int = len(verifyParamsList)
 	bar := progressbar.Default(int64(numTasks))
-	for i := 0; i < runner.consumerWorkers; i++ {
+	for i := 0; i < runner.runConfig.ConsumerWorkers; i++ {
 		wg.Add(1)
 		go runner.consumer(&results, &numTasks, &wg, bar)
 	}
