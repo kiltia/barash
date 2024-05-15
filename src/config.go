@@ -12,6 +12,7 @@ type RunnerConfig struct {
 	GoroutineTimeout int
 	ProducerWorkers  int
 	ConsumerWorkers  int
+	BatchSize        int
 }
 
 func NewRunnerConfig() *RunnerConfig {
@@ -31,6 +32,10 @@ func NewRunnerConfig() *RunnerConfig {
 	if err != nil {
 		return nil
 	}
+	batchSize, err := strconv.Atoi(getEnv("BATCH_SIZE", "500"))
+	if err != nil {
+		return nil
+	}
 	return &RunnerConfig{
 		VerifierCreds:    *NewVerifierConfig(),
 		ClickHouseConfig: *NewClickHouseConfig(),
@@ -38,6 +43,7 @@ func NewRunnerConfig() *RunnerConfig {
 		GoroutineTimeout: goroutineTimeout,
 		ProducerWorkers:  producerWorkers,
 		ConsumerWorkers:  consumerWorkers,
+		BatchSize:        batchSize,
 	}
 }
 

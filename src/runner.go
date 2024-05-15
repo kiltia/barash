@@ -18,6 +18,7 @@ type Runner struct {
 	goroutineTimeout time.Duration
 	producerWorkers  int
 	consumerWorkers  int
+	batchSize        int
 }
 
 func NewRunner(config RunnerConfig) *Runner {
@@ -35,6 +36,7 @@ func NewRunner(config RunnerConfig) *Runner {
 		goroutineTimeout: time.Duration(config.GoroutineTimeout),
 		producerWorkers:  config.ProducerWorkers,
 		consumerWorkers:  config.ConsumerWorkers,
+		batchSize:        config.BatchSize,
 	}
 }
 
@@ -97,8 +99,7 @@ func (runner Runner) consumer(
 				break
 			}
 			batch = append(batch, result)
-			// TODO(sokunkov): Add len batch on runner variables
-			if len(batch) == 500 {
+			if len(batch) == runner.batchSize {
 				runner.clickHouseClient.AsyncInsertBatch(batch)
 				batch = make([]VerificationResult, 0)
 			}

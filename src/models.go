@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"strings"
+	"net/url"
 )
 
 type JSONString string
@@ -86,22 +86,25 @@ type VerificationResult struct {
 }
 
 func (verifyGetRequest VerifyGetRequest) CreateVerifyGetRequestLink() (string, error) {
-	var url string = verifyGetRequest.Host + ":" + verifyGetRequest.Port + verifyGetRequest.Method
-	var paramsString string = ""
+	var baseUrl string = verifyGetRequest.Host + ":" + verifyGetRequest.Port
+	params := url.Values{}
 	paramsMap, err := structToMap(verifyGetRequest.VerifyParams)
+	if err != nil {
+		return "", fmt.Errorf("Unable to create verify link. Reason: %s", err)
+	}
 	for field, value := range paramsMap {
 		if value != nil {
-			paramsString += field + "=" + strings.ReplaceAll(
-				*value,
-				" ",
-				"+",
-			) + "&"
+			params.Add(field, *value)
 		}
 	}
-	if err != nil || len(paramsString) == 0 {
-		return "", fmt.Errorf("Unable to create verify link")
+	u, err := url.ParseRequestURI(baseUrl)
+	if err != nil {
+		return "", fmt.Errorf("Unable to create verify link. Reason: %s", err)
 	}
-	return url + "?" + paramsString[:len(paramsString)-1], nil
+	u.Path = verifyGetRequest.Method
+	u.RawQuery = params.Encode()
+	urlString := fmt.Sprintf("%v", u)
+	return urlString, nil
 }
 
 func NewVerifyGetRequest(

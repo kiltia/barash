@@ -7,9 +7,8 @@ services:
       - CLICKHOUSE_USER=${CLICKHOUSE_USER:-clickhouse-user}
       - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-12345}
      ports:
-     - "8123:8123"
-     - "9000:9000"
-     - "9009:9009"
+     - "8124:8123"
+     - "9001:9000"
      volumes:
      - ./db/data:/var/lib/clickhouse
      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
