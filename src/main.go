@@ -14,7 +14,7 @@ func main() {
 	if runner == nil {
 		return
 	}
-	paramsList := loadVerifyParamsFromCSV("./big_5_sample_head.csv")
+	paramsList := loadVerifyParamsFromCSV("./big_5_sample.csv")
 	start := time.Now()
 	runner.Run(paramsList[:100])
 	elapsed := time.Since(start)

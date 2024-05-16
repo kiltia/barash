@@ -4,7 +4,7 @@ services:
      image: clickhouse/clickhouse-server
      environment:
       - CLICKHOUSE_DB=${CLICKHOUSE_DB:-orb}
-      - CLICKHOUSE_USER=${CLICKHOUSE_USER:-clickhouse-user}
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER:-user}
       - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-12345}
      ports:
      - "8124:8123"

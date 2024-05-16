@@ -11,6 +11,7 @@ type RunnerConfig struct {
 	VerifierConfig   VerifierConfig   `yaml:"verifier"`
 	ClickHouseConfig ClickHouseConfig `yaml:"clickhouse"`
 	Timeouts         Timeouts         `yaml:"timeouts"`
+	Retries          Retries          `yaml:"retries"`
 	RunConfig        RunConfig        `yaml:"run"`
 }
 
@@ -31,6 +32,12 @@ type ClickHouseConfig struct {
 type Timeouts struct {
 	VerifierTimeout  int `yaml:"verifier_timeout"`
 	GoroutineTimeout int `yaml:"goroutine_timeout"`
+}
+
+type Retries struct {
+	NumRetries  int `yaml:"retries_number"`
+	MinWaitTime int `yaml:"min_wait_time"`
+	MaxWaitTime int `yaml:"max_wait_time"`
 }
 
 type RunConfig struct {

@@ -3,18 +3,18 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/go-resty/resty/v2"
 	"github.com/schollz/progressbar/v3"
 )
 
 type Runner struct {
 	clickHouseClient ClickHouseClient
 	verifierCreds    VerifierConfig
-	httpClient       http.Client
+	httpClient       *resty.Client
 	goroutineTimeout time.Duration
 	runConfig        RunConfig
 }
@@ -25,34 +25,38 @@ func NewRunner(config RunnerConfig) *Runner {
 		return nil
 	}
 	var verifierCreds = config.VerifierConfig
-	return &Runner{
+	httpClient := resty.NewWithClient(&http.Client{
+		Timeout: time.Duration(config.Timeouts.VerifierTimeout) * time.Second,
+	}).SetRetryCount(config.Retries.NumRetries).
+		SetRetryWaitTime(time.Duration(config.Retries.MinWaitTime) * time.Second).
+		SetRetryMaxWaitTime(time.Duration(config.Retries.MaxWaitTime) * time.Second).
+		AddRetryCondition(
+			func(r *resty.Response, err error) bool {
+				return r.StatusCode() >= http.StatusInternalServerError
+			},
+		)
+	var runner = Runner{
 		clickHouseClient: *clickHouseClient,
 		verifierCreds:    verifierCreds,
-		httpClient: http.Client{
-			Timeout: time.Duration(config.Timeouts.VerifierTimeout) * time.Second,
-		},
+		httpClient:       httpClient,
 		goroutineTimeout: time.Duration(config.Timeouts.GoroutineTimeout),
 		runConfig:        config.RunConfig,
 	}
+	return &runner
 }
 
 func (runner Runner) SendGetRequest(url string) (*VerificationResponse, int) {
-	response, err := runner.httpClient.Get(url)
-	if err != nil {
+	response, err := runner.httpClient.R().Get(url)
+	if response.StatusCode() == 0 {
 		fmt.Printf("Gotten error %s", err)
-		return &VerificationResponse{}, 599
-	}
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		fmt.Printf("Gotten error %s", err)
-		return &VerificationResponse{}, 599
+		return &VerificationResponse{Score: &NAN}, 599
 	}
 	var result VerificationResponse
-	json.Unmarshal(body, &result)
+	json.Unmarshal(response.Body(), &result)
 	if result.Score == nil {
 		result.Score = &NAN
 	}
-	return &result, response.StatusCode
+	return &result, response.StatusCode()
 }
 
 func (runner Runner) producer(
