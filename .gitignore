@@ -1,3 +1,4 @@
 db/data
 *.DS_Store
 *.csv
+.env
