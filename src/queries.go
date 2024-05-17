@@ -7,7 +7,7 @@ const (
 	SELECT_BATCH = `
 		with last as (
 			select duns, url, max(ts) as max_ts
-			from wv.master
+			from master
 			group by duns, url
 		),
 		oldest as (
@@ -23,7 +23,7 @@ const (
 		),
 		gdmi as (
 			select *
-			from wv.gdmi_compact
+			from gdmi_compact
 			where duns in (select duns from shuffle)
 		)
 		select
