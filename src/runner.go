@@ -66,13 +66,14 @@ func NewRunner(config RunnerConfig) *Runner {
 	return &runner
 }
 
-func (runner Runner) logReport(result VerificationResult) {
+func (runner Runner) logReport(producerNum int, result VerificationResult) {
 	switch {
 	case result.StatusCode == 599:
 		runner.logger.Errorw(
 			"Timeout was reached while waiting for a request",
 			"url", result.VerificationLink,
 			"error", "TIMEOUT REACHED",
+			"producer_num", producerNum,
 			"tag", RESPONSE_TIMEOUT_TAG,
 		)
 	case result.StatusCode != 200:
@@ -80,6 +81,7 @@ func (runner Runner) logReport(result VerificationResult) {
 			"Error response gotten from backend",
 			"url", result.VerificationLink,
 			"error", *result.VerificationResponse.Error,
+			"producer_num", producerNum,
 			"tag", ERROR_RESPONSE_TAG,
 		)
 	case result.StatusCode == 200 && result.VerificationResponse.Score == &NAN:
@@ -87,12 +89,14 @@ func (runner Runner) logReport(result VerificationResult) {
 			"Fail response gotten from backend",
 			"url", result.VerificationLink,
 			"fail", *result.VerificationResponse.DebugInfo.CrawlerDebug.FailStatus,
+			"producer_num", producerNum,
 			"tag", FAIL_RESPONSE_TAG,
 		)
 	default:
 		runner.logger.Debugw(
 			"Request was success",
 			"url", result.VerificationLink,
+			"producer_num", producerNum,
 			"tag", SUCCESS_RESPONSE_TAG,
 		)
 	}
@@ -125,19 +129,22 @@ func (runner Runner) producer(
 			}
 			link, _ := task.CreateVerifyGetRequestLink(runner.runConfig.ExtraParams)
 			response, statusCode := runner.SendGetRequest(link)
-			*results <- VerificationResult{
+			result := VerificationResult{
 				VerifyParams:         task.VerifyParams,
 				VerificationResponse: response,
 				VerificationLink:     link,
 				StatusCode:           statusCode,
 			}
+			runner.logReport(producerNum, result)
+			*results <- result
 		case <-time.After(runner.goroutineTimeout * time.Second):
 			loop = false
 			break
 		}
 	}
 	runner.logger.Debugw(
-		fmt.Sprintf("Producer %d finished his work!", producerNum),
+		"Producer finished his work!",
+		"producer_num", producerNum,
 		"tag", RUNNER_DEBUG_TAG,
 	)
 	wg.Done()
@@ -151,7 +158,6 @@ func (runner Runner) consumer(consumerNum int, results *chan VerificationResult,
 			if !ok {
 				break
 			}
-			runner.logReport(result)
 			batch = append(batch, result)
 			// TODO(sokunkov): Сome up with a condition to stop the worker
 			if len(batch) >= runner.runConfig.BatchSize {
@@ -160,6 +166,7 @@ func (runner Runner) consumer(consumerNum int, results *chan VerificationResult,
 					runner.logger.Errorw(
 						"Insertion to the ClickHouse database was unsuccessful!",
 						"error", err,
+						"consumer_num", consumerNum,
 						"tag", CLICKHOUSE_ERROR_TAG,
 					)
 					continue
@@ -167,6 +174,7 @@ func (runner Runner) consumer(consumerNum int, results *chan VerificationResult,
 				runner.logger.Debugw(
 					"Insertion to the ClickHouse database was successful!",
 					"batch_len", len(batch),
+					"consumer_num", consumerNum,
 					"tag", CLICKHOUSE_SUCCESS_TAG,
 				)
 				batch = make([]VerificationResult, 0)
@@ -180,7 +188,8 @@ func (runner Runner) consumer(consumerNum int, results *chan VerificationResult,
 		runner.clickHouseClient.AsyncInsertBatch(batch)
 	}
 	runner.logger.Debugw(
-		fmt.Sprintf("Consumer %d finished his work!", consumerNum),
+		"Consumer finished his work!",
+		"consumer_num", consumerNum,
 		"tag", RUNNER_DEBUG_TAG,
 	)
 	wg.Done()
