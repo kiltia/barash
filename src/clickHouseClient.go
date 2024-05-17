@@ -62,11 +62,8 @@ func (client ClickHouseClient) AsyncInsertBatch(
 			verifyParams.Duns,
 			verifyParams.Url,
 			verifyParams.Name,
-			verifyParams.MailAddress1,
-			verifyParams.MailAddress2,
-			verifyParams.MailCity,
-			verifyParams.MailState,
-			verifyParams.MailZip,
+			// TODO(sokunkov): Add dba
+			nil,
 			verifyParams.MailCountry,
 			verifyParams.LocAddress1,
 			verifyParams.LocAddress2,
@@ -74,10 +71,15 @@ func (client ClickHouseClient) AsyncInsertBatch(
 			verifyParams.LocState,
 			verifyParams.LocZip,
 			verifyParams.LocCountry,
+			verifyParams.MailAddress1,
+			verifyParams.MailAddress2,
+			verifyParams.MailCity,
+			verifyParams.MailState,
+			verifyParams.MailZip,
 			link,
+			statusCode,
 			componentError,
 			failStatus,
-			statusCode,
 			crawlerErrors,
 			crawlFails,
 			crawledPages,
@@ -93,7 +95,10 @@ func (client ClickHouseClient) AsyncInsertBatch(
 			matchMaskSummary.State,
 			matchMaskSummary.Country,
 			matchMaskSummary.DomainNameSimilarity,
+			response.FinalUrl,
 			score,
+			// TODO(sokunkov): Hard code. Need to add normal way to send tag(comment)
+			"cont_verification",
 		)
 		if err != nil {
 			return err
@@ -102,10 +107,10 @@ func (client ClickHouseClient) AsyncInsertBatch(
 	return nil
 }
 
-func (client ClickHouseClient) SelectNextBatch(offset int, selectBatchSize int) (*[]VerifyParams, error) {
+func (client ClickHouseClient) SelectNextBatch(days int, selectBatchSize int) (*[]VerifyParams, error) {
 	ctx := context.Background()
 	var result []VerifyParams
-	query := fmt.Sprintf(SELECT_BATCH, offset, selectBatchSize)
+	query := fmt.Sprintf(SELECT_BATCH, days, selectBatchSize)
 	if err := client.Connection.Select(ctx, &result, query); err != nil {
 		return nil, err
 	}

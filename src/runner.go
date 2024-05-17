@@ -209,10 +209,10 @@ func (runner Runner) Run() {
 		wg.Add(1)
 		go runner.consumer(i, &results, &wg)
 	}
-	offset := 0
 	for {
 		if len(tasks) == 0 {
-			verifyParamsList, err := runner.clickHouseClient.SelectNextBatch(offset, selectionBatchSize)
+			// TODO(sokunkov): Hard code
+			verifyParamsList, err := runner.clickHouseClient.SelectNextBatch(30, selectionBatchSize)
 			if err != nil {
 				runner.logger.Errorw(
 					"Select verification params from clickhouse was unsuccess!",
@@ -239,7 +239,6 @@ func (runner Runner) Run() {
 
 				tasks <- *verifyGetRequest
 			}
-			offset += selectionBatchSize
 		}
 	}
 	defer close(results)

@@ -40,6 +40,7 @@ type VerifyParams struct {
 type VerificationResponse struct {
 	Score     *float64  `json:"score"`
 	Error     *string   `json:"component_error"`
+	FinalUrl  *string   `json:"final_url"`
 	MatchMask MatchMask `json:"match_mask"`
 	DebugInfo DebugInfo `json:"debug"`
 }
