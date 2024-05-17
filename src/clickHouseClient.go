@@ -66,7 +66,7 @@ func (client ClickHouseClient) AsyncInsertBatch(
 		numSuccesses := pageStats.Successes
 		err := client.Connection.AsyncInsert(
 			ctx,
-			INSERT,
+			INSERT_BATCH,
 			false,
 			verifyParams.Duns,
 			verifyParams.Url,
@@ -114,4 +114,15 @@ func (client ClickHouseClient) AsyncInsertBatch(
 	}
 	fmt.Println("Insertion to the ClickHouse database was successful!")
 	return nil
+}
+
+func (client ClickHouseClient) SelectNextBatch(offset int, selectBatchSize int) (*[]VerifyParams, error) {
+	ctx := context.Background()
+	var result []VerifyParams
+	query := fmt.Sprintf(SELECT_BATCH, offset, selectBatchSize)
+	if err := client.Connection.Select(ctx, &result, query); err != nil {
+		return nil, err
+	}
+	fmt.Println("Batch from the ClickHouse database was received successfully!")
+	return &result, nil
 }

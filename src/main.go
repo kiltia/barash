@@ -14,9 +14,8 @@ func main() {
 	if runner == nil {
 		return
 	}
-	paramsList := loadVerifyParamsFromCSV("./big_5_sample.csv")
 	start := time.Now()
-	runner.Run(paramsList[:100])
+	runner.Run()
 	elapsed := time.Since(start)
 	fmt.Printf("Binomial took %s", elapsed)
 }

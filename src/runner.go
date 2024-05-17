@@ -64,7 +64,7 @@ func (runner Runner) producer(
 	results *chan VerificationResult,
 	wg *sync.WaitGroup,
 ) {
-	for len(*tasks) != 0 {
+	for loop := true; loop; {
 		select {
 		case task, ok := <-*tasks:
 			if !ok {
@@ -79,6 +79,7 @@ func (runner Runner) producer(
 				StatusCode:           statusCode,
 			}
 		case <-time.After(runner.goroutineTimeout * time.Second):
+			loop = false
 			break
 		}
 	}
@@ -87,12 +88,11 @@ func (runner Runner) producer(
 
 func (runner Runner) consumer(
 	results *chan VerificationResult,
-	numTasks *int,
 	wg *sync.WaitGroup,
 	bar *progressbar.ProgressBar,
 ) {
 	var batch []VerificationResult
-	for *numTasks != 0 {
+	for loop := true; loop; {
 		select {
 		case result, ok := <-*results:
 			if !ok {
@@ -104,8 +104,8 @@ func (runner Runner) consumer(
 				batch = make([]VerificationResult, 0)
 			}
 			bar.Add(1)
-			*numTasks = *numTasks - 1
 		case <-time.After(runner.goroutineTimeout * time.Second):
+			loop = false
 			break
 		}
 	}
@@ -115,29 +115,43 @@ func (runner Runner) consumer(
 	wg.Done()
 }
 
-func (runner Runner) Run(verifyParamsList []VerifyParams) {
-	tasks := make(chan VerifyGetRequest, len(verifyParamsList))
+func (runner Runner) Run() {
 	var wg sync.WaitGroup
-	for _, verifyParams := range verifyParamsList {
-		verifyGetRequest := NewVerifyGetRequest(
-			runner.verifierCreds.Host,
-			runner.verifierCreds.Port,
-			runner.verifierCreds.Method,
-			verifyParams,
-		)
-
-		tasks <- *verifyGetRequest
-	}
 	results := make(chan VerificationResult, runner.runConfig.ConsumerWorkers)
+	selectionBatchSize := runner.runConfig.BatchSize * runner.runConfig.ConsumerWorkers
+	tasks := make(chan VerifyGetRequest, selectionBatchSize)
 	for i := 0; i < runner.runConfig.ProducerWorkers; i++ {
 		wg.Add(1)
 		go runner.producer(&tasks, &results, &wg)
 	}
-	var numTasks int = len(verifyParamsList)
-	bar := progressbar.Default(int64(numTasks))
+	bar := progressbar.Default(1000)
 	for i := 0; i < runner.runConfig.ConsumerWorkers; i++ {
 		wg.Add(1)
-		go runner.consumer(&results, &numTasks, &wg, bar)
+		go runner.consumer(&results, &wg, bar)
+	}
+	offset := 0
+	for {
+		if len(tasks) == 0 {
+			verifyParamsList, err := runner.clickHouseClient.SelectNextBatch(offset, selectionBatchSize)
+			if err != nil {
+				panic(err)
+			}
+			if len(*verifyParamsList) == 0 {
+				break
+			}
+			fmt.Println(len(*verifyParamsList))
+			for _, verifyParams := range *verifyParamsList {
+				verifyGetRequest := NewVerifyGetRequest(
+					runner.verifierCreds.Host,
+					runner.verifierCreds.Port,
+					runner.verifierCreds.Method,
+					verifyParams,
+				)
+
+				tasks <- *verifyGetRequest
+			}
+			offset += selectionBatchSize
+		}
 	}
 	defer close(results)
 	defer close(tasks)

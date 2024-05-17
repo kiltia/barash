@@ -3,9 +3,6 @@ package main
 import (
 	"encoding/json"
 	"math"
-	"os"
-
-	"github.com/jszwec/csvutil"
 )
 
 var NAN = math.NaN()
@@ -21,11 +18,4 @@ func structToMap[T comparable](data T) (map[string]*string, error) {
 		return nil, err
 	}
 	return mapData, nil
-}
-
-func loadVerifyParamsFromCSV(path string) []VerifyParams {
-	content, _ := os.ReadFile(path)
-	var paramsList []VerifyParams
-	csvutil.Unmarshal(content, &paramsList)
-	return paramsList
 }
