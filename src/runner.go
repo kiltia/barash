@@ -69,29 +69,32 @@ func NewRunner(config RunnerConfig) *Runner {
 func (runner Runner) logReport(producerNum int, result VerificationResult) {
 	switch {
 	case result.StatusCode == 599:
-		runner.logger.Errorw(
+		runner.logger.Debugw(
 			"Timeout was reached while waiting for a request",
 			"url", result.VerificationLink,
 			"error", "TIMEOUT REACHED",
 			"producer_num", producerNum,
 			"tag", RESPONSE_TIMEOUT_TAG,
 		)
+		break
 	case result.StatusCode != 200:
-		runner.logger.Errorw(
+		runner.logger.Debugw(
 			"Error response gotten from backend",
 			"url", result.VerificationLink,
 			"error", *result.VerificationResponse.Error,
 			"producer_num", producerNum,
 			"tag", ERROR_RESPONSE_TAG,
 		)
+		break
 	case result.StatusCode == 200 && result.VerificationResponse.Score == &NAN:
-		runner.logger.Warnw(
+		runner.logger.Debugw(
 			"Fail response gotten from backend",
 			"url", result.VerificationLink,
 			"fail", *result.VerificationResponse.DebugInfo.CrawlerDebug.FailStatus,
 			"producer_num", producerNum,
 			"tag", FAIL_RESPONSE_TAG,
 		)
+		break
 	default:
 		runner.logger.Debugw(
 			"Request was success",
@@ -99,6 +102,7 @@ func (runner Runner) logReport(producerNum int, result VerificationResult) {
 			"producer_num", producerNum,
 			"tag", SUCCESS_RESPONSE_TAG,
 		)
+		break
 	}
 }
 
@@ -160,7 +164,7 @@ func (runner Runner) consumer(consumerNum int, results *chan VerificationResult,
 			}
 			batch = append(batch, result)
 			// TODO(sokunkov): Сome up with a condition to stop the worker
-			if len(batch) >= runner.runConfig.BatchSize {
+			if len(batch) >= 500 {
 				err := runner.clickHouseClient.AsyncInsertBatch(batch)
 				if err != nil {
 					runner.logger.Errorw(
@@ -171,7 +175,7 @@ func (runner Runner) consumer(consumerNum int, results *chan VerificationResult,
 					)
 					continue
 				}
-				runner.logger.Debugw(
+				runner.logger.Infow(
 					"Insertion to the ClickHouse database was successful!",
 					"batch_len", len(batch),
 					"consumer_num", consumerNum,
@@ -200,7 +204,7 @@ func (runner Runner) Run() {
 	var wg sync.WaitGroup
 	results := make(chan VerificationResult, runner.runConfig.ConsumerWorkers)
 	selectionBatchSize := runner.runConfig.BatchSize * runner.runConfig.ConsumerWorkers
-	tasks := make(chan VerifyGetRequest, selectionBatchSize)
+	tasks := make(chan VerifyGetRequest, 10)
 	for i := 0; i < runner.runConfig.ProducerWorkers; i++ {
 		wg.Add(1)
 		go runner.producer(i, &tasks, &results, &wg)
@@ -224,7 +228,7 @@ func (runner Runner) Run() {
 			if len(*verifyParamsList) == 0 {
 				break
 			}
-			runner.logger.Debugw(
+			runner.logger.Infow(
 				"Batch from the ClickHouse database was received successfully!",
 				"batch_len", len(*verifyParamsList),
 				"tag", CLICKHOUSE_SUCCESS_TAG,

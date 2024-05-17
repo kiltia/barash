@@ -58,13 +58,13 @@ func (client ClickHouseClient) AsyncInsertBatch(
 		err := client.Connection.AsyncInsert(
 			ctx,
 			INSERT_BATCH,
-			false,
+			true,
 			verifyParams.Duns,
+			true,
 			verifyParams.Url,
 			verifyParams.Name,
 			// TODO(sokunkov): Add dba
 			nil,
-			verifyParams.MailCountry,
 			verifyParams.LocAddress1,
 			verifyParams.LocAddress2,
 			verifyParams.LocCity,
@@ -76,7 +76,8 @@ func (client ClickHouseClient) AsyncInsertBatch(
 			verifyParams.MailCity,
 			verifyParams.MailState,
 			verifyParams.MailZip,
-			link,
+			verifyParams.MailCountry,
+			link, //verification_url
 			statusCode,
 			componentError,
 			failStatus,
