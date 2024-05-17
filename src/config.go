@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
 )
 
@@ -12,6 +13,7 @@ type RunnerConfig struct {
 	ClickHouseConfig ClickHouseConfig `yaml:"clickhouse"`
 	Timeouts         Timeouts         `yaml:"timeouts"`
 	Retries          Retries          `yaml:"retries"`
+	LoggerConfig     zap.Config       `yaml:"logger"`
 	RunConfig        RunConfig        `yaml:"run"`
 }
 

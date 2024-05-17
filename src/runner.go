@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
-	"github.com/schollz/progressbar/v3"
+	"go.uber.org/zap"
 )
 
 type Runner struct {
@@ -17,17 +17,36 @@ type Runner struct {
 	httpClient       *resty.Client
 	goroutineTimeout time.Duration
 	runConfig        RunConfig
+	logger           *zap.SugaredLogger
 }
 
 func NewRunner(config RunnerConfig) *Runner {
-	clickHouseClient, err := NewClickHouseClient(config.ClickHouseConfig)
+	logger := zap.Must(config.LoggerConfig.Build()).Sugar()
+
+	clickHouseClient, version, err := NewClickHouseClient(config.ClickHouseConfig)
 	if err != nil {
+		logger.Errorw(
+			"Connection to the ClickHouse database was unsuccessful!",
+			"error", err,
+			"tag", CLICKHOUSE_ERROR_TAG,
+		)
 		return nil
+	} else {
+		logger.Infow(
+			"Connection to the ClickHouse database was successful!",
+			"tag", CLICKHOUSE_SUCCESS_TAG,
+		)
+		logger.Infow(
+			fmt.Sprintf("%v", version),
+			"tag", CLICKHOUSE_SUCCESS_TAG,
+		)
 	}
-	var verifierCreds = config.VerifierConfig
-	httpClient := resty.NewWithClient(&http.Client{
-		Timeout: time.Duration(config.Timeouts.VerifierTimeout) * time.Second,
-	}).SetRetryCount(config.Retries.NumRetries).
+
+	httpClient := resty.NewWithClient(
+		&http.Client{
+			Timeout: time.Duration(config.Timeouts.VerifierTimeout) * time.Second,
+		},
+	).SetRetryCount(config.Retries.NumRetries).
 		SetRetryWaitTime(time.Duration(config.Retries.MinWaitTime) * time.Second).
 		SetRetryMaxWaitTime(time.Duration(config.Retries.MaxWaitTime) * time.Second).
 		AddRetryCondition(
@@ -35,20 +54,53 @@ func NewRunner(config RunnerConfig) *Runner {
 				return r.StatusCode() >= http.StatusInternalServerError
 			},
 		)
-	var runner = Runner{
+
+	runner := Runner{
 		clickHouseClient: *clickHouseClient,
-		verifierCreds:    verifierCreds,
+		verifierCreds:    config.VerifierConfig,
 		httpClient:       httpClient,
 		goroutineTimeout: time.Duration(config.Timeouts.GoroutineTimeout),
 		runConfig:        config.RunConfig,
+		logger:           logger,
 	}
 	return &runner
 }
 
+func (runner Runner) logReport(result VerificationResult) {
+	switch {
+	case result.StatusCode == 599:
+		runner.logger.Errorw(
+			"Timeout was reached while waiting for a request",
+			"url", result.VerificationLink,
+			"error", "TIMEOUT REACHED",
+			"tag", RESPONSE_TIMEOUT_TAG,
+		)
+	case result.StatusCode != 200:
+		runner.logger.Errorw(
+			"Error response gotten from backend",
+			"url", result.VerificationLink,
+			"error", *result.VerificationResponse.Error,
+			"tag", ERROR_RESPONSE_TAG,
+		)
+	case result.StatusCode == 200 && result.VerificationResponse.Score == &NAN:
+		runner.logger.Warnw(
+			"Fail response gotten from backend",
+			"url", result.VerificationLink,
+			"fail", *result.VerificationResponse.DebugInfo.CrawlerDebug.FailStatus,
+			"tag", FAIL_RESPONSE_TAG,
+		)
+	default:
+		runner.logger.Debugw(
+			"Request was success",
+			"url", result.VerificationLink,
+			"tag", SUCCESS_RESPONSE_TAG,
+		)
+	}
+}
+
 func (runner Runner) SendGetRequest(url string) (*VerificationResponse, int) {
-	response, err := runner.httpClient.R().Get(url)
+	response, _ := runner.httpClient.R().Get(url)
 	if response.StatusCode() == 0 {
-		fmt.Printf("Gotten error %s", err)
 		return &VerificationResponse{Score: &NAN}, 599
 	}
 	var result VerificationResponse
@@ -60,6 +112,7 @@ func (runner Runner) SendGetRequest(url string) (*VerificationResponse, int) {
 }
 
 func (runner Runner) producer(
+	producerNum int,
 	tasks *chan VerifyGetRequest,
 	results *chan VerificationResult,
 	wg *sync.WaitGroup,
@@ -83,14 +136,14 @@ func (runner Runner) producer(
 			break
 		}
 	}
+	runner.logger.Debugw(
+		fmt.Sprintf("Producer %d finished his work!", producerNum),
+		"tag", RUNNER_DEBUG_TAG,
+	)
 	wg.Done()
 }
 
-func (runner Runner) consumer(
-	results *chan VerificationResult,
-	wg *sync.WaitGroup,
-	bar *progressbar.ProgressBar,
-) {
+func (runner Runner) consumer(consumerNum int, results *chan VerificationResult, wg *sync.WaitGroup) {
 	var batch []VerificationResult
 	for loop := true; loop; {
 		select {
@@ -98,12 +151,26 @@ func (runner Runner) consumer(
 			if !ok {
 				break
 			}
+			runner.logReport(result)
 			batch = append(batch, result)
-			if len(batch) == runner.runConfig.BatchSize {
-				runner.clickHouseClient.AsyncInsertBatch(batch)
+			// TODO(sokunkov): Сome up with a condition to stop the worker
+			if len(batch) >= runner.runConfig.BatchSize {
+				err := runner.clickHouseClient.AsyncInsertBatch(batch)
+				if err != nil {
+					runner.logger.Errorw(
+						"Insertion to the ClickHouse database was unsuccessful!",
+						"error", err,
+						"tag", CLICKHOUSE_ERROR_TAG,
+					)
+					continue
+				}
+				runner.logger.Debugw(
+					"Insertion to the ClickHouse database was successful!",
+					"batch_len", len(batch),
+					"tag", CLICKHOUSE_SUCCESS_TAG,
+				)
 				batch = make([]VerificationResult, 0)
 			}
-			bar.Add(1)
 		case <-time.After(runner.goroutineTimeout * time.Second):
 			loop = false
 			break
@@ -112,34 +179,47 @@ func (runner Runner) consumer(
 	if len(batch) != 0 {
 		runner.clickHouseClient.AsyncInsertBatch(batch)
 	}
+	runner.logger.Debugw(
+		fmt.Sprintf("Consumer %d finished his work!", consumerNum),
+		"tag", RUNNER_DEBUG_TAG,
+	)
 	wg.Done()
 }
 
 func (runner Runner) Run() {
+	start := time.Now()
 	var wg sync.WaitGroup
 	results := make(chan VerificationResult, runner.runConfig.ConsumerWorkers)
 	selectionBatchSize := runner.runConfig.BatchSize * runner.runConfig.ConsumerWorkers
 	tasks := make(chan VerifyGetRequest, selectionBatchSize)
 	for i := 0; i < runner.runConfig.ProducerWorkers; i++ {
 		wg.Add(1)
-		go runner.producer(&tasks, &results, &wg)
+		go runner.producer(i, &tasks, &results, &wg)
 	}
-	bar := progressbar.Default(1000)
 	for i := 0; i < runner.runConfig.ConsumerWorkers; i++ {
 		wg.Add(1)
-		go runner.consumer(&results, &wg, bar)
+		go runner.consumer(i, &results, &wg)
 	}
 	offset := 0
 	for {
 		if len(tasks) == 0 {
 			verifyParamsList, err := runner.clickHouseClient.SelectNextBatch(offset, selectionBatchSize)
 			if err != nil {
-				panic(err)
+				runner.logger.Errorw(
+					"Select verification params from clickhouse was unsuccess!",
+					"error", err,
+					"tag", CLICKHOUSE_ERROR_TAG,
+				)
+				break
 			}
 			if len(*verifyParamsList) == 0 {
 				break
 			}
-			fmt.Println(len(*verifyParamsList))
+			runner.logger.Debugw(
+				"Batch from the ClickHouse database was received successfully!",
+				"batch_len", len(*verifyParamsList),
+				"tag", CLICKHOUSE_SUCCESS_TAG,
+			)
 			for _, verifyParams := range *verifyParamsList {
 				verifyGetRequest := NewVerifyGetRequest(
 					runner.verifierCreds.Host,
@@ -156,5 +236,9 @@ func (runner Runner) Run() {
 	defer close(results)
 	defer close(tasks)
 	wg.Wait()
-	fmt.Println("Finished!")
+	runner.logger.Debugw(
+		"Run finished!",
+		"tag", RUNNER_DEBUG_TAG,
+		"run_time", time.Since(start),
+	)
 }

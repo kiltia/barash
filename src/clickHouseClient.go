@@ -6,13 +6,14 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
+	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 )
 
 type ClickHouseClient struct {
 	Connection driver.Conn
 }
 
-func NewClickHouseClient(config ClickHouseConfig) (*ClickHouseClient, error) {
+func NewClickHouseClient(config ClickHouseConfig) (*ClickHouseClient, *proto.ServerHandshake, error) {
 	conn, err := clickhouse.Open(&clickhouse.Options{
 		Addr: []string{fmt.Sprintf("%s:%s", config.Host, config.Port)},
 		Auth: clickhouse.Auth{
@@ -22,23 +23,13 @@ func NewClickHouseClient(config ClickHouseConfig) (*ClickHouseClient, error) {
 		},
 	})
 	if err != nil {
-		fmt.Printf(
-			"Connection to the ClickHouse database was unsuccessful! Gotten error: %s",
-			err,
-		)
-		return nil, err
+		return nil, nil, err
 	}
-	v, err := conn.ServerVersion()
+	version, err := conn.ServerVersion()
 	if err != nil {
-		fmt.Printf(
-			"Connection to the ClickHouse database was unsuccessful! Gotten error: %s",
-			err,
-		)
-		return nil, err
+		return nil, nil, err
 	}
-	fmt.Println("Connection to the ClickHouse database was successful!")
-	fmt.Println(v)
-	return &ClickHouseClient{Connection: conn}, nil
+	return &ClickHouseClient{Connection: conn}, version, err
 }
 
 func (client ClickHouseClient) AsyncInsertBatch(
@@ -105,14 +96,9 @@ func (client ClickHouseClient) AsyncInsertBatch(
 			score,
 		)
 		if err != nil {
-			fmt.Printf(
-				"Insertion to the ClickHouse database was unsuccessful! Gotten error: %s",
-				err,
-			)
 			return err
 		}
 	}
-	fmt.Println("Insertion to the ClickHouse database was successful!")
 	return nil
 }
 
@@ -123,6 +109,5 @@ func (client ClickHouseClient) SelectNextBatch(offset int, selectBatchSize int) 
 	if err := client.Connection.Select(ctx, &result, query); err != nil {
 		return nil, err
 	}
-	fmt.Println("Batch from the ClickHouse database was received successfully!")
 	return &result, nil
 }
