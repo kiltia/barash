@@ -2,37 +2,33 @@ package main
 
 const (
 	INSERT_BATCH = `
-		INSERT INTO master VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,  now())
+		INSERT INTO master VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,  now())
 	`
 	SELECT_BATCH = `
-		with last as (
-		    select duns, url, max(ts) as max_ts
-		    from wv.master
-		    where is_duns_active
-		    group by duns, url
-		),
-		oldest as (
-		    select duns, url, max_ts
-		    from last
-		    where max_ts > (NOW() - toIntervalDay(%d))
-		    order by max_ts
-		    limit %d
-		),
-		shuffle as (
-		    select * from oldest
-		    order by cityHash64(duns, url)
-		),
-		gdmi as (
-		    select *
-		    from wv.gdmi_compact
-		    where duns in (select duns from shuffle)
-		)
-		select
-		    duns, url, name,
-		    loc_address1, loc_address2, loc_city, loc_state, loc_zip, loc_country,
-		    mail_address1, mail_address2, mail_city, mail_state, mail_zip, mail_country
-		from shuffle
-		left join gdmi
-		on gdmi.duns = shuffle.duns;
+        with last as (
+            select duns, url, max(ts) as max_ts
+            from wv.master
+            where is_active = True
+            group by duns, url
+        ),
+        oldest as (
+            select duns, url, max_ts
+            from last
+            where max_ts > (NOW() - toIntervalDay(%d))
+            limit %d
+        ),
+        gdmi as (
+            select *
+            from wv.gdmi_compact
+            where duns in (select duns from oldest)
+        )
+        select
+            duns, url, gdmi.name,
+            gdmi.loc_address1, gdmi.loc_address2, gdmi.loc_city, gdmi.loc_state, gdmi.loc_zip, gdmi.loc_country,
+            gdmi.mail_address1, gdmi.mail_address2, gdmi.mail_city, gdmi.mail_state, gdmi.mail_zip, mail_country
+        from oldest
+        inner join gdmi
+        on oldest.duns = gdmi.duns
+        order by cityHash64(duns, url);
 	`
 )

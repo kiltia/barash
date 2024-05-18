@@ -98,7 +98,7 @@ func (verifyGetRequest VerifyGetRequest) CreateVerifyGetRequestLink(extraParams 
 		return "", fmt.Errorf("Unable to create verify link. Reason: %v", err)
 	}
 	for field, value := range paramsMap {
-		if value != nil {
+		if value != nil && *value != "" {
 			params.Add(field, *value)
 		}
 	}

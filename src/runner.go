@@ -78,19 +78,34 @@ func (runner Runner) logReport(producerNum int, result VerificationResult) {
 		)
 		break
 	case result.StatusCode != 200:
+		errorStatus := result.VerificationResponse.Error
+		var errorStatusValue string
+		if errorStatus == nil {
+			errorStatusValue = "Unexpected error"
+		} else {
+			errorStatusValue = *errorStatus
+		}
+
 		runner.logger.Debugw(
 			"Error response gotten from backend",
 			"url", result.VerificationLink,
-			"error", *result.VerificationResponse.Error,
+			"error", errorStatusValue,
 			"producer_num", producerNum,
 			"tag", ERROR_RESPONSE_TAG,
 		)
 		break
 	case result.StatusCode == 200 && result.VerificationResponse.Score == &NAN:
+		failStatus := result.VerificationResponse.DebugInfo.CrawlerDebug.FailStatus
+		var failStatusValue string
+		if failStatus == nil {
+			failStatusValue = "Unexpected fail"
+		} else {
+			failStatusValue = *failStatus
+		}
 		runner.logger.Debugw(
 			"Fail response gotten from backend",
 			"url", result.VerificationLink,
-			"fail", *result.VerificationResponse.DebugInfo.CrawlerDebug.FailStatus,
+			"fail", failStatusValue,
 			"producer_num", producerNum,
 			"tag", FAIL_RESPONSE_TAG,
 		)
@@ -204,7 +219,7 @@ func (runner Runner) Run() {
 	var wg sync.WaitGroup
 	results := make(chan VerificationResult, runner.runConfig.ConsumerWorkers)
 	selectionBatchSize := runner.runConfig.BatchSize * runner.runConfig.ConsumerWorkers
-	tasks := make(chan VerifyGetRequest, 10)
+	tasks := make(chan VerifyGetRequest, selectionBatchSize)
 	for i := 0; i < runner.runConfig.ProducerWorkers; i++ {
 		wg.Add(1)
 		go runner.producer(i, &tasks, &results, &wg)
