@@ -217,8 +217,8 @@ func (runner Runner) consumer(consumerNum int, results *chan VerificationResult,
 func (runner Runner) Run() {
 	start := time.Now()
 	var wg sync.WaitGroup
-	results := make(chan VerificationResult, runner.runConfig.ConsumerWorkers)
 	selectionBatchSize := runner.runConfig.BatchSize * runner.runConfig.ConsumerWorkers
+	results := make(chan VerificationResult, selectionBatchSize)
 	tasks := make(chan VerifyGetRequest, selectionBatchSize)
 	for i := 0; i < runner.runConfig.ProducerWorkers; i++ {
 		wg.Add(1)

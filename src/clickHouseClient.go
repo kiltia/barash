@@ -58,7 +58,7 @@ func (client ClickHouseClient) AsyncInsertBatch(
 		err := client.Connection.AsyncInsert(
 			ctx,
 			INSERT_BATCH,
-			true,
+			false,
 			verifyParams.Duns,
 			true,
 			verifyParams.Url,
