@@ -14,7 +14,7 @@ const (
             batch as (
                 select duns, url, max_ts
                 from last
-                where max_ts > (NOW() - toIntervalDay(%d))
+                where max_ts < (NOW() - toIntervalDay(%d))
                 limit %d
             ),
             final as (
