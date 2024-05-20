@@ -76,7 +76,6 @@ func (runner Runner) logReport(producerNum int, result VerificationResult) {
 			"producer_num", producerNum,
 			"tag", RESPONSE_TIMEOUT_TAG,
 		)
-		break
 	case result.StatusCode != 200:
 		errorStatus := result.VerificationResponse.Error
 		var errorStatusValue string
@@ -93,7 +92,6 @@ func (runner Runner) logReport(producerNum int, result VerificationResult) {
 			"producer_num", producerNum,
 			"tag", ERROR_RESPONSE_TAG,
 		)
-		break
 	case result.StatusCode == 200 && result.VerificationResponse.Score == &NAN:
 		failStatus := result.VerificationResponse.DebugInfo.CrawlerDebug.FailStatus
 		var failStatusValue string
@@ -109,7 +107,6 @@ func (runner Runner) logReport(producerNum int, result VerificationResult) {
 			"producer_num", producerNum,
 			"tag", FAIL_RESPONSE_TAG,
 		)
-		break
 	default:
 		runner.logger.Debugw(
 			"Request was success",
@@ -117,7 +114,6 @@ func (runner Runner) logReport(producerNum int, result VerificationResult) {
 			"producer_num", producerNum,
 			"tag", SUCCESS_RESPONSE_TAG,
 		)
-		break
 	}
 }
 
@@ -158,7 +154,6 @@ func (runner Runner) producer(
 			*results <- result
 		case <-time.After(runner.goroutineTimeout * time.Second):
 			loop = false
-			break
 		}
 	}
 	runner.logger.Debugw(
@@ -179,8 +174,8 @@ func (runner Runner) consumer(consumerNum int, results *chan VerificationResult,
 			}
 			batch = append(batch, result)
 			// TODO(sokunkov): Come up with a condition to stop the worker
-			if len(batch) >= 500 {
-				err := runner.clickHouseClient.AsyncInsertBatch(batch)
+			if len(batch) >= runner.runConfig.InsertionBatchSize {
+				err := runner.clickHouseClient.AsyncInsertBatch(batch, runner.runConfig.Tag)
 				if err != nil {
 					runner.logger.Errorw(
 						"Insertion to the ClickHouse database was unsuccessful!",
@@ -200,11 +195,10 @@ func (runner Runner) consumer(consumerNum int, results *chan VerificationResult,
 			}
 		case <-time.After(runner.goroutineTimeout * time.Second):
 			loop = false
-			break
 		}
 	}
 	if len(batch) != 0 {
-		runner.clickHouseClient.AsyncInsertBatch(batch)
+		runner.clickHouseClient.AsyncInsertBatch(batch, runner.runConfig.Tag)
 	}
 	runner.logger.Debugw(
 		"Consumer finished his work!",
@@ -217,9 +211,8 @@ func (runner Runner) consumer(consumerNum int, results *chan VerificationResult,
 func (runner Runner) Run() {
 	start := time.Now()
 	var wg sync.WaitGroup
-	selectionBatchSize := runner.runConfig.BatchSize * runner.runConfig.ConsumerWorkers
-	results := make(chan VerificationResult, selectionBatchSize)
-	tasks := make(chan VerifyGetRequest, selectionBatchSize)
+	results := make(chan VerificationResult, runner.runConfig.SelectionBatchSize)
+	tasks := make(chan VerifyGetRequest, runner.runConfig.SelectionBatchSize)
 	for i := 0; i < runner.runConfig.ProducerWorkers; i++ {
 		wg.Add(1)
 		go runner.producer(i, &tasks, &results, &wg)
@@ -230,8 +223,10 @@ func (runner Runner) Run() {
 	}
 	for {
 		if len(tasks) == 0 {
-			// TODO(sokunkov): Hard code
-			verifyParamsList, err := runner.clickHouseClient.SelectNextBatch(30, selectionBatchSize)
+			verifyParamsList, err := runner.clickHouseClient.SelectNextBatch(
+				runner.runConfig.DayOffset,
+				runner.runConfig.SelectionBatchSize,
+			)
 			if err != nil {
 				runner.logger.Errorw(
 					"Select verification params from clickhouse was unsuccess!",

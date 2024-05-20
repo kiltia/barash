@@ -34,11 +34,12 @@ func NewClickHouseClient(config ClickHouseConfig) (*ClickHouseClient, *proto.Ser
 
 func (client ClickHouseClient) AsyncInsertBatch(
 	batch []VerificationResult,
+	tag string,
 ) error {
 	ctx := context.Background()
 	for i := 0; i < len(batch); i++ {
 		verifyParams := batch[i].VerifyParams
-		link := batch[i].VerificationLink
+		verificationUrl := batch[i].VerificationLink
 		statusCode := batch[i].StatusCode
 		response := batch[i].VerificationResponse
 		score := response.Score
@@ -62,7 +63,7 @@ func (client ClickHouseClient) AsyncInsertBatch(
 			verifyParams.Duns,
 			true,
 			verifyParams.Url,
-			link, //verification_url
+			verificationUrl,
 			statusCode,
 			componentError,
 			failStatus,
@@ -83,8 +84,7 @@ func (client ClickHouseClient) AsyncInsertBatch(
 			matchMaskSummary.DomainNameSimilarity,
 			response.FinalUrl,
 			score,
-			// TODO(sokunkov): Hard code. Need to add normal way to send tag(comment)
-			"cont_verification",
+			tag,
 		)
 		if err != nil {
 			return err

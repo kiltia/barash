@@ -43,10 +43,13 @@ type Retries struct {
 }
 
 type RunConfig struct {
-	ProducerWorkers int               `yaml:"producer_workers"`
-	ConsumerWorkers int               `yaml:"consumer_workers"`
-	BatchSize       int               `yaml:"batch_size"`
-	ExtraParams     map[string]string `yaml:"extra_params"`
+	ProducerWorkers    int               `yaml:"producer_workers"`
+	ConsumerWorkers    int               `yaml:"consumer_workers"`
+	SelectionBatchSize int               `yaml:"selection_batch_size"`
+	InsertionBatchSize int               `yaml:"insertion_batch_size"`
+	DayOffset          int               `yaml:"day_offset"`
+	Tag                string            `yaml:"string"`
+	ExtraParams        map[string]string `yaml:"extra_params"`
 }
 
 func NewRunnerConfig() *RunnerConfig {

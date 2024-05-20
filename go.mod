@@ -13,6 +13,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/term v0.20.0 // indirect
+	winterdrache.de/goformat v0.0.0-20180512004123-256ef38c4271 // indirect
 )
 
 require (
