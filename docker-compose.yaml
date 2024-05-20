@@ -3,7 +3,7 @@ services:
     clickhouse:
      image: clickhouse/clickhouse-server
      environment:
-      - CLICKHOUSE_DB=${CLICKHOUSE_DB:-orb}
+      - CLICKHOUSE_DB=${CLICKHOUSE_DB:-wv}
       - CLICKHOUSE_USER=${CLICKHOUSE_USER:-user}
       - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-12345}
      ports:
@@ -12,6 +12,8 @@ services:
      volumes:
      - ./db/data:/var/lib/clickhouse
      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+     - ./db/master.csv:/var/lib/clickhouse/master.csv
+     - ./db/gdmi_compact.csv:/var/lib/clickhouse/gdmi_compact.csv
      healthcheck:
       test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
       interval: 5s

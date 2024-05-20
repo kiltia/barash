@@ -178,7 +178,7 @@ func (runner Runner) consumer(consumerNum int, results *chan VerificationResult,
 				break
 			}
 			batch = append(batch, result)
-			// TODO(sokunkov): Сome up with a condition to stop the worker
+			// TODO(sokunkov): Come up with a condition to stop the worker
 			if len(batch) >= 500 {
 				err := runner.clickHouseClient.AsyncInsertBatch(batch)
 				if err != nil {
