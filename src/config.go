@@ -12,7 +12,8 @@ type RunnerConfig struct {
 	VerifierConfig   VerifierConfig   `yaml:"verifier"`
 	ClickHouseConfig ClickHouseConfig `yaml:"clickhouse"`
 	Timeouts         Timeouts         `yaml:"timeouts"`
-	Retries          Retries          `yaml:"retries"`
+	HttpRetries      Retries          `yaml:"http_retries"`
+	SelectRetries    Retries          `yaml:"select_retries"`
 	LoggerConfig     zap.Config       `yaml:"logger"`
 	RunConfig        RunConfig        `yaml:"run"`
 }
@@ -48,6 +49,7 @@ type RunConfig struct {
 	SelectionBatchSize int               `yaml:"selection_batch_size"`
 	InsertionBatchSize int               `yaml:"insertion_batch_size"`
 	DayOffset          int               `yaml:"day_offset"`
+	SleepTime          int               `yaml:"sleep_time"`
 	Tag                string            `yaml:"string"`
 	ExtraParams        map[string]string `yaml:"extra_params"`
 }

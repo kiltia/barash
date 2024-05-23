@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/avast/retry-go/v4"
 	"github.com/go-resty/resty/v2"
 	"go.uber.org/zap"
 )
@@ -19,6 +20,7 @@ type Runner struct {
 	retries          Retries
 	goroutineTimeout time.Duration
 	runConfig        RunConfig
+	selectRetries    Retries
 	logger           *zap.SugaredLogger
 }
 
@@ -44,10 +46,10 @@ func NewRunner(config RunnerConfig) *Runner {
 		)
 	}
 
-	httpClient := resty.New().SetRetryCount(config.Retries.NumRetries).
+	httpClient := resty.New().SetRetryCount(config.HttpRetries.NumRetries).
 		SetTimeout(time.Duration(time.Duration(config.Timeouts.VerifierTimeout) * time.Second)).
-		SetRetryWaitTime(time.Duration(config.Retries.MinWaitTime) * time.Second).
-		SetRetryMaxWaitTime(time.Duration(config.Retries.MaxWaitTime) * time.Second).
+		SetRetryWaitTime(time.Duration(config.HttpRetries.MinWaitTime) * time.Second).
+		SetRetryMaxWaitTime(time.Duration(config.HttpRetries.MaxWaitTime) * time.Second).
 		AddRetryCondition(
 			func(r *resty.Response, err error) bool {
 				if r.StatusCode() >= http.StatusInternalServerError {
@@ -76,6 +78,7 @@ func NewRunner(config RunnerConfig) *Runner {
 		httpClient:       httpClient,
 		goroutineTimeout: time.Duration(config.Timeouts.GoroutineTimeout),
 		runConfig:        config.RunConfig,
+		selectRetries:    config.SelectRetries,
 		logger:           logger,
 	}
 	return &runner
@@ -209,11 +212,20 @@ func (runner Runner) Run() {
 		wg.Add(1)
 		go runner.consumer(i, &results, &wg)
 	}
+	timeOnAwait := 0
 	for {
 		if len(tasks) == 0 {
-			verifyParamsList, err := runner.clickHouseClient.SelectNextBatch(
-				runner.runConfig.DayOffset,
-				runner.runConfig.SelectionBatchSize,
+			var verifyParamsList *[]VerifyParams
+			err := retry.Do(
+				func() error {
+					selectedList, err := runner.clickHouseClient.SelectNextBatch(
+						runner.runConfig.DayOffset,
+						runner.runConfig.SelectionBatchSize,
+					)
+					verifyParamsList = selectedList
+					return err
+				},
+				retry.Attempts(uint(runner.selectRetries.NumRetries)+1),
 			)
 			if err != nil {
 				runner.logger.Errorw(
@@ -224,8 +236,30 @@ func (runner Runner) Run() {
 				break
 			}
 			if len(*verifyParamsList) == 0 {
-				break
+				if timeOnAwait < int(runner.goroutineTimeout) {
+					runner.logger.Infow(
+						"Processing of the stream for the specified time is completed! Main thread enter on standby mode.",
+						"time", runner.runConfig.SleepTime,
+						"tag", RUNNER_STANDBY_TAG,
+					)
+					time.Sleep(time.Duration(runner.runConfig.SleepTime) * time.Second)
+					runner.logger.Infow(
+						"The main thread has exited sleep mode.",
+						"time", runner.runConfig.SleepTime,
+						"tag", RUNNER_STANDBY_TAG,
+					)
+					timeOnAwait += runner.runConfig.SleepTime
+					continue
+				} else {
+					runner.logger.Warn(
+						"While waiting, the goroutines completed their work.",
+						"time", timeOnAwait,
+						"tag", RUNNER_STANDBY_TAG,
+					)
+					break
+				}
 			}
+			timeOnAwait = 0
 			runner.logger.Infow(
 				"Batch from the ClickHouse database was received successfully!",
 				"batch_len", len(*verifyParamsList),

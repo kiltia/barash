@@ -8,5 +8,6 @@ const (
 	ERROR_RESPONSE_TAG   = "error_response"
 	FAIL_RESPONSE_TAG    = "fail_response"
 	SUCCESS_RESPONSE_TAG = "success_response"
-	RUNNER_DEBUG_TAG     = "runner_debug_tag"
+	RUNNER_DEBUG_TAG     = "runner_debug"
+	RUNNER_STANDBY_TAG   = "runner_standby"
 )
