@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -42,19 +43,32 @@ func NewRunner(config RunnerConfig) *Runner {
 		)
 	}
 
-	httpClient := resty.NewWithClient(
-		&http.Client{
-			Timeout: time.Duration(config.Timeouts.VerifierTimeout) * time.Second,
-		},
-	).SetRetryCount(config.Retries.NumRetries).
+	httpClient := resty.New().SetRetryCount(config.Retries.NumRetries).
+		SetTimeout(time.Duration(time.Duration(config.Timeouts.VerifierTimeout) * time.Second)).
 		SetRetryWaitTime(time.Duration(config.Retries.MinWaitTime) * time.Second).
 		SetRetryMaxWaitTime(time.Duration(config.Retries.MaxWaitTime) * time.Second).
 		AddRetryCondition(
 			func(r *resty.Response, err error) bool {
-				return r.StatusCode() >= http.StatusInternalServerError
+				if r.StatusCode() >= http.StatusInternalServerError {
+					logger.Debugw(
+						"Retrying request",
+						"request_status_code", r.StatusCode(),
+						"verify_url", r.Request.URL,
+						"tag", ERROR_RESPONSE_TAG,
+					)
+					return true
+				}
+				return false
 			},
-		)
-
+		).AddRetryHook(
+		func(r *resty.Response, err error) {
+			ctx := r.Request.Context()
+			responses := ctx.Value("unsuccessResponses").([]*resty.Response)
+			responses = append(responses, r)
+			newCtx := context.WithValue(ctx, "unsuccessResponses", responses)
+			r.Request.SetContext(newCtx)
+		},
+	)
 	runner := Runner{
 		clickHouseClient: *clickHouseClient,
 		verifierCreds:    config.VerifierConfig,
@@ -66,68 +80,47 @@ func NewRunner(config RunnerConfig) *Runner {
 	return &runner
 }
 
-func (runner Runner) logReport(producerNum int, result VerificationResult) {
-	switch {
-	case result.StatusCode == 599:
-		runner.logger.Debugw(
-			"Timeout was reached while waiting for a request",
-			"url", result.VerificationLink,
-			"error", "TIMEOUT REACHED",
-			"producer_num", producerNum,
-			"tag", RESPONSE_TIMEOUT_TAG,
-		)
-	case result.StatusCode != 200:
-		errorStatus := result.VerificationResponse.Error
-		var errorStatusValue string
-		if errorStatus == nil {
-			errorStatusValue = "Unexpected error"
+func (runner Runner) SendGetRequest(verifyGetRequest VerifyGetRequest) []VerificationResult {
+	url, _ := verifyGetRequest.CreateVerifyGetRequestLink(runner.runConfig.ExtraParams)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "unsuccessResponses", make([]*resty.Response, 0))
+	lastResponse, _ := runner.httpClient.R().SetContext(ctx).Get(url)
+	unsuccessResponses := lastResponse.Request.Context().Value("unsuccessResponses").([]*resty.Response)
+	responses := unsuccessResponses
+	if lastResponse.IsSuccess() {
+		responses = append(responses, lastResponse)
+	}
+	verificationResultList := make([]VerificationResult, 0)
+	for _, response := range responses {
+		var result VerificationResponse
+		statusCode := response.StatusCode()
+		if statusCode == 0 {
+			result = VerificationResponse{Score: &NAN}
+			statusCode = 599
+			runner.logger.Debugw(
+				"Timeout was reached while waiting for a request",
+				"url", url,
+				"error", "TIMEOUT REACHED",
+				"tag", RESPONSE_TIMEOUT_TAG,
+			)
 		} else {
-			errorStatusValue = *errorStatus
+			json.Unmarshal(response.Body(), &result)
+			if result.Score == nil {
+				result.Score = &NAN
+			}
 		}
-
-		runner.logger.Debugw(
-			"Error response gotten from backend",
-			"url", result.VerificationLink,
-			"error", errorStatusValue,
-			"producer_num", producerNum,
-			"tag", ERROR_RESPONSE_TAG,
-		)
-	case result.StatusCode == 200 && result.VerificationResponse.Score == &NAN:
-		failStatus := result.VerificationResponse.DebugInfo.CrawlerDebug.FailStatus
-		var failStatusValue string
-		if failStatus == nil {
-			failStatusValue = "Unexpected fail"
-		} else {
-			failStatusValue = *failStatus
-		}
-		runner.logger.Debugw(
-			"Fail response gotten from backend",
-			"url", result.VerificationLink,
-			"fail", failStatusValue,
-			"producer_num", producerNum,
-			"tag", FAIL_RESPONSE_TAG,
-		)
-	default:
-		runner.logger.Debugw(
-			"Request was success",
-			"url", result.VerificationLink,
-			"producer_num", producerNum,
-			"tag", SUCCESS_RESPONSE_TAG,
+		verificationResultList = append(
+			verificationResultList,
+			VerificationResult{
+				VerifyParams:         verifyGetRequest.VerifyParams,
+				VerificationResponse: &result,
+				VerificationLink:     url,
+				StatusCode:           statusCode,
+			},
 		)
 	}
-}
-
-func (runner Runner) SendGetRequest(url string) (*VerificationResponse, int) {
-	response, _ := runner.httpClient.R().Get(url)
-	if response.StatusCode() == 0 {
-		return &VerificationResponse{Score: &NAN}, 599
-	}
-	var result VerificationResponse
-	json.Unmarshal(response.Body(), &result)
-	if result.Score == nil {
-		result.Score = &NAN
-	}
-	return &result, response.StatusCode()
+	//fmt.Println(len(verificationResultList))
+	return verificationResultList
 }
 
 func (runner Runner) producer(
@@ -142,16 +135,10 @@ func (runner Runner) producer(
 			if !ok {
 				break
 			}
-			link, _ := task.CreateVerifyGetRequestLink(runner.runConfig.ExtraParams)
-			response, statusCode := runner.SendGetRequest(link)
-			result := VerificationResult{
-				VerifyParams:         task.VerifyParams,
-				VerificationResponse: response,
-				VerificationLink:     link,
-				StatusCode:           statusCode,
+			verificationResultList := runner.SendGetRequest(task)
+			for _, verificationResult := range verificationResultList {
+				*results <- verificationResult
 			}
-			runner.logReport(producerNum, result)
-			*results <- result
 		case <-time.After(runner.goroutineTimeout * time.Second):
 			loop = false
 		}

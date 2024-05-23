@@ -1,10 +1,5 @@
 package main
 
-import (
-	"fmt"
-	"time"
-)
-
 func main() {
 	config := NewRunnerConfig()
 	if config == nil {
@@ -14,8 +9,5 @@ func main() {
 	if runner == nil {
 		return
 	}
-	start := time.Now()
 	runner.Run()
-	elapsed := time.Since(start)
-	fmt.Printf("Binomial took %s", elapsed)
 }
