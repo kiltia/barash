@@ -16,6 +16,7 @@ type Runner struct {
 	clickHouseClient ClickHouseClient
 	verifierCreds    VerifierConfig
 	httpClient       *resty.Client
+	retries          Retries
 	goroutineTimeout time.Duration
 	runConfig        RunConfig
 	logger           *zap.SugaredLogger
@@ -87,7 +88,7 @@ func (runner Runner) SendGetRequest(verifyGetRequest VerifyGetRequest) []Verific
 	lastResponse, _ := runner.httpClient.R().SetContext(ctx).Get(url)
 	unsuccessResponses := lastResponse.Request.Context().Value("unsuccessResponses").([]*resty.Response)
 	responses := unsuccessResponses
-	if lastResponse.IsSuccess() {
+	if lastResponse.IsSuccess() || runner.retries.NumRetries == 0 {
 		responses = append(responses, lastResponse)
 	}
 	verificationResultList := make([]VerificationResult, 0)
