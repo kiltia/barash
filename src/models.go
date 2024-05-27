@@ -83,6 +83,7 @@ type VerificationResult struct {
 	StatusCode           int
 	VerifyParams         VerifyParams
 	VerificationLink     string
+	AttemptsNumber       int
 	VerificationResponse *VerificationResponse
 }
 

@@ -42,6 +42,7 @@ func (client ClickHouseClient) AsyncInsertBatch(
 		verificationUrl := batch[i].VerificationLink
 		statusCode := batch[i].StatusCode
 		response := batch[i].VerificationResponse
+		attemptsNum := batch[i].AttemptsNumber
 		score := response.Score
 		componentError := response.Error
 		matchMask := response.MatchMask
@@ -67,6 +68,7 @@ func (client ClickHouseClient) AsyncInsertBatch(
 			statusCode,
 			componentError,
 			failStatus,
+			attemptsNum,
 			crawlerErrors,
 			crawlFails,
 			crawledPages,

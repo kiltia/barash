@@ -17,7 +17,7 @@ type Runner struct {
 	clickHouseClient ClickHouseClient
 	verifierCreds    VerifierConfig
 	httpClient       *resty.Client
-	retries          Retries
+	httpRetries      Retries
 	goroutineTimeout time.Duration
 	runConfig        RunConfig
 	selectRetries    Retries
@@ -78,6 +78,7 @@ func NewRunner(config RunnerConfig) *Runner {
 		httpClient:       httpClient,
 		goroutineTimeout: time.Duration(config.Timeouts.GoroutineTimeout),
 		runConfig:        config.RunConfig,
+		httpRetries:      config.HttpRetries,
 		selectRetries:    config.SelectRetries,
 		logger:           logger,
 	}
@@ -91,11 +92,11 @@ func (runner Runner) SendGetRequest(verifyGetRequest VerifyGetRequest) []Verific
 	lastResponse, _ := runner.httpClient.R().SetContext(ctx).Get(url)
 	unsuccessResponses := lastResponse.Request.Context().Value("unsuccessResponses").([]*resty.Response)
 	responses := unsuccessResponses
-	if lastResponse.IsSuccess() || runner.retries.NumRetries == 0 || lastResponse.StatusCode() == 0 {
+	if lastResponse.IsSuccess() || runner.httpRetries.NumRetries == 0 || lastResponse.StatusCode() == 0 {
 		responses = append(responses, lastResponse)
 	}
 	verificationResultList := make([]VerificationResult, 0)
-	for _, response := range responses {
+	for i, response := range responses {
 		var result VerificationResponse
 		statusCode := response.StatusCode()
 		if statusCode == 0 {
@@ -116,6 +117,7 @@ func (runner Runner) SendGetRequest(verifyGetRequest VerifyGetRequest) []Verific
 		verificationResultList = append(
 			verificationResultList,
 			VerificationResult{
+				AttemptsNumber:       i + 1,
 				VerifyParams:         verifyGetRequest.VerifyParams,
 				VerificationResponse: &result,
 				VerificationLink:     url,
@@ -123,7 +125,6 @@ func (runner Runner) SendGetRequest(verifyGetRequest VerifyGetRequest) []Verific
 			},
 		)
 	}
-	//fmt.Println(len(verificationResultList))
 	return verificationResultList
 }
 
