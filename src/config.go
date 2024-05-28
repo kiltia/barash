@@ -9,13 +9,19 @@ import (
 )
 
 type RunnerConfig struct {
-	VerifierConfig   VerifierConfig   `yaml:"verifier"`
-	ClickHouseConfig ClickHouseConfig `yaml:"clickhouse"`
-	Timeouts         Timeouts         `yaml:"timeouts"`
-	HttpRetries      Retries          `yaml:"http_retries"`
-	SelectRetries    Retries          `yaml:"select_retries"`
-	LoggerConfig     zap.Config       `yaml:"logger"`
-	RunConfig        RunConfig        `yaml:"run"`
+	VerifierConfig       VerifierConfig       `yaml:"verifier"`
+	ClickHouseConfig     ClickHouseConfig     `yaml:"clickhouse"`
+	Timeouts             Timeouts             `yaml:"timeouts"`
+	HttpRetries          Retries              `yaml:"http_retries"`
+	SelectRetries        Retries              `yaml:"select_retries"`
+	LoggerConfig         zap.Config           `yaml:"logger"`
+	RunConfig            RunConfig            `yaml:"run"`
+	QualityControlConfig QualityControlConfig `yaml:"quality_control_config"`
+}
+
+type QualityControlConfig struct {
+	Period    int     `yaml:"period"`
+	Threshold float64 `yaml:"threshold"`
 }
 
 type VerifierConfig struct {
@@ -44,14 +50,15 @@ type Retries struct {
 }
 
 type RunConfig struct {
-	ProducerWorkers    int               `yaml:"producer_workers"`
-	ConsumerWorkers    int               `yaml:"consumer_workers"`
-	SelectionBatchSize int               `yaml:"selection_batch_size"`
-	InsertionBatchSize int               `yaml:"insertion_batch_size"`
-	DayOffset          int               `yaml:"day_offset"`
-	SleepTime          int               `yaml:"sleep_time"`
-	Tag                string            `yaml:"string"`
-	ExtraParams        map[string]string `yaml:"extra_params"`
+	ProducerWorkers       int               `yaml:"producer_workers"`
+	ConsumerWorkers       int               `yaml:"consumer_workers"`
+	SelectionBatchSize    int               `yaml:"selection_batch_size"`
+	VerificationBatchSize int               `yaml:"verification_batch_size"`
+	InsertionBatchSize    int               `yaml:"insertion_batch_size"`
+	DayOffset             int               `yaml:"day_offset"`
+	SleepTime             int               `yaml:"sleep_time"`
+	Tag                   string            `yaml:"string"`
+	ExtraParams           map[string]string `yaml:"extra_params"`
 }
 
 func NewRunnerConfig() *RunnerConfig {

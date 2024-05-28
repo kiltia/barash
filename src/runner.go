@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/avast/retry-go/v4"
@@ -14,14 +15,15 @@ import (
 )
 
 type Runner struct {
-	clickHouseClient ClickHouseClient
-	verifierCreds    VerifierConfig
-	httpClient       *resty.Client
-	httpRetries      Retries
-	goroutineTimeout time.Duration
-	runConfig        RunConfig
-	selectRetries    Retries
-	logger           *zap.SugaredLogger
+	clickHouseClient     ClickHouseClient
+	verifierCreds        VerifierConfig
+	httpClient           *resty.Client
+	httpRetries          Retries
+	goroutineTimeout     time.Duration
+	runConfig            RunConfig
+	selectRetries        Retries
+	logger               *zap.SugaredLogger
+	qualityControlConfig QualityControlConfig
 }
 
 func NewRunner(config RunnerConfig) *Runner {
@@ -71,16 +73,17 @@ func NewRunner(config RunnerConfig) *Runner {
 			newCtx := context.WithValue(ctx, "unsuccessResponses", responses)
 			r.Request.SetContext(newCtx)
 		},
-	)
+	).SetLogger(logger)
 	runner := Runner{
-		clickHouseClient: *clickHouseClient,
-		verifierCreds:    config.VerifierConfig,
-		httpClient:       httpClient,
-		goroutineTimeout: time.Duration(config.Timeouts.GoroutineTimeout),
-		runConfig:        config.RunConfig,
-		httpRetries:      config.HttpRetries,
-		selectRetries:    config.SelectRetries,
-		logger:           logger,
+		clickHouseClient:     *clickHouseClient,
+		verifierCreds:        config.VerifierConfig,
+		httpClient:           httpClient,
+		goroutineTimeout:     time.Duration(config.Timeouts.GoroutineTimeout),
+		runConfig:            config.RunConfig,
+		httpRetries:          config.HttpRetries,
+		selectRetries:        config.SelectRetries,
+		qualityControlConfig: config.QualityControlConfig,
+		logger:               logger,
 	}
 	return &runner
 }
@@ -133,6 +136,8 @@ func (runner Runner) producer(
 	tasks *chan VerifyGetRequest,
 	results *chan VerificationResult,
 	wg *sync.WaitGroup,
+	numRequests *int64,
+	numSuccesses *int64,
 ) {
 	for loop := true; loop; {
 		select {
@@ -143,6 +148,10 @@ func (runner Runner) producer(
 			verificationResultList := runner.SendGetRequest(task)
 			for _, verificationResult := range verificationResultList {
 				*results <- verificationResult
+				atomic.AddInt64(numRequests, 1)
+				if verificationResult.StatusCode == 200 {
+					atomic.AddInt64(numSuccesses, 1)
+				}
 			}
 		case <-time.After(runner.goroutineTimeout * time.Second):
 			loop = false
@@ -165,7 +174,6 @@ func (runner Runner) consumer(consumerNum int, results *chan VerificationResult,
 				break
 			}
 			batch = append(batch, result)
-			// TODO(sokunkov): Come up with a condition to stop the worker
 			if len(batch) >= runner.runConfig.InsertionBatchSize {
 				err := runner.clickHouseClient.AsyncInsertBatch(batch, runner.runConfig.Tag)
 				if err != nil {
@@ -205,39 +213,71 @@ func (runner Runner) Run() {
 	var wg sync.WaitGroup
 	results := make(chan VerificationResult, runner.runConfig.SelectionBatchSize)
 	tasks := make(chan VerifyGetRequest, runner.runConfig.SelectionBatchSize)
+	var numRequests int64 = 0
+	var numSuccesses int64 = 0
 	for i := 0; i < runner.runConfig.ProducerWorkers; i++ {
 		wg.Add(1)
-		go runner.producer(i, &tasks, &results, &wg)
+		go runner.producer(i, &tasks, &results, &wg, &numRequests, &numSuccesses)
 	}
 	for i := 0; i < runner.runConfig.ConsumerWorkers; i++ {
 		wg.Add(1)
 		go runner.consumer(i, &results, &wg)
 	}
+	var verifyParamsBucket []VerifyParams = make([]VerifyParams, 0)
 	timeOnAwait := 0
+	batchesProcessingStartTime := time.Now()
 	for {
-		if len(tasks) == 0 {
-			var verifyParamsList *[]VerifyParams
-			err := retry.Do(
-				func() error {
-					selectedList, err := runner.clickHouseClient.SelectNextBatch(
-						runner.runConfig.DayOffset,
-						runner.runConfig.SelectionBatchSize,
-					)
-					verifyParamsList = selectedList
-					return err
-				},
-				retry.Attempts(uint(runner.selectRetries.NumRetries)+1),
+		if timeOnAwait >= int(runner.goroutineTimeout) {
+			runner.logger.Warn(
+				"While waiting, the goroutines completed their work.",
+				"time", timeOnAwait,
+				"tag", RUNNER_STANDBY_TAG,
 			)
-			if err != nil {
-				runner.logger.Errorw(
-					"Select verification params from clickhouse was unsuccess!",
-					"error", err,
-					"tag", CLICKHOUSE_ERROR_TAG,
-				)
-				break
+			break
+		}
+		if len(tasks) == 0 {
+			timeSinceBatchesProcessingStart := time.Since(batchesProcessingStartTime)
+			if timeSinceBatchesProcessingStart > time.Duration(runner.qualityControlConfig.Period)*time.Second {
+				if numSuccesses < int64(float64(numRequests)*runner.qualityControlConfig.Threshold) {
+					runner.logger.Infow(
+						"Too many 5xx errors from the verifier. The main thread goes into standby mode.",
+						"time", runner.runConfig.SleepTime,
+						"tag", RUNNER_STANDBY_TAG,
+					)
+					timeOnAwait += runner.runConfig.SleepTime
+					time.Sleep(time.Duration(runner.runConfig.SleepTime) * time.Second)
+					runner.logger.Infow(
+						"The main thread has exited standby mode.",
+						"time", runner.runConfig.SleepTime,
+						"tag", RUNNER_STANDBY_TAG,
+					)
+				}
+				numRequests = 0
+				numSuccesses = 0
+				batchesProcessingStartTime = time.Now()
 			}
-			if len(*verifyParamsList) == 0 {
-				if timeOnAwait < int(runner.goroutineTimeout) {
+			if len(verifyParamsBucket) == 0 {
+				var verifyParamsList *[]VerifyParams
+				err := retry.Do(
+					func() error {
+						selectedList, err := runner.clickHouseClient.SelectNextBatch(
+							runner.runConfig.DayOffset,
+							runner.runConfig.SelectionBatchSize,
+						)
+						verifyParamsList = selectedList
+						return err
+					},
+					retry.Attempts(uint(runner.selectRetries.NumRetries)+1),
+				)
+				if err != nil {
+					runner.logger.Errorw(
+						"Select verification params from clickhouse was unsuccess!",
+						"error", err,
+						"tag", CLICKHOUSE_ERROR_TAG,
+					)
+					break
+				}
+				if len(*verifyParamsList) == 0 {
 					runner.logger.Infow(
 						"Processing of the stream for the specified time is completed! Main thread enter on standby mode.",
 						"time", runner.runConfig.SleepTime,
@@ -245,28 +285,22 @@ func (runner Runner) Run() {
 					)
 					time.Sleep(time.Duration(runner.runConfig.SleepTime) * time.Second)
 					runner.logger.Infow(
-						"The main thread has exited sleep mode.",
+						"The main thread has exited standby mode.",
 						"time", runner.runConfig.SleepTime,
 						"tag", RUNNER_STANDBY_TAG,
 					)
 					timeOnAwait += runner.runConfig.SleepTime
 					continue
-				} else {
-					runner.logger.Warn(
-						"While waiting, the goroutines completed their work.",
-						"time", timeOnAwait,
-						"tag", RUNNER_STANDBY_TAG,
-					)
-					break
 				}
+				runner.logger.Infow(
+					"Batch from the ClickHouse database was received successfully!",
+					"batch_len", len(*verifyParamsList),
+					"tag", CLICKHOUSE_SUCCESS_TAG,
+				)
+				verifyParamsBucket = *verifyParamsList
 			}
 			timeOnAwait = 0
-			runner.logger.Infow(
-				"Batch from the ClickHouse database was received successfully!",
-				"batch_len", len(*verifyParamsList),
-				"tag", CLICKHOUSE_SUCCESS_TAG,
-			)
-			for _, verifyParams := range *verifyParamsList {
+			for _, verifyParams := range verifyParamsBucket[:runner.runConfig.VerificationBatchSize] {
 				verifyGetRequest := NewVerifyGetRequest(
 					runner.verifierCreds.Host,
 					runner.verifierCreds.Port,
@@ -276,6 +310,7 @@ func (runner Runner) Run() {
 
 				tasks <- *verifyGetRequest
 			}
+			verifyParamsBucket = verifyParamsBucket[runner.runConfig.VerificationBatchSize:]
 		}
 	}
 	defer close(results)
