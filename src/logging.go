@@ -10,4 +10,6 @@ const (
 	SUCCESS_RESPONSE_TAG = "success_response"
 	RUNNER_DEBUG_TAG     = "runner_debug"
 	RUNNER_STANDBY_TAG   = "runner_standby"
+
+	QUALITY_CONTROL_TAG = "quality_control"
 )

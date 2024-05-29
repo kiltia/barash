@@ -138,6 +138,7 @@ func (runner Runner) producer(
 	wg *sync.WaitGroup,
 	numRequests *int64,
 	numSuccesses *int64,
+	numSuccessesWithScores *int64,
 ) {
 	for loop := true; loop; {
 		select {
@@ -151,6 +152,9 @@ func (runner Runner) producer(
 				atomic.AddInt64(numRequests, 1)
 				if verificationResult.StatusCode == 200 {
 					atomic.AddInt64(numSuccesses, 1)
+					if *verificationResult.VerificationResponse.Score != NAN {
+						atomic.AddInt64(numSuccessesWithScores, 1)
+					}
 				}
 			}
 		case <-time.After(runner.goroutineTimeout * time.Second):
@@ -215,9 +219,10 @@ func (runner Runner) Run() {
 	tasks := make(chan VerifyGetRequest, runner.runConfig.SelectionBatchSize)
 	var numRequests int64 = 0
 	var numSuccesses int64 = 0
+	var numSuccessesWithScore int64 = 0
 	for i := 0; i < runner.runConfig.ProducerWorkers; i++ {
 		wg.Add(1)
-		go runner.producer(i, &tasks, &results, &wg, &numRequests, &numSuccesses)
+		go runner.producer(i, &tasks, &results, &wg, &numRequests, &numSuccesses, &numSuccessesWithScore)
 	}
 	for i := 0; i < runner.runConfig.ConsumerWorkers; i++ {
 		wg.Add(1)
@@ -238,6 +243,13 @@ func (runner Runner) Run() {
 		if len(tasks) == 0 {
 			timeSinceBatchesProcessingStart := time.Since(batchesProcessingStartTime)
 			if timeSinceBatchesProcessingStart > time.Duration(runner.qualityControlConfig.Period)*time.Second {
+				runner.logger.Infow(
+					"Too many 5xx errors from the verifier. The main thread goes into standby mode.",
+					"num_successes", numSuccesses,
+					"num_requests", numRequests,
+					"num_successes_with_scores", numSuccessesWithScore,
+					"tag", QUALITY_CONTROL_TAG,
+				)
 				if numSuccesses < int64(float64(numRequests)*runner.qualityControlConfig.Threshold) {
 					runner.logger.Infow(
 						"Too many 5xx errors from the verifier. The main thread goes into standby mode.",
@@ -254,6 +266,7 @@ func (runner Runner) Run() {
 				}
 				numRequests = 0
 				numSuccesses = 0
+				numSuccessesWithScore = 0
 				batchesProcessingStartTime = time.Now()
 			}
 			if len(verifyParamsBucket) == 0 {
