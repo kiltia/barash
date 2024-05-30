@@ -57,7 +57,7 @@ type RunConfig struct {
 	InsertionBatchSize    int               `yaml:"insertion_batch_size"`
 	DayOffset             int               `yaml:"day_offset"`
 	SleepTime             int               `yaml:"sleep_time"`
-	Tag                   string            `yaml:"string"`
+	Tag                   string            `yaml:"tag"`
 	ExtraParams           map[string]string `yaml:"extra_params"`
 }
 
