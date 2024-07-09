@@ -5,7 +5,9 @@ func main() {
 	if config == nil {
 		return
 	}
-	runner := NewRunner(*config)
+	runner := NewRunner[VerificationResult, VerificationResponse](
+		*config,
+	)
 	if runner == nil {
 		return
 	}

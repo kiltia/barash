@@ -7,7 +7,7 @@ import (
 
 var NAN = math.NaN()
 
-func structToMap[T comparable](data T) (map[string]*string, error) {
+func structToMap[T any](data T) (map[string]*string, error) {
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
 		return nil, err

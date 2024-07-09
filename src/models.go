@@ -12,29 +12,29 @@ func (js *JSONString) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-type VerifyGetRequest struct {
-	Host         string
-	Port         string
-	Method       string
-	VerifyParams VerifyParams
+type GetRequest[P ParamsType] struct {
+	Host   string
+	Port   string
+	Method string
+	Params P
 }
 
 type VerifyParams struct {
-	Duns         string  `json:"duns"                    ch:"duns"`
-	Url          string  `json:"url"                     ch:"url"`
-	Name         *string `json:"name"                    ch:"name"`
-	LocAddress1  *string `json:"loc_address1"            ch:"loc_address1"`
-	LocAddress2  *string `json:"loc_address2"            ch:"loc_address2"`
-	MailAddress1 *string `json:"mail_address1"           ch:"mail_address1"`
-	MailAddress2 *string `json:"mail_address2"           ch:"mail_address2"`
-	MailCity     *string `json:"mail_city"               ch:"mail_city"`
-	LocCity      *string `json:"loc_city"                ch:"loc_city"`
-	LocState     *string `json:"loc_state"               ch:"loc_state"`
-	MailState    *string `json:"mail_state"              ch:"mail_state"`
-	MailZip      *string `json:"mail_zip"                ch:"mail_zip"`
-	LocZip       *string `json:"loc_zip"                 ch:"loc_zip"`
-	MailCountry  *string `json:"mail_country"            ch:"mail_country"`
-	LocCountry   *string `json:"loc_country"             ch:"loc_country"`
+	Duns         string  `json:"duns"          ch:"duns"`
+	Url          string  `json:"url"           ch:"url"`
+	Name         *string `json:"name"          ch:"name"`
+	LocAddress1  *string `json:"loc_address1"  ch:"loc_address1"`
+	LocAddress2  *string `json:"loc_address2"  ch:"loc_address2"`
+	MailAddress1 *string `json:"mail_address1" ch:"mail_address1"`
+	MailAddress2 *string `json:"mail_address2" ch:"mail_address2"`
+	MailCity     *string `json:"mail_city"     ch:"mail_city"`
+	LocCity      *string `json:"loc_city"      ch:"loc_city"`
+	LocState     *string `json:"loc_state"     ch:"loc_state"`
+	MailState    *string `json:"mail_state"    ch:"mail_state"`
+	MailZip      *string `json:"mail_zip"      ch:"mail_zip"`
+	LocZip       *string `json:"loc_zip"       ch:"loc_zip"`
+	MailCountry  *string `json:"mail_country"  ch:"mail_country"`
+	LocCountry   *string `json:"loc_country"   ch:"loc_country"`
 }
 
 type VerificationResponse struct {
@@ -43,6 +43,21 @@ type VerificationResponse struct {
 	FinalUrl  *string   `json:"final_url"`
 	MatchMask MatchMask `json:"match_mask"`
 	DebugInfo DebugInfo `json:"debug"`
+}
+
+func (response VerificationResponse) IntoWith(
+	params VerifyParams,
+	n int,
+	url string,
+	status int,
+) VerificationResult {
+	return VerificationResult{
+		AttemptsNumber:       n,
+		VerifyParams:         params,
+		VerificationResponse: &response,
+		VerificationLink:     url,
+		StatusCode:           status,
+	}
 }
 
 type DebugInfo struct {
@@ -87,14 +102,90 @@ type VerificationResult struct {
 	VerificationResponse *VerificationResponse
 }
 
-func (verifyGetRequest VerifyGetRequest) CreateVerifyGetRequestLink(extraParams map[string]string) (string, error) {
+func (result VerificationResult) GenerateInsertQuery() string {
+	return `INSERT INTO master VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,  now())`
+}
+
+func (result VerificationResult) GetStatusCode() int {
+	return result.StatusCode
+}
+
+func (result VerificationResult) GenerateSelectQuery() string {
+	return `with last as (
+                select duns, url, max(ts) as max_ts
+                from wv.master
+                where is_active = True
+                group by duns, url
+            ),
+            batch as (
+                select duns, url, max_ts
+                from last
+                where max_ts < (NOW() - toIntervalDay(%d))
+                limit %d
+            ),
+            final as (
+                select
+                    batch.duns as duns,
+                    batch.url as url,
+                    gdmi.name,
+                    gdmi.loc_address1, gdmi.loc_address2, gdmi.loc_city, gdmi.loc_state, gdmi.loc_zip, gdmi.loc_country,
+                    gdmi.mail_address1, gdmi.mail_address2, gdmi.mail_city, gdmi.mail_state, gdmi.mail_zip, gdmi.mail_country
+                from wv.gdmi_compact gdmi
+                inner join batch using (duns)
+                where gdmi.duns != '' and batch.url != ''
+                order by cityHash64(batch.duns, batch.url)
+            )
+            select * from final
+    `
+}
+
+func (result VerificationResult) AsArray() []any {
+	verifyParams := result.VerifyParams
+	response := result.VerificationResponse
+	debugInfo := result.VerificationResponse.DebugInfo
+	pageStats := result.VerificationResponse.DebugInfo.CrawlerDebug.PageStats
+	crawlerDebug := debugInfo.CrawlerDebug
+	MatchMaskSummary := response.MatchMask.MatchMaskSummary
+
+	return []any{
+		verifyParams.Duns,
+		true,
+		verifyParams.Url,
+		result.VerificationLink,
+		result.StatusCode,
+		response.Error,
+		crawlerDebug.FailStatus,
+		result.AttemptsNumber,
+		crawlerDebug.CrawlerErrors,
+		crawlerDebug.CrawlFails,
+		crawlerDebug.CrawledPages,
+		pageStats.Errors,
+		pageStats.Fails,
+		pageStats.Successes,
+		debugInfo.Features,
+		response.MatchMask.MatchMaskDetails,
+		MatchMaskSummary.Name,
+		MatchMaskSummary.Address1,
+		MatchMaskSummary.Address2,
+		MatchMaskSummary.City,
+		MatchMaskSummary.State,
+		MatchMaskSummary.Country,
+		MatchMaskSummary.DomainNameSimilarity,
+		response.FinalUrl,
+		response.Score,
+	}
+}
+
+func (GetRequest GetRequest[Params]) CreateGetRequestLink(
+	extraParams map[string]string,
+) (string, error) {
 	baseURL := &url.URL{
 		Scheme: "http",
-		Host:   fmt.Sprintf("%s:%s", verifyGetRequest.Host, verifyGetRequest.Port),
-		Path:   verifyGetRequest.Method,
+		Host:   fmt.Sprintf("%s:%s", GetRequest.Host, GetRequest.Port),
+		Path:   GetRequest.Method,
 	}
 	params := url.Values{}
-	paramsMap, err := structToMap(verifyGetRequest.VerifyParams)
+	paramsMap, err := structToMap(GetRequest.Params)
 	if err != nil {
 		return "", fmt.Errorf("Unable to create verify link. Reason: %v", err)
 	}
@@ -111,11 +202,11 @@ func (verifyGetRequest VerifyGetRequest) CreateVerifyGetRequestLink(extraParams 
 	return urlString, nil
 }
 
-func NewVerifyGetRequest(
+func NewVerifyGetRequest[P ParamsType](
 	host string,
 	port string,
 	method string,
-	verifyParams VerifyParams,
-) *VerifyGetRequest {
-	return &VerifyGetRequest{host, port, method, verifyParams}
+	verifyParams P,
+) *GetRequest[P] {
+	return &GetRequest[P]{host, port, method, verifyParams}
 }

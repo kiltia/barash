@@ -1,4 +1,4 @@
-module orb/go_runner
+module orb/runner
 
 go 1.22.2
 
