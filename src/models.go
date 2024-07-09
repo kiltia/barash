@@ -202,7 +202,7 @@ func (GetRequest GetRequest[Params]) CreateGetRequestLink(
 	return urlString, nil
 }
 
-func NewVerifyGetRequest[P ParamsType](
+func NewGetRequest[P ParamsType](
 	host string,
 	port string,
 	method string,

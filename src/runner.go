@@ -105,7 +105,7 @@ func NewRunner[S StoredValueType, R ResponseType[S, P], P ParamsType](
 	return &runner
 }
 
-func (runner Runner[S, R, P]) SendGetRequest(getRequest GetRequest[P]) []S {
+func (runner *Runner[S, R, P]) SendGetRequest(getRequest GetRequest[P]) []S {
 	url, _ := getRequest.CreateGetRequestLink(runner.runConfig.ExtraParams)
 	ctx := context.Background()
 	ctx = context.WithValue(
@@ -145,10 +145,10 @@ func (runner Runner[S, R, P]) SendGetRequest(getRequest GetRequest[P]) []S {
 	return resultList
 }
 
-func (runner Runner[StoredValue, Response, Params]) producer(
+func (runner *Runner[S, R, P]) producer(
 	producerNum int,
-	tasks *chan GetRequest[Params],
-	results *chan StoredValue,
+	tasks chan GetRequest[P],
+	results chan S,
 	wg *sync.WaitGroup,
 	numRequests *int64,
 	numSuccesses *int64,
@@ -156,21 +156,21 @@ func (runner Runner[StoredValue, Response, Params]) producer(
 ) {
 	for loop := true; loop; {
 		select {
-		case task, ok := <-*tasks:
+		case task, ok := <-tasks:
 			if !ok {
 				break
 			}
 			resultList := runner.SendGetRequest(task)
 
 			for _, result := range resultList {
-				*results <- result
+				results <- result
 				atomic.AddInt64(numRequests, 1)
 				// TODO(nrydanov): Return it back in some way
 				if result.GetStatusCode() == 200 {
 					atomic.AddInt64(numSuccesses, 1)
 					// if *result.Response.Score != NAN {
 					// 	atomic.AddInt64(numSuccessesWithScores, 1)
-				    // }
+					// }
 				}
 			}
 		case <-time.After(runner.goroutineTimeout * time.Second):
@@ -185,15 +185,15 @@ func (runner Runner[StoredValue, Response, Params]) producer(
 	wg.Done()
 }
 
-func (runner Runner[StoredValue, Response, Params]) consumer(
+func (runner *Runner[S, R, P]) consumer(
 	consumerNum int,
-	results *chan StoredValue,
+	results chan S,
 	wg *sync.WaitGroup,
 ) {
-	var batch []StoredValue
+	var batch []S
 	for loop := true; loop; {
 		select {
-		case result, ok := <-*results:
+		case result, ok := <-results:
 			if !ok {
 				break
 			}
@@ -221,7 +221,7 @@ func (runner Runner[StoredValue, Response, Params]) consumer(
 					"consumer_num", consumerNum,
 					"tag", CLICKHOUSE_SUCCESS_TAG,
 				)
-				batch = make([]StoredValue, 0)
+				batch = make([]S, 0)
 			}
 		case <-time.After(runner.goroutineTimeout * time.Second):
 			loop = false
@@ -238,11 +238,11 @@ func (runner Runner[StoredValue, Response, Params]) consumer(
 	wg.Done()
 }
 
-func (runner Runner[StoredValue, Response, Params]) Run() {
+func (runner *Runner[S, R, P]) Run() {
 	start := time.Now()
 	var wg sync.WaitGroup
-	results := make(chan StoredValue, runner.runConfig.SelectionBatchSize)
-	tasks := make(chan GetRequest[Params], runner.runConfig.SelectionBatchSize)
+	results := make(chan S, runner.runConfig.SelectionBatchSize)
+	tasks := make(chan GetRequest[P], runner.runConfig.SelectionBatchSize)
 	var numRequests int64 = 0
 	var numSuccesses int64 = 0
 	var numSuccessesWithScore int64 = 0
@@ -250,8 +250,8 @@ func (runner Runner[StoredValue, Response, Params]) Run() {
 		wg.Add(1)
 		go runner.producer(
 			i,
-			&tasks,
-			&results,
+			tasks,
+			results,
 			&wg,
 			&numRequests,
 			&numSuccesses,
@@ -259,9 +259,9 @@ func (runner Runner[StoredValue, Response, Params]) Run() {
 	}
 	for i := 0; i < runner.runConfig.ConsumerWorkers; i++ {
 		wg.Add(1)
-		go runner.consumer(i, &results, &wg)
+		go runner.consumer(i, results, &wg)
 	}
-	var paramsBucket []Params = make([]Params, 0)
+	var paramsBucket []P = make([]P, 0)
 	timeOnAwait := 0
 	batchesProcessingStartTime := time.Now()
 	for {
@@ -317,7 +317,7 @@ func (runner Runner[StoredValue, Response, Params]) Run() {
 				batchesProcessingStartTime = time.Now()
 			}
 			if len(paramsBucket) == 0 {
-				var paramsList *[]Params
+				var paramsList *[]P
 				err := retry.Do(
 					func() error {
 						selectedList, err := runner.clickHouseClient.SelectNextBatch(
@@ -369,7 +369,7 @@ func (runner Runner[StoredValue, Response, Params]) Run() {
 			}
 			timeOnAwait = 0
 			for _, verifyParams := range paramsBucket[:runner.runConfig.VerificationBatchSize] {
-				verifyGetRequest := NewVerifyGetRequest(
+				verifyGetRequest := NewGetRequest(
 					runner.verifierCreds.Host,
 					runner.verifierCreds.Port,
 					runner.verifierCreds.Method,

@@ -9,9 +9,13 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 )
 
+
+// TODO(nrydanov): Move this to another file as it has nothing familiar
+// with Clickhouse
 type StoredValueType interface {
 	GenerateInsertQuery() string
 	GenerateSelectQuery() string
+    // TODO(nrydanov): Add code-based table creation based on generic type
 	// GenerateTableQuery() string
 	AsArray() []any
 	GetStatusCode() int
@@ -43,7 +47,7 @@ func NewClickHouseClient[S StoredValueType, P ParamsType](
 	return &ClickhouseClient[S, P]{Connection: conn}, version, err
 }
 
-func (client ClickhouseClient[S, P]) AsyncInsertBatch(
+func (client *ClickhouseClient[S, P]) AsyncInsertBatch(
 	batch []S,
 	tag string,
 ) error {
@@ -63,7 +67,7 @@ func (client ClickhouseClient[S, P]) AsyncInsertBatch(
 	return nil
 }
 
-func (client ClickhouseClient[S, P]) SelectNextBatch(
+func (client *ClickhouseClient[S, P]) SelectNextBatch(
 	days int,
 	selectBatchSize int,
 ) (*[]P, error) {

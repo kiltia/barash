@@ -1,5 +1,7 @@
 package main
 
+// TODO(nrydanov): Generalize backend storage
+
 // import (
 // 	"fmt"
 
