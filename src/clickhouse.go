@@ -9,13 +9,12 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 )
 
-
 // TODO(nrydanov): Move this to another file as it has nothing familiar
 // with Clickhouse
 type StoredValueType interface {
 	GenerateInsertQuery() string
 	GenerateSelectQuery() string
-    // TODO(nrydanov): Add code-based table creation based on generic type
+	// TODO(nrydanov): Add code-based table creation based on generic type
 	// GenerateTableQuery() string
 	AsArray() []any
 	GetStatusCode() int
@@ -56,7 +55,7 @@ func (client *ClickhouseClient[S, P]) AsyncInsertBatch(
 	query := batch[0].GenerateInsertQuery()
 	for i := 0; i < len(batch); i++ {
 		innerRepr := batch[i].AsArray()
-        innerRepr = append(innerRepr, tag)
+		innerRepr = append(innerRepr, tag)
 		err := client.Connection.AsyncInsert(
 			// TODO(nrydanov): Add tag somehow
 			ctx, query, false, innerRepr...)

@@ -5,8 +5,8 @@ func main() {
 	if config == nil {
 		return
 	}
-    // TODO(nrydanov): Add support for YAML configuration and choose generics
-    // based on this value
+	// TODO(nrydanov): Add support for YAML configuration and choose generics
+	// based on this value
 	runner := NewRunner[VerificationResult, VerificationResponse](
 		*config,
 	)
