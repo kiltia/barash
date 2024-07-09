@@ -1,15 +1,15 @@
 package main
 
 const (
-	CLICKHOUSE_ERROR_TAG   = "clickhouse_error"
-	CLICKHOUSE_SUCCESS_TAG = "clickhouse_success"
+	TagClickHouseError   = "clickhouse_error"
+	TagClickHouseSuccess = "clickhouse_success"
 
-	RESPONSE_TIMEOUT_TAG = "response_timeout"
-	ERROR_RESPONSE_TAG   = "error_response"
-	FAIL_RESPONSE_TAG    = "fail_response"
-	SUCCESS_RESPONSE_TAG = "success_response"
-	RUNNER_DEBUG_TAG     = "runner_debug"
-	RUNNER_STANDBY_TAG   = "runner_standby"
+	TagResponseTimeout = "response_timeout"
+	TagErrorResponse   = "error_response"
+	TagFailResponse    = "fail_response"
+	TagSuccessResponse = "success_response"
+	TagRunnerDebug     = "runner_debug"
+	TagRunnerStandby   = "runner_standby"
 
-	QUALITY_CONTROL_TAG = "quality_control"
+	TagQualityControl = "quality_control"
 )

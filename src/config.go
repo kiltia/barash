@@ -65,7 +65,7 @@ func NewRunnerConfig() *RunnerConfig {
 	filepath := fmt.Sprintf("configs/%s.yaml", getEnv("MOD", "dev"))
 	content, err := os.ReadFile(filepath)
 	if err != nil {
-		fmt.Printf("Gotten error: %v", err)
+		fmt.Printf("Got error: %v", err)
 		return nil
 	}
 	var runnerConfig RunnerConfig

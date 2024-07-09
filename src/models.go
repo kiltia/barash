@@ -5,13 +5,6 @@ import (
 	"net/url"
 )
 
-type JSONString string
-
-func (js *JSONString) UnmarshalJSON(b []byte) error {
-	*js = JSONString(b)
-	return nil
-}
-
 type GetRequest[P ParamsType] struct {
 	Host   string
 	Port   string
@@ -61,16 +54,16 @@ func (response VerificationResponse) IntoWith(
 }
 
 type DebugInfo struct {
-	Features     *JSONString  `json:"features"`
+	Features     *string      `json:"features"`
 	CrawlerDebug CrawlerDebug `json:"crawler_debug"`
 }
 
 type CrawlerDebug struct {
-	CrawlerErrors []*JSONString `json:"crawler_errors"`
-	CrawlFails    []*JSONString `json:"crawl_fails"`
-	CrawledPages  []*JSONString `json:"crawled_pages"`
-	FailStatus    *string       `json:"fail_status"`
-	PageStats     PageStats     `json:"page_stats"`
+	CrawlerErrors []*string `json:"crawler_errors"`
+	CrawlFails    []*string `json:"crawl_fails"`
+	CrawledPages  []*string `json:"crawled_pages"`
+	FailStatus    *string   `json:"fail_status"`
+	PageStats     PageStats `json:"page_stats"`
 }
 
 type PageStats struct {
@@ -81,7 +74,7 @@ type PageStats struct {
 
 type MatchMask struct {
 	MatchMaskSummary MatchMaskSummary `json:"match_mask_summary"`
-	MatchMaskDetails *JSONString      `json:"match_mask_details"`
+	MatchMaskDetails *string          `json:"match_mask_details"`
 }
 
 type MatchMaskSummary struct {
@@ -102,48 +95,67 @@ type VerificationResult struct {
 	VerificationResponse *VerificationResponse
 }
 
-func (result VerificationResult) GenerateInsertQuery() string {
-	return `INSERT INTO master VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,  now())`
+// Implement the [StoredValueType] interface.
+func (r VerificationResult) GetInsertQuery() string {
+	return `INSERT INTO master VALUES (
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, now()
+    )`
 }
 
-func (result VerificationResult) GetStatusCode() int {
-	return result.StatusCode
+// Implement the [StoredValueType] interface.
+func (r VerificationResult) GetStatusCode() int {
+	return r.StatusCode
 }
 
-func (result VerificationResult) GenerateSelectQuery() string {
-	return `with last as (
-                select duns, url, max(ts) as max_ts
-                from wv.master
-                where is_active = True
-                group by duns, url
-            ),
-            batch as (
-                select duns, url, max_ts
-                from last
-                where max_ts < (NOW() - toIntervalDay(%d))
-                limit %d
-            ),
-            final as (
-                select
-                    batch.duns as duns,
-                    batch.url as url,
-                    gdmi.name,
-                    gdmi.loc_address1, gdmi.loc_address2, gdmi.loc_city, gdmi.loc_state, gdmi.loc_zip, gdmi.loc_country,
-                    gdmi.mail_address1, gdmi.mail_address2, gdmi.mail_city, gdmi.mail_state, gdmi.mail_zip, gdmi.mail_country
-                from wv.gdmi_compact gdmi
-                inner join batch using (duns)
-                where gdmi.duns != '' and batch.url != ''
-                order by cityHash64(batch.duns, batch.url)
-            )
-            select * from final
+// Implement the [StoredValueType] interface.
+func (r VerificationResult) GetSelectQuery() string {
+	return `
+        with last as (
+            select duns, url, max(ts) as max_ts
+            from wv.master
+            where is_active = True
+            group by duns, url
+        ),
+        batch as (
+            select duns, url, max_ts
+            from last
+            where max_ts < (now() - toIntervalDay(%d))
+            limit %d
+        ),
+        final as (
+            select
+                batch.duns as duns,
+                batch.url as url,
+                gdmi.name,
+                gdmi.loc_address1, gdmi.loc_address2,
+                gdmi.loc_city, gdmi.loc_state,
+                gdmi.loc_zip, gdmi.loc_country,
+                gdmi.mail_address1, gdmi.mail_address2,
+                gdmi.mail_city, gdmi.mail_state,
+                gdmi.mail_zip, gdmi.mail_country
+            from wv.gdmi_compact gdmi
+            inner join batch using (duns)
+            where gdmi.duns != '' and batch.url != ''
+            order by cityHash64(batch.duns, batch.url)
+        )
+        select * from final
     `
 }
 
-func (result VerificationResult) AsArray() []any {
-	verifyParams := result.VerifyParams
-	response := result.VerificationResponse
-	debugInfo := result.VerificationResponse.DebugInfo
-	pageStats := result.VerificationResponse.DebugInfo.CrawlerDebug.PageStats
+// Implement the [StoredValueType] interface.
+func (r VerificationResult) GetCreateQuery() string {
+	// TODO(evgenymng): Return something
+	return ""
+}
+
+// Implement the [StoredValueType] interface.
+func (r VerificationResult) AsArray() []any {
+	verifyParams := r.VerifyParams
+	response := r.VerificationResponse
+	debugInfo := r.VerificationResponse.DebugInfo
+	pageStats := r.VerificationResponse.DebugInfo.CrawlerDebug.PageStats
 	crawlerDebug := debugInfo.CrawlerDebug
 	MatchMaskSummary := response.MatchMask.MatchMaskSummary
 
@@ -151,11 +163,11 @@ func (result VerificationResult) AsArray() []any {
 		verifyParams.Duns,
 		true,
 		verifyParams.Url,
-		result.VerificationLink,
-		result.StatusCode,
+		r.VerificationLink,
+		r.StatusCode,
 		response.Error,
 		crawlerDebug.FailStatus,
-		result.AttemptsNumber,
+		r.AttemptsNumber,
 		crawlerDebug.CrawlerErrors,
 		crawlerDebug.CrawlFails,
 		crawlerDebug.CrawledPages,
@@ -176,18 +188,18 @@ func (result VerificationResult) AsArray() []any {
 	}
 }
 
-func (GetRequest GetRequest[Params]) CreateGetRequestLink(
+func (req GetRequest[P]) CreateGetRequestLink(
 	extraParams map[string]string,
 ) (string, error) {
 	baseURL := &url.URL{
 		Scheme: "http",
-		Host:   fmt.Sprintf("%s:%s", GetRequest.Host, GetRequest.Port),
-		Path:   GetRequest.Method,
+		Host:   fmt.Sprintf("%s:%s", req.Host, req.Port),
+		Path:   req.Method,
 	}
 	params := url.Values{}
-	paramsMap, err := structToMap(GetRequest.Params)
+	paramsMap, err := structToMap(req.Params)
 	if err != nil {
-		return "", fmt.Errorf("Unable to create verify link. Reason: %v", err)
+		return "", fmt.Errorf("Unable to create request link. Reason: %v", err)
 	}
 	for field, value := range paramsMap {
 		if value != nil && *value != "" {

@@ -12,7 +12,7 @@ func structToMap[T any](data T) (map[string]*string, error) {
 	if err != nil {
 		return nil, err
 	}
-	mapData := make(map[string]*string)
+	mapData := map[string]*string{}
 	err = json.Unmarshal(dataBytes, &mapData)
 	if err != nil {
 		return nil, err

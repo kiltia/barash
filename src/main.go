@@ -1,5 +1,7 @@
 package main
 
+import "context"
+
 func main() {
 	config := NewRunnerConfig()
 	if config == nil {
@@ -13,5 +15,5 @@ func main() {
 	if runner == nil {
 		return
 	}
-	runner.Run()
+	runner.Run(context.Background())
 }

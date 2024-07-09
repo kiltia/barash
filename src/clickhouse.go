@@ -9,26 +9,19 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 )
 
-// TODO(nrydanov): Move this to another file as it has nothing familiar
-// with Clickhouse
-type StoredValueType interface {
-	GenerateInsertQuery() string
-	GenerateSelectQuery() string
-	// TODO(nrydanov): Add code-based table creation based on generic type
-	// GenerateTableQuery() string
-	AsArray() []any
-	GetStatusCode() int
-	// AdditionalSuccessLogic()
-}
-
 type ClickhouseClient[S StoredValueType, P ParamsType] struct {
 	Connection driver.Conn
 }
 
 func NewClickHouseClient[S StoredValueType, P ParamsType](
 	config ClickHouseConfig,
-) (*ClickhouseClient[S, P], *proto.ServerHandshake, error) {
-	conn, err := clickhouse.Open(&clickhouse.Options{
+) (
+	client *ClickhouseClient[S, P],
+	version *proto.ServerHandshake,
+	err error,
+) {
+	var conn driver.Conn
+	conn, err = clickhouse.Open(&clickhouse.Options{
 		Addr: []string{fmt.Sprintf("%s:%s", config.Host, config.Port)},
 		Auth: clickhouse.Auth{
 			Database: config.Database,
@@ -39,7 +32,7 @@ func NewClickHouseClient[S StoredValueType, P ParamsType](
 	if err != nil {
 		return nil, nil, err
 	}
-	version, err := conn.ServerVersion()
+	version, err = conn.ServerVersion()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -47,18 +40,18 @@ func NewClickHouseClient[S StoredValueType, P ParamsType](
 }
 
 func (client *ClickhouseClient[S, P]) AsyncInsertBatch(
+	ctx context.Context,
 	batch []S,
 	tag string,
 ) error {
-	ctx := context.Background()
-	// TODO(nrydanov): Find a way to make it not instance-specific
-	query := batch[0].GenerateInsertQuery()
+	var zeroInstance S
+	query := zeroInstance.GetInsertQuery()
 	for i := 0; i < len(batch); i++ {
 		innerRepr := batch[i].AsArray()
 		innerRepr = append(innerRepr, tag)
 		err := client.Connection.AsyncInsert(
-			// TODO(nrydanov): Add tag somehow
-			ctx, query, false, innerRepr...)
+			ctx, query, false, innerRepr...,
+		)
 		if err != nil {
 			return err
 		}
@@ -67,16 +60,15 @@ func (client *ClickhouseClient[S, P]) AsyncInsertBatch(
 }
 
 func (client *ClickhouseClient[S, P]) SelectNextBatch(
+	ctx context.Context,
 	days int,
 	selectBatchSize int,
-) (*[]P, error) {
-	ctx := context.Background()
-	var result []P
-	var zeroInstance S
-	rawQuery := zeroInstance.GenerateSelectQuery()
+) (result []P, err error) {
+	var nilInstance S
+	rawQuery := nilInstance.GetSelectQuery()
 	query := fmt.Sprintf(rawQuery, days, selectBatchSize)
-	if err := client.Connection.Select(ctx, &result, query); err != nil {
+	if err = client.Connection.Select(ctx, &result, query); err != nil {
 		return nil, err
 	}
-	return &result, nil
+	return result, nil
 }
