@@ -5,6 +5,13 @@ import (
 	"net/url"
 )
 
+type JSONString string
+
+func (js *JSONString) UnmarshalJSON(b []byte) error {
+	*js = JSONString(b)
+	return nil
+}
+
 type GetRequest[P ParamsType] struct {
 	Host   string
 	Port   string
@@ -35,7 +42,7 @@ type VerificationResponse struct {
 	Error     *string   `json:"component_error"`
 	FinalUrl  *string   `json:"final_url"`
 	MatchMask MatchMask `json:"match_mask"`
-	DebugInfo DebugInfo `json:"debug"`
+	DebugInfo DebugInfo `json:"debug_info"`
 }
 
 func (response VerificationResponse) IntoWith(
@@ -59,11 +66,11 @@ type DebugInfo struct {
 }
 
 type CrawlerDebug struct {
-	CrawlerErrors []*string `json:"crawler_errors"`
-	CrawlFails    []*string `json:"crawl_fails"`
-	CrawledPages  []*string `json:"crawled_pages"`
-	FailStatus    *string   `json:"fail_status"`
-	PageStats     PageStats `json:"page_stats"`
+	CrawlerErrors []*JSONString `json:"crawler_service_errors"`
+	CrawlFails    []*JSONString `json:"crawl_parse_fails"`
+	CrawledPages  []*JSONString `json:"crawled_pages"`
+	FailStatus    *string       `json:"fail_status"`
+	PageStats     PageStats     `json:"page_stats"`
 }
 
 type PageStats struct {
@@ -74,7 +81,7 @@ type PageStats struct {
 
 type MatchMask struct {
 	MatchMaskSummary MatchMaskSummary `json:"match_mask_summary"`
-	MatchMaskDetails *string          `json:"match_mask_details"`
+	MatchMaskDetails *JSONString      `json:"match_mask_details"`
 }
 
 type MatchMaskSummary struct {

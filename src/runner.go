@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sync/atomic"
 	"time"
 
 	"github.com/avast/retry-go/v4"
@@ -83,17 +82,16 @@ func (r *Runner[S, R, P]) SendGetRequest(
 		return nil, err
 	}
 
-	ctx = context.WithValue(ctx, "unsuccessResponses", nil)
+	ctx = context.WithValue(ctx, "unsuccessResponses", make([]*resty.Response, 0))
 	lastResponse, err := r.httpClient.R().SetContext(ctx).Get(url)
 	if err != nil {
 		return nil, err
 	}
 
-	unsuccessResponses := lastResponse.
+	responses := lastResponse.
 		Request.
 		Context().
 		Value("unsuccessResponses").([]*resty.Response)
-	responses := unsuccessResponses
 	if lastResponse.IsSuccess() || r.httpRetries.NumRetries == 0 ||
 		lastResponse.StatusCode() == 0 {
 		responses = append(responses, lastResponse)
@@ -125,170 +123,153 @@ func (r *Runner[S, R, P]) SendGetRequest(
 	return resultList, nil
 }
 
+func (r *Runner[S, R, P]) controlQuality(
+	bpStartTime time.Time,
+	processedBatch *[]S,
+) bool {
+	numSuccesses := int64(0)
+	numRequests := len(*processedBatch)
+	for _, report := range *processedBatch {
+		if report.GetStatusCode() == 200 {
+			numSuccesses += 1
+		}
+	}
+	sinceBatchStart := time.Since(bpStartTime)
+	standby := false
+	if sinceBatchStart > time.Duration(
+		r.qualityControlConfig.Period,
+	)*time.Second {
+		r.logger.Infow(
+			"Batch processing takes longer than it should. "+
+				"The runner is entering standby mode.",
+			"num_successes", numSuccesses,
+			"num_requests", numRequests,
+			// "num_successes_with_scores", numSuccessesWithScore,
+			"tag", TagQualityControl,
+		)
+		standby = true
+	}
+
+	// check the number of successful responses
+	if numSuccesses < int64(
+		float64(numRequests)*r.qualityControlConfig.Threshold,
+	) {
+		r.logger.Infow(
+			"Too many 5xx errors from the verifier. "+
+				"The runner is entering standby mode.",
+			"tag", TagQualityControl,
+		)
+		standby = true
+	}
+
+	// check if we have something left to do
+
+	if len(*processedBatch) == 0 {
+		r.logger.Infow(
+			"Processing of the task stream for the given time "+
+				"period is completed! "+
+				"The runner is entering standby mode.",
+			"tag",
+			TagRunnerDebug,
+		)
+		standby = true
+	} else {
+		r.logger.Infow(
+			"Successfully retrieved batch from the ClickHouse!",
+			"batch_size",
+			len(*processedBatch),
+			"tag",
+			TagClickHouseSuccess,
+		)
+	}
+
+	return standby
+}
+
 // Run the runner's job within a given context.
 func (r *Runner[S, R, P]) Run(ctx context.Context) {
-	start := time.Now()
-
-	results := make(chan S, r.runConfig.SelectionBatchSize)
-	tasks := make(chan GetRequest[P], r.runConfig.SelectionBatchSize)
-	defer close(results)
+	produced := make(chan S, r.runConfig.SelectionBatchSize)
+	consumed := make(chan []S, 1)
+	tasks := make(chan *GetRequest[P], r.runConfig.SelectionBatchSize)
+	nothingLeft := make(chan bool, 1)
+	defer close(produced)
 	defer close(tasks)
+	defer close(consumed)
+	defer close(nothingLeft)
 
-	numRequests := int64(0)
-	numSuccesses := int64(0)
-	numSuccessesWithScore := int64(0)
 	workerCtx, cancel := context.WithTimeout(ctx, r.workerTimeout)
 	defer cancel()
-	batchSignals := make(chan bool)
-	close(batchSignals)
 
 	for i := 0; i < r.runConfig.ProducerWorkers; i++ {
 		go r.producer(
 			workerCtx,
 			i,
 			tasks,
-			results,
-			&numRequests,
-			&numSuccesses,
+			produced,
+			nothingLeft,
 		)
 	}
 	for i := 0; i < r.runConfig.ConsumerWorkers; i++ {
-		go r.consumer(workerCtx, i, results, batchSignals)
+		go r.consumer(workerCtx, i, produced)
 	}
 
-	// batch processing start time
+	selectedBatch := []P{}
 	bpStartTime := time.Now()
-	paramsBucket := []P{}
+
+	nothingLeft <- true
 
 	for {
 		select {
-		case _, ok := <-batchSignals:
+		case _, ok := <-nothingLeft:
+
+			r.logger.Debug("Got nothing left signal from one of producers")
+			if !ok {
+				r.logger.Panic("Unexpected: channel closed")
+			}
+
+			err := retry.Do(
+				func() error {
+					var err error
+					selectedBatch, err = r.clickHouseClient.SelectNextBatch(
+						ctx,
+						r.runConfig.DayOffset,
+						r.runConfig.SelectionBatchSize,
+					)
+					return err
+				},
+				retry.Attempts(uint(r.selectRetries.NumRetries)+1),
+			)
+			if err != nil {
+				r.logger.Errorw(
+					"Failed to fetch verification parameters from the ClickHouse!",
+					"error",
+					err,
+					"tag",
+					TagClickHouseError,
+				)
+				break
+			}
+			r.logger.Debug("Creating tasks for a producers")
+			for _, task := range selectedBatch[:r.runConfig.VerificationBatchSize] {
+				tasks <- NewGetRequest(r.verifierCreds.Host,
+					r.verifierCreds.Port,
+					r.verifierCreds.Method,
+					task)
+			}
+			tasks <- nil
+			selectedBatch = selectedBatch[r.runConfig.VerificationBatchSize:]
+
+		case consumed, ok := <-consumed:
 			if !ok {
 				return
 			}
-			standby := false
 
 			// check the batch processing time
-			sinceBatchStart := time.Since(bpStartTime)
-			if sinceBatchStart > time.Duration(
-				r.qualityControlConfig.Period,
-			)*time.Second {
-				r.logger.Infow(
-					"Batch processing takes longer than it should. "+
-						"The runner is entering standby mode.",
-					"num_successes", numSuccesses,
-					"num_requests", numRequests,
-					"num_successes_with_scores", numSuccessesWithScore,
-					"tag", TagQualityControl,
-				)
-				standby = true
-			}
+			standby := r.controlQuality(bpStartTime, &consumed)
 
-			// check the number of successful responses
-			if numSuccesses < int64(
-				float64(numRequests)*r.qualityControlConfig.Threshold,
-			) {
-				r.logger.Infow(
-					"Too many 5xx errors from the verifier. "+
-						"The runner is entering standby mode.",
-					"tag", TagQualityControl,
-				)
-				standby = true
-			}
-
-			// check if we have something left to do
-			if len(paramsBucket) == 0 {
-				var paramsList []P
-				err := retry.Do(
-					func() error {
-						var err error
-						paramsList, err = r.clickHouseClient.SelectNextBatch(
-							ctx,
-							r.runConfig.DayOffset,
-							r.runConfig.SelectionBatchSize,
-						)
-						return err
-					},
-					retry.Attempts(uint(r.selectRetries.NumRetries)+1),
-				)
-				if err != nil {
-					r.logger.Errorw(
-						"Failed to fetch verification parameters from the ClickHouse!",
-						"error",
-						err,
-						"tag",
-						TagClickHouseError,
-					)
-					break
-				}
-
-				if len(paramsList) == 0 {
-					r.logger.Infow(
-						"Processing of the task stream for the given time "+
-							"period is completed! "+
-							"The runner is entering standby mode.",
-						"tag",
-						TagRunnerDebug,
-					)
-					standby = true
-				} else {
-					r.logger.Infow(
-						"Successfully retrieved batch from the ClickHouse!",
-						"batch_size",
-						len(paramsList),
-						"tag",
-						TagClickHouseSuccess,
-					)
-					paramsBucket = paramsList
-				}
-			}
-
-			numRequests = 0
-			numSuccesses = 0
-			numSuccessesWithScore = 0
-			bpStartTime = time.Now()
 			if standby {
-				err := r.standby(ctx)
-				if err != nil {
-					return
-				}
+				r.standby(ctx)
 			}
-
-			// start processing the next batch
-			for _, verifyParams := range paramsBucket[:r.runConfig.VerificationBatchSize] {
-				verifyGetRequest := NewGetRequest(
-					r.verifierCreds.Host,
-					r.verifierCreds.Port,
-					r.verifierCreds.Method,
-					verifyParams,
-				)
-				tasks <- *verifyGetRequest
-			}
-			paramsBucket = paramsBucket[r.runConfig.VerificationBatchSize:]
-
-		case <-workerCtx.Done():
-			r.logger.Warnw(
-				"Workers timeout has been reached. "+
-					"The runner is entering standby mode.",
-				"elapsed", r.workerTimeout,
-				"tag", TagRunnerStandby,
-			)
-			err := r.standby(ctx)
-			if err != nil {
-				return
-			}
-
-		case <-ctx.Done():
-			r.logger.Debug(
-				"Parent context is cancelled, shutting down the runner job.",
-				"tag", TagRunnerDebug,
-			)
-			r.logger.Debugw(
-				"Run finished!",
-				"tag", TagRunnerDebug,
-				"run_time", time.Since(start),
-			)
-			return
 		}
 	}
 }
@@ -346,10 +327,9 @@ func initializeHttpClient(
 func (r *Runner[S, R, P]) producer(
 	ctx context.Context,
 	producerNum int,
-	tasks chan GetRequest[P],
+	tasks chan *GetRequest[P],
 	results chan S,
-	numRequests *int64,
-	numSuccesses *int64,
+	nothingLeft chan bool,
 	// numSuccessesWithScores *int64,
 ) {
 	for {
@@ -359,7 +339,14 @@ func (r *Runner[S, R, P]) producer(
 				// the channel is closed
 				return
 			}
-			resultList, err := r.SendGetRequest(ctx, task)
+			if task == nil {
+				r.logger.Infow("Producer has no work left, asking for a new batch", "producer_num", producerNum)
+				nothingLeft <- true
+				break
+			}
+
+			r.logger.Debugw("Sending request to get page contents", "producer_num", producerNum)
+			resultList, err := r.SendGetRequest(ctx, *task)
 			if err != nil {
 				r.logger.Debugw(
 					"There was an error, while sending the request "+
@@ -372,14 +359,6 @@ func (r *Runner[S, R, P]) producer(
 
 			for _, result := range resultList {
 				results <- result
-				atomic.AddInt64(numRequests, 1)
-				// TODO(nrydanov): Return it back in some way
-				if result.GetStatusCode() == 200 {
-					atomic.AddInt64(numSuccesses, 1)
-					// if *result.Response.Score != NAN {
-					// 	atomic.AddInt64(numSuccessesWithScores, 1)
-					// }
-				}
 			}
 		case <-ctx.Done():
 			r.logger.Debugw(
@@ -396,7 +375,6 @@ func (r *Runner[S, R, P]) consumer(
 	ctx context.Context,
 	consumerNum int,
 	results chan S,
-	batchSignals chan bool,
 ) {
 	var batch []S
 	for {
@@ -431,8 +409,8 @@ func (r *Runner[S, R, P]) consumer(
 					"consumer_num", consumerNum,
 					"tag", TagClickHouseSuccess,
 				)
-				batch = []S{}
-				batchSignals <- true
+				batch = make([]S, 0)
+
 			}
 		case <-ctx.Done():
 			r.logger.Debugw(
