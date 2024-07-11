@@ -1,6 +1,9 @@
 package main
 
-import "context"
+import (
+	"context"
+	"orb/runner/src/api"
+)
 
 func main() {
 	config := NewRunnerConfig()
@@ -9,7 +12,7 @@ func main() {
 	}
 	// TODO(nrydanov): Add support for YAML configuration and choose generics
 	// based on this value
-	runner := NewRunner[VerificationResult, VerificationResponse](
+	runner := NewRunner[api.VerificationResult, api.VerificationResponse](
 		*config,
 	)
 	if runner == nil {

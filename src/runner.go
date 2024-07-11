@@ -14,7 +14,7 @@ import (
 
 type Runner[S StoredValueType, R ResponseType[S, P], P ParamsType] struct {
 	clickHouseClient     ClickhouseClient[S, P]
-	verifierCreds        VerifierConfig
+	apiConfig            ApiConfig
 	httpClient           *resty.Client
 	workerTimeout        time.Duration
 	httpRetries          Retries
@@ -50,16 +50,16 @@ func NewRunner[S StoredValueType, R ResponseType[S, P], P ParamsType](
 		)
 	}
 
-	logger.Infow("Creating table which is required for the run")
+	// logger.Infow("Creating table which is required for the run")
 	// TODO(evgenymng): uncomment, when actual DDL is written
 	// var zeroInstance S
 	// zeroInstance.GetCreateQuery()
 
-	httpClient := initializeHttpClient(config, logger)
+	httpClient := initHttpClient(config, logger)
 
 	runner := Runner[S, R, P]{
 		clickHouseClient: *clickHouseClient,
-		verifierCreds:    config.VerifierConfig,
+		apiConfig:        config.ApiConfig,
 		httpClient:       httpClient,
 		workerTimeout: time.Duration(
 			config.Timeouts.GoroutineTimeout,
@@ -101,7 +101,7 @@ func (r *Runner[S, R, P]) SendGetRequest(
 		responses = append(responses, lastResponse)
 	}
 
-	resultList := []S{}
+	results := []S{}
 	for i, response := range responses {
 		var result R
 		statusCode := response.StatusCode()
@@ -119,12 +119,12 @@ func (r *Runner[S, R, P]) SendGetRequest(
 		}
 		storedValue := result.IntoWith(req.Params, i+1, url, statusCode)
 
-		resultList = append(
-			resultList,
+		results = append(
+			results,
 			storedValue,
 		)
 	}
-	return resultList, nil
+	return results, nil
 }
 
 func (r *Runner[S, R, P]) controlQuality(
@@ -133,6 +133,7 @@ func (r *Runner[S, R, P]) controlQuality(
 ) bool {
 	numSuccesses := int64(0)
 	numRequests := len(*processedBatch)
+	// TODO(nrydanov): Need to replace with one-line expression...
 	for _, report := range *processedBatch {
 		if report.GetStatusCode() == 200 {
 			numSuccesses += 1
@@ -140,6 +141,7 @@ func (r *Runner[S, R, P]) controlQuality(
 	}
 	sinceBatchStart := time.Since(bpStartTime)
 	standby := false
+	// NOTE(nrydanov): Case 1. Batch processing takes too much time
 	if sinceBatchStart > time.Duration(
 		r.qualityControlConfig.Period,
 	)*time.Second {
@@ -148,43 +150,21 @@ func (r *Runner[S, R, P]) controlQuality(
 				"The runner is entering standby mode.",
 			"num_successes", numSuccesses,
 			"num_requests", numRequests,
-			// "num_successes_with_scores", numSuccessesWithScore,
 			"tag", TagQualityControl,
 		)
 		standby = true
 	}
 
-	// check the number of successful responses
+	// NOTE(nrydanov): Case 2. Too many requests ends with errors
 	if numSuccesses < int64(
 		float64(numRequests)*r.qualityControlConfig.Threshold,
 	) {
 		r.logger.Infow(
-			"Too many 5xx errors from the verifier. "+
+			"Too many 5xx errors from the API. "+
 				"The runner is entering standby mode.",
 			"tag", TagQualityControl,
 		)
 		standby = true
-	}
-
-	// check if we have something left to do
-
-	if len(*processedBatch) == 0 {
-		r.logger.Infow(
-			"Processing of the task stream for the given time "+
-				"period is completed! "+
-				"The runner is entering standby mode.",
-			"tag",
-			TagRunnerDebug,
-		)
-		standby = true
-	} else {
-		r.logger.Infow(
-			"Successfully retrieved batch from the ClickHouse!",
-			"batch_size",
-			len(*processedBatch),
-			"tag",
-			TagClickHouseSuccess,
-		)
 	}
 
 	return standby
@@ -226,9 +206,10 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 		select {
 		case _, ok := <-nothingLeft:
 
-			r.logger.Debug("Got nothing left signal from one of producers")
+			r.logger.Debug("Got \"nothing left\" signal from one of producers")
 			if !ok {
-				r.logger.Panic("Unexpected: channel closed")
+				// TODO(nrydanov): What should we do when channels are closed?
+				return
 			}
 
 			err := retry.Do(
@@ -245,7 +226,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 			)
 			if err != nil {
 				r.logger.Errorw(
-					"Failed to fetch verification parameters from the ClickHouse!",
+					"Failed to fetch URL parameters from the ClickHouse!",
 					"error",
 					err,
 					"tag",
@@ -255,9 +236,9 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 			}
 			r.logger.Debug("Creating tasks for a producers")
 			for _, task := range selectedBatch[:r.runConfig.VerificationBatchSize] {
-				tasks <- NewGetRequest(r.verifierCreds.Host,
-					r.verifierCreds.Port,
-					r.verifierCreds.Method,
+				tasks <- NewGetRequest(r.apiConfig.Host,
+					r.apiConfig.Port,
+					r.apiConfig.Method,
 					task)
 			}
 			tasks <- nil
@@ -265,15 +246,19 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 
 		case consumed, ok := <-consumed:
 			if !ok {
+				// TODO(nrydanov): What should we do when channels are closed?
 				return
 			}
 
-			// check the batch processing time
-			standby := r.controlQuality(bpStartTime, &consumed)
 
+			standby := r.controlQuality(bpStartTime, &consumed)
+            // TODO(nrydanov): Check if standby still works when runner has
+            // nothing to do
 			if standby {
 				r.standby(ctx)
 			}
+
+			bpStartTime = time.Now()
 		}
 	}
 }
@@ -290,7 +275,7 @@ func (r *Runner[S, R, P]) standby(ctx context.Context) error {
 	}
 }
 
-func initializeHttpClient(
+func initHttpClient(
 	config RunnerConfig,
 	logger *zap.SugaredLogger,
 ) *resty.Client {
@@ -312,6 +297,8 @@ func initializeHttpClient(
 				return false
 			},
 		).
+        // TODO(nrydanov): Find other way to handle list of unsucessful responses
+        // as using WithValue for these purposes is anti-pattern
 		AddRetryHook(
 			func(r *resty.Response, err error) {
 				ctx := r.Request.Context()
@@ -334,13 +321,12 @@ func (r *Runner[S, R, P]) producer(
 	tasks chan *GetRequest[P],
 	results chan S,
 	nothingLeft chan bool,
-	// numSuccessesWithScores *int64,
 ) {
 	for {
 		select {
 		case task, ok := <-tasks:
 			if !ok {
-				// the channel is closed
+				// TODO(nrydanov): What should we do when channels are closed?
 				return
 			}
 			if task == nil {
@@ -365,7 +351,6 @@ func (r *Runner[S, R, P]) producer(
 						"to the subject API",
 					"error", err,
 				)
-				// something is wrong with that task
 				break
 			}
 
@@ -393,7 +378,6 @@ func (r *Runner[S, R, P]) consumer(
 		select {
 		case result, ok := <-results:
 			if !ok {
-				// the channel is closed
 				return
 			}
 			batch = append(batch, result)

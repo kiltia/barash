@@ -9,7 +9,7 @@ import (
 )
 
 type RunnerConfig struct {
-	VerifierConfig       VerifierConfig       `yaml:"verifier"`
+	ApiConfig            ApiConfig            `yaml:"verifier"`
 	ClickHouseConfig     ClickHouseConfig     `yaml:"clickhouse"`
 	Timeouts             Timeouts             `yaml:"timeouts"`
 	HttpRetries          Retries              `yaml:"http_retries"`
@@ -24,7 +24,7 @@ type QualityControlConfig struct {
 	Threshold float64 `yaml:"threshold"`
 }
 
-type VerifierConfig struct {
+type ApiConfig struct {
 	Host   string `yaml:"host"`
 	Port   string `yaml:"port"`
 	Method string `yaml:"method"`
