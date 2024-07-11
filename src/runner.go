@@ -199,8 +199,8 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 	defer close(consumed)
 	defer close(nothingLeft)
 
-	workerCtx, cancel := context.WithTimeout(ctx, r.workerTimeout)
-	defer cancel()
+	workerCtx, cancel := context.WithCancel(ctx)
+    defer cancel()
 
 	for i := 0; i < r.runConfig.ProducerWorkers; i++ {
 		go r.producer(
@@ -377,13 +377,6 @@ func (r *Runner[S, R, P]) producer(
 			for _, result := range resultList {
 				results <- result
 			}
-		case <-ctx.Done():
-			r.logger.Debugw(
-				"Producer's context is cancelled",
-				"producer_num", producerNum,
-				"error", ctx.Err(),
-			)
-			return
 		}
 	}
 }
@@ -428,13 +421,6 @@ func (r *Runner[S, R, P]) consumer(
 				batch = make([]S, 0)
 
 			}
-		case <-ctx.Done():
-			r.logger.Debugw(
-				"Consumer's context is cancelled",
-				"consumer_num", consumerNum,
-				"error", ctx.Err(),
-			)
-			return
 		}
 	}
 }
