@@ -27,6 +27,36 @@ type Runner[S StoredValueType, R ResponseType[S, P], P ParamsType] struct {
 	qualityControlConfig config.QualityControlConfig
 }
 
+type FetcherResult[S StoredValueType] struct {
+	Value               S
+	ProcessingStartTime time.Time
+}
+
+func NewFetcherResult[S StoredValueType](
+	value S,
+	processingStartTime time.Time,
+) FetcherResult[S] {
+	return FetcherResult[S]{
+		Value:               value,
+		ProcessingStartTime: processingStartTime,
+	}
+}
+
+type ProcessedBatch[S StoredValueType] struct {
+	Batch               []S
+	ProcessingStartTime time.Time
+}
+
+func NewProcessedBatch[S StoredValueType](
+	batch []S,
+	processingStartTime time.Time,
+) ProcessedBatch[S] {
+	return ProcessedBatch[S]{
+		Batch:               batch,
+		ProcessingStartTime: processingStartTime,
+	}
+}
+
 func NewRunner[S StoredValueType, R ResponseType[S, P], P ParamsType](
 	config config.RunnerConfig,
 ) *Runner[S, R, P] {
@@ -139,47 +169,42 @@ func (r *Runner[S, R, P]) SendGetRequest(
 	return results, nil
 }
 
-type ProcessedBatch[S StoredValueType] struct {
-	Batch               []S
-	ProcessingStartTime time.Time
-}
-
 // Run the runner's job within a given context.
 func (r *Runner[S, R, P]) Run(ctx context.Context) {
 	// + 1 for the [nil] task
-	producerTasks := make(chan *GetRequest[P], r.runConfig.SelectionBatchSize+1)
-	producedResults := make(
-		chan ProducerResult[S],
+	fetcherTasks := make(chan *GetRequest[P], r.runConfig.SelectionBatchSize+1)
+	fetcherResults := make(
+		chan FetcherResult[S],
 		r.runConfig.SelectionBatchSize,
 	)
-	processedBatches := make(
+	writtenBatches := make(
 		chan ProcessedBatch[S],
-		r.runConfig.ConsumerWorkers,
+		r.runConfig.WriterWorkers,
 	)
 
 	nothingLeft := make(chan bool, 1)
 	qcResults := make(chan int, 1)
-	defer close(producedResults)
-	defer close(producerTasks)
-	defer close(processedBatches)
+	defer close(fetcherResults)
+	defer close(fetcherTasks)
+	defer close(writtenBatches)
 	defer close(nothingLeft)
 
 	workerCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	for i := 0; i < r.runConfig.ProducerWorkers; i++ {
-		go r.producer(
+	for i := 0; i < r.runConfig.FetcherWorkers; i++ {
+		go r.fetcher(
 			workerCtx,
 			i,
-			producerTasks,
-			producedResults,
+			fetcherTasks,
+			fetcherResults,
 			nothingLeft,
 		)
 	}
-	for i := 0; i < r.runConfig.ConsumerWorkers; i++ {
-		go r.consumer(workerCtx, i, producedResults, processedBatches)
+	for i := 0; i < r.runConfig.WriterWorkers; i++ {
+		go r.writer(workerCtx, i, fetcherResults, writtenBatches)
 	}
-	go r.controlQuality(workerCtx, processedBatches, qcResults)
+	go r.qualityControl(workerCtx, writtenBatches, qcResults)
 
 	selectedBatch := []P{}
 	nothingLeft <- true
@@ -187,8 +212,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 	for {
 		select {
 		case _, ok := <-nothingLeft:
-
-			r.logger.Debug("Got \"nothing left\" signal from one of producers")
+			r.logger.Debug("Got \"nothing left\" signal from one of fetchers")
 			if !ok {
 				// TODO(nrydanov): What should we do when channels are closed?
 				return
@@ -216,14 +240,14 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 				)
 				break
 			}
-			r.logger.Debug("Creating tasks for a producers")
+			r.logger.Debug("Creating tasks for a fetchers")
 			for _, task := range selectedBatch[:r.runConfig.VerificationBatchSize] {
-				producerTasks <- NewGetRequest(r.apiConfig.Host,
+				fetcherTasks <- NewGetRequest(r.apiConfig.Host,
 					r.apiConfig.Port,
 					r.apiConfig.Method,
 					task)
 			}
-			producerTasks <- nil
+			fetcherTasks <- nil
 			selectedBatch = selectedBatch[r.runConfig.VerificationBatchSize:]
 
 		case failCount, ok := <-qcResults:
@@ -233,6 +257,8 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 
 			// TODO(nrydanov): Check if standby still works when runner has
 			// nothing to do
+			// NOTE(evgenymng): I mean, if it has nothing to do, it will wait
+			// for a signal from somewhere, effectively sleeping.
 			if failCount > 0 {
 				err := r.standby(ctx)
 				if err != nil {
@@ -300,11 +326,11 @@ func initHttpClient(
 		SetLogger(logger)
 }
 
-func (r *Runner[S, R, P]) producer(
+func (r *Runner[S, R, P]) fetcher(
 	ctx context.Context,
-	producerNum int,
+	fetcherNum int,
 	tasks chan *GetRequest[P],
-	results chan ProducerResult[S],
+	results chan FetcherResult[S],
 	nothingLeft chan bool,
 ) {
 	for {
@@ -317,8 +343,8 @@ func (r *Runner[S, R, P]) producer(
 			}
 			if task == nil {
 				r.logger.Infow(
-					"Producer has no work left, asking for a new batch",
-					"producer_num", producerNum,
+					"Fetcher has no work left, asking for a new batch",
+					"fetcher_num", fetcherNum,
 					"tag", TagRunnerDebug,
 				)
 				nothingLeft <- true
@@ -327,8 +353,8 @@ func (r *Runner[S, R, P]) producer(
 
 			r.logger.Debugw(
 				"Sending request to get page contents",
-				"producer_num",
-				producerNum,
+				"fetcher_num",
+				fetcherNum,
 			)
 			resultList, err := r.SendGetRequest(ctx, *task)
 			if err != nil {
@@ -341,15 +367,13 @@ func (r *Runner[S, R, P]) producer(
 			}
 
 			for _, result := range resultList {
-				results <- ProducerResult[S]{
-					Value:               result,
-					ProcessingStartTime: startTime,
-				}
+				results <- NewFetcherResult(result, startTime)
 			}
+
 		case <-ctx.Done():
 			r.logger.Debugw(
-				"Producer's context is cancelled",
-				"producer_num", producerNum,
+				"Fetcher's context is cancelled",
+				"fetcher_num", fetcherNum,
 				"error", ctx.Err(),
 			)
 			return
@@ -357,15 +381,10 @@ func (r *Runner[S, R, P]) producer(
 	}
 }
 
-type ProducerResult[S StoredValueType] struct {
-	Value               S
-	ProcessingStartTime time.Time
-}
-
-func (r *Runner[S, R, P]) consumer(
+func (r *Runner[S, R, P]) writer(
 	ctx context.Context,
 	consumerNum int,
-	results chan ProducerResult[S],
+	results chan FetcherResult[S],
 	processedBatches chan ProcessedBatch[S],
 ) {
 	var oldest *time.Time
@@ -407,13 +426,11 @@ func (r *Runner[S, R, P]) consumer(
 					"tag", TagClickHouseSuccess,
 				)
 
-				processedBatches <- ProcessedBatch[S]{
-					Batch:               batch,
-					ProcessingStartTime: *oldest,
-				}
+				processedBatches <- NewProcessedBatch(batch, *oldest)
 				batch = []S{}
 				oldest = nil
 			}
+
 		case <-ctx.Done():
 			r.logger.Debugw(
 				"Consumer's context is cancelled",
@@ -426,7 +443,7 @@ func (r *Runner[S, R, P]) consumer(
 	}
 }
 
-func (r *Runner[S, R, P]) controlQuality(
+func (r *Runner[S, R, P]) qualityControl(
 	ctx context.Context,
 	processedBatches chan ProcessedBatch[S],
 	qcResults chan int,
@@ -471,8 +488,7 @@ func (r *Runner[S, R, P]) controlQuality(
 				float64(numRequests)*r.qualityControlConfig.Threshold,
 			) {
 				r.logger.Infow(
-					"Too many 5xx errors from the API. "+
-						"The runner is entering standby mode.",
+					"Too many 5xx errors from the API.",
 					"tag", TagQualityControl,
 				)
 				failCount++

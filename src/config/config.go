@@ -50,8 +50,8 @@ type RetryConfig struct {
 }
 
 type RunConfig struct {
-	ProducerWorkers       int               `yaml:"producer_workers"`
-	ConsumerWorkers       int               `yaml:"consumer_workers"`
+	FetcherWorkers        int               `yaml:"fetcher_workers"`
+	WriterWorkers         int               `yaml:"writer_workers"`
 	SelectionBatchSize    int               `yaml:"selection_batch_size"`
 	VerificationBatchSize int               `yaml:"verification_batch_size"`
 	InsertionBatchSize    int               `yaml:"insertion_batch_size"`
