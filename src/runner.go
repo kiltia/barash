@@ -139,64 +139,28 @@ func (r *Runner[S, R, P]) SendGetRequest(
 	return results, nil
 }
 
-func (r *Runner[S, R, P]) controlQuality(
-	bpStartTime time.Time,
-	processedBatch *[]S,
-) bool {
-	numRequests := len(*processedBatch)
-	numSuccesses := util.Reduce(
-		util.Map(*processedBatch, func(report S) int {
-			return report.GetStatusCode()
-		}),
-		0,
-		func(acc int, v int) int {
-			if v == 200 {
-				return acc + 1
-			}
-			return acc
-		},
-	)
-
-	sinceBatchStart := time.Since(bpStartTime)
-	standby := false
-	// NOTE(nrydanov): Case 1. Batch processing takes too much time
-	if sinceBatchStart > time.Duration(
-		r.qualityControlConfig.Period,
-	)*time.Second {
-		r.logger.Infow(
-			"Batch processing takes longer than it should. "+
-				"The runner is entering standby mode.",
-			"num_successes", numSuccesses,
-			"num_requests", numRequests,
-			"tag", TagQualityControl,
-		)
-		standby = true
-	}
-
-	// NOTE(nrydanov): Case 2. Too many requests ends with errors
-	if numSuccesses < int(
-		float64(numRequests)*r.qualityControlConfig.Threshold,
-	) {
-		r.logger.Infow(
-			"Too many 5xx errors from the API. "+
-				"The runner is entering standby mode.",
-			"tag", TagQualityControl,
-		)
-		standby = true
-	}
-
-	return standby
+type ProcessedBatch[S StoredValueType] struct {
+	Batch               []S
+	ProcessingStartTime time.Time
 }
 
 // Run the runner's job within a given context.
 func (r *Runner[S, R, P]) Run(ctx context.Context) {
-	producedTasks := make(chan S, r.runConfig.SelectionBatchSize)
-	processedBatches := make(chan []S, r.runConfig.ConsumerWorkers)
 	// + 1 for the [nil] task
-	tasks := make(chan *GetRequest[P], r.runConfig.SelectionBatchSize+1)
+	producerTasks := make(chan *GetRequest[P], r.runConfig.SelectionBatchSize+1)
+	producedResults := make(
+		chan ProducerResult[S],
+		r.runConfig.SelectionBatchSize,
+	)
+	processedBatches := make(
+		chan ProcessedBatch[S],
+		r.runConfig.ConsumerWorkers,
+	)
+
 	nothingLeft := make(chan bool, 1)
-	defer close(producedTasks)
-	defer close(tasks)
+	qcResults := make(chan int, 1)
+	defer close(producedResults)
+	defer close(producerTasks)
 	defer close(processedBatches)
 	defer close(nothingLeft)
 
@@ -207,18 +171,17 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 		go r.producer(
 			workerCtx,
 			i,
-			tasks,
-			producedTasks,
+			producerTasks,
+			producedResults,
 			nothingLeft,
 		)
 	}
 	for i := 0; i < r.runConfig.ConsumerWorkers; i++ {
-		go r.consumer(workerCtx, i, producedTasks, processedBatches)
+		go r.consumer(workerCtx, i, producedResults, processedBatches)
 	}
+	go r.controlQuality(workerCtx, processedBatches, qcResults)
 
 	selectedBatch := []P{}
-	bpStartTime := time.Now()
-
 	nothingLeft <- true
 
 	for {
@@ -255,31 +218,32 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 			}
 			r.logger.Debug("Creating tasks for a producers")
 			for _, task := range selectedBatch[:r.runConfig.VerificationBatchSize] {
-				tasks <- NewGetRequest(r.apiConfig.Host,
+				producerTasks <- NewGetRequest(r.apiConfig.Host,
 					r.apiConfig.Port,
 					r.apiConfig.Method,
 					task)
 			}
-			tasks <- nil
+			producerTasks <- nil
 			selectedBatch = selectedBatch[r.runConfig.VerificationBatchSize:]
 
-		case consumed, ok := <-processedBatches:
+		case failCount, ok := <-qcResults:
 			if !ok {
-				// TODO(nrydanov): What should we do when channels are closed?
 				return
 			}
 
-			standby := r.controlQuality(bpStartTime, &consumed)
 			// TODO(nrydanov): Check if standby still works when runner has
 			// nothing to do
-			if standby {
+			if failCount > 0 {
 				err := r.standby(ctx)
 				if err != nil {
 					return
 				}
+			} else {
+				r.logger.Infow(
+					"Batch quality control has successfully been passed",
+					"tag", TagQualityControl,
+				)
 			}
-
-			bpStartTime = time.Now()
 		}
 	}
 }
@@ -340,12 +304,13 @@ func (r *Runner[S, R, P]) producer(
 	ctx context.Context,
 	producerNum int,
 	tasks chan *GetRequest[P],
-	results chan S,
+	results chan ProducerResult[S],
 	nothingLeft chan bool,
 ) {
 	for {
 		select {
 		case task, ok := <-tasks:
+			startTime := time.Now()
 			if !ok {
 				// TODO(nrydanov): What should we do when channels are closed?
 				return
@@ -353,8 +318,8 @@ func (r *Runner[S, R, P]) producer(
 			if task == nil {
 				r.logger.Infow(
 					"Producer has no work left, asking for a new batch",
-					"producer_num",
-					producerNum,
+					"producer_num", producerNum,
+					"tag", TagRunnerDebug,
 				)
 				nothingLeft <- true
 				break
@@ -376,7 +341,10 @@ func (r *Runner[S, R, P]) producer(
 			}
 
 			for _, result := range resultList {
-				results <- result
+				results <- ProducerResult[S]{
+					Value:               result,
+					ProcessingStartTime: startTime,
+				}
 			}
 		case <-ctx.Done():
 			r.logger.Debugw(
@@ -389,12 +357,18 @@ func (r *Runner[S, R, P]) producer(
 	}
 }
 
+type ProducerResult[S StoredValueType] struct {
+	Value               S
+	ProcessingStartTime time.Time
+}
+
 func (r *Runner[S, R, P]) consumer(
 	ctx context.Context,
 	consumerNum int,
-	results chan S,
-	processedBatches chan []S,
+	results chan ProducerResult[S],
+	processedBatches chan ProcessedBatch[S],
 ) {
+	var oldest *time.Time
 	var batch []S
 	for {
 		select {
@@ -402,7 +376,12 @@ func (r *Runner[S, R, P]) consumer(
 			if !ok {
 				return
 			}
-			batch = append(batch, result)
+
+			batch = append(batch, result.Value)
+			if oldest == nil || result.ProcessingStartTime.Before(*oldest) {
+				oldest = &result.ProcessingStartTime
+			}
+
 			if len(batch) >= r.runConfig.InsertionBatchSize {
 				err := r.clickHouseClient.AsyncInsertBatch(
 					ctx,
@@ -427,13 +406,82 @@ func (r *Runner[S, R, P]) consumer(
 					"consumer_num", consumerNum,
 					"tag", TagClickHouseSuccess,
 				)
-				processedBatches <- batch
-				batch = make([]S, 0)
+
+				processedBatches <- ProcessedBatch[S]{
+					Batch:               batch,
+					ProcessingStartTime: *oldest,
+				}
+				batch = []S{}
+				oldest = nil
 			}
 		case <-ctx.Done():
 			r.logger.Debugw(
 				"Consumer's context is cancelled",
 				"consumer_num", consumerNum,
+				"error", ctx.Err(),
+				"tag", TagRunnerDebug,
+			)
+			return
+		}
+	}
+}
+
+func (r *Runner[S, R, P]) controlQuality(
+	ctx context.Context,
+	processedBatches chan ProcessedBatch[S],
+	qcResults chan int,
+) {
+	for {
+		select {
+		case batch, ok := <-processedBatches:
+			if !ok {
+				return
+			}
+
+			failCount := 0
+			numRequests := len(batch.Batch)
+			numSuccesses := util.Reduce(
+				util.Map(batch.Batch, func(res S) int {
+					return res.GetStatusCode()
+				}),
+				0,
+				func(acc int, v int) int {
+					if v == 200 {
+						return acc + 1
+					}
+					return acc
+				},
+			)
+			sinceBatchStart := time.Since(batch.ProcessingStartTime)
+			// NOTE(nrydanov): Case 1. Batch processing takes too much time
+			if sinceBatchStart > time.Duration(
+				r.qualityControlConfig.Period,
+			)*time.Second {
+				r.logger.Infow(
+					"Batch processing takes longer than it should. ",
+					"num_successes", numSuccesses,
+					"num_requests", numRequests,
+					"tag", TagQualityControl,
+				)
+				failCount++
+			}
+
+			// NOTE(nrydanov): Case 2. Too many requests ends with errors
+			if numSuccesses < int(
+				float64(numRequests)*r.qualityControlConfig.Threshold,
+			) {
+				r.logger.Infow(
+					"Too many 5xx errors from the API. "+
+						"The runner is entering standby mode.",
+					"tag", TagQualityControl,
+				)
+				failCount++
+			}
+			qcResults <- failCount
+
+		case <-ctx.Done():
+			r.logger.Debugw(
+				"Quality control routine's context is cancelled",
 				"error", ctx.Err(),
 			)
 			return
