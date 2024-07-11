@@ -73,6 +73,12 @@ func NewRunner[S StoredValueType, R ResponseType[S, P], P ParamsType](
 	return &runner
 }
 
+type RequestContextKey int
+
+const (
+	RequestContextKeyUnsuccessfulResponses RequestContextKey = iota
+)
+
 func (r *Runner[S, R, P]) SendGetRequest(
 	ctx context.Context,
 	req GetRequest[P],
@@ -84,8 +90,8 @@ func (r *Runner[S, R, P]) SendGetRequest(
 
 	ctx = context.WithValue(
 		ctx,
-		"unsuccessResponses",
-		make([]*resty.Response, 0),
+		RequestContextKeyUnsuccessfulResponses,
+		[]*resty.Response{},
 	)
 	lastResponse, err := r.httpClient.R().SetContext(ctx).Get(url)
 	if err != nil {
@@ -95,7 +101,7 @@ func (r *Runner[S, R, P]) SendGetRequest(
 	responses := lastResponse.
 		Request.
 		Context().
-		Value("unsuccessResponses").([]*resty.Response)
+		Value(RequestContextKeyUnsuccessfulResponses).([]*resty.Response)
 	if lastResponse.IsSuccess() || r.httpRetries.NumRetries == 0 ||
 		lastResponse.StatusCode() == 0 {
 		responses = append(responses, lastResponse)
@@ -250,10 +256,9 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 				return
 			}
 
-
 			standby := r.controlQuality(bpStartTime, &consumed)
-            // TODO(nrydanov): Check if standby still works when runner has
-            // nothing to do
+			// TODO(nrydanov): Check if standby still works when runner has
+			// nothing to do
 			if standby {
 				r.standby(ctx)
 			}
@@ -297,16 +302,16 @@ func initHttpClient(
 				return false
 			},
 		).
-        // TODO(nrydanov): Find other way to handle list of unsucessful responses
-        // as using WithValue for these purposes is anti-pattern
+		// TODO(nrydanov): Find other way to handle list of unsucessful responses
+		// as using WithValue for these purposes is anti-pattern
 		AddRetryHook(
 			func(r *resty.Response, err error) {
 				ctx := r.Request.Context()
-				responses := ctx.Value("unsuccessResponses").([]*resty.Response)
+				responses := ctx.Value(RequestContextKeyUnsuccessfulResponses).([]*resty.Response)
 				responses = append(responses, r)
 				newCtx := context.WithValue(
 					ctx,
-					"unsuccessResponses",
+					RequestContextKeyUnsuccessfulResponses,
 					responses,
 				)
 				r.Request.SetContext(newCtx)

@@ -6,4 +6,3 @@ func (js *JSONString) UnmarshalJSON(b []byte) error {
 	*js = JSONString(b)
 	return nil
 }
-

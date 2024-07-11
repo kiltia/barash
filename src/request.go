@@ -5,14 +5,12 @@ import (
 	"net/url"
 )
 
-
 type GetRequest[P ParamsType] struct {
 	Host   string
 	Port   string
 	Method string
 	Params P
 }
-
 
 func (req GetRequest[P]) CreateGetRequestLink(
 	extraParams map[string]string,
