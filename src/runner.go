@@ -190,29 +190,30 @@ func (r *Runner[S, R, P]) controlQuality(
 
 // Run the runner's job within a given context.
 func (r *Runner[S, R, P]) Run(ctx context.Context) {
-	produced := make(chan S, r.runConfig.SelectionBatchSize)
-	consumed := make(chan []S, 1)
-	tasks := make(chan *GetRequest[P], r.runConfig.SelectionBatchSize)
+	producedTasks := make(chan S, r.runConfig.SelectionBatchSize)
+	processedBatches := make(chan []S, r.runConfig.ConsumerWorkers)
+	// + 1 for the [nil] task
+	tasks := make(chan *GetRequest[P], r.runConfig.SelectionBatchSize+1)
 	nothingLeft := make(chan bool, 1)
-	defer close(produced)
+	defer close(producedTasks)
 	defer close(tasks)
-	defer close(consumed)
+	defer close(processedBatches)
 	defer close(nothingLeft)
 
 	workerCtx, cancel := context.WithCancel(ctx)
-    defer cancel()
+	defer cancel()
 
 	for i := 0; i < r.runConfig.ProducerWorkers; i++ {
 		go r.producer(
 			workerCtx,
 			i,
 			tasks,
-			produced,
+			producedTasks,
 			nothingLeft,
 		)
 	}
 	for i := 0; i < r.runConfig.ConsumerWorkers; i++ {
-		go r.consumer(workerCtx, i, produced)
+		go r.consumer(workerCtx, i, producedTasks, processedBatches)
 	}
 
 	selectedBatch := []P{}
@@ -262,7 +263,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 			tasks <- nil
 			selectedBatch = selectedBatch[r.runConfig.VerificationBatchSize:]
 
-		case consumed, ok := <-consumed:
+		case consumed, ok := <-processedBatches:
 			if !ok {
 				// TODO(nrydanov): What should we do when channels are closed?
 				return
@@ -377,6 +378,13 @@ func (r *Runner[S, R, P]) producer(
 			for _, result := range resultList {
 				results <- result
 			}
+		case <-ctx.Done():
+			r.logger.Debugw(
+				"Producer's context is cancelled",
+				"producer_num", producerNum,
+				"error", ctx.Err(),
+			)
+			return
 		}
 	}
 }
@@ -385,6 +393,7 @@ func (r *Runner[S, R, P]) consumer(
 	ctx context.Context,
 	consumerNum int,
 	results chan S,
+	processedBatches chan []S,
 ) {
 	var batch []S
 	for {
@@ -418,9 +427,16 @@ func (r *Runner[S, R, P]) consumer(
 					"consumer_num", consumerNum,
 					"tag", TagClickHouseSuccess,
 				)
+				processedBatches <- batch
 				batch = make([]S, 0)
-
 			}
+		case <-ctx.Done():
+			r.logger.Debugw(
+				"Consumer's context is cancelled",
+				"consumer_num", consumerNum,
+				"error", ctx.Err(),
+			)
+			return
 		}
 	}
 }
