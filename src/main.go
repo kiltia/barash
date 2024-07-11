@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 
-	"orb/runner/src/api"
+	metaapi "orb/runner/src/api/meta"
 	"orb/runner/src/config"
 )
 
@@ -12,11 +12,16 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
 	// TODO(nrydanov): Add support for YAML configuration and choose generics
 	// based on this value
-	runner := NewRunner[api.VerificationResult, api.VerificationResponse](cfg)
-	if runner == nil {
+	metaRunner := NewRunner[
+		metaapi.VerificationResult,
+		metaapi.VerificationResponse,
+	](cfg)
+	if metaRunner == nil {
 		return
 	}
-	runner.Run(context.Background())
+
+	metaRunner.Run(context.Background())
 }

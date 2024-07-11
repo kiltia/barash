@@ -1,4 +1,6 @@
-package api
+package metaapi
+
+import "orb/runner/src/api/common"
 
 type VerifyParams struct {
 	Duns         string  `json:"duns"          ch:"duns"`
@@ -48,11 +50,11 @@ type DebugInfo struct {
 }
 
 type CrawlerDebug struct {
-	CrawlerErrors []*JSONString `json:"crawler_service_errors"`
-	CrawlFails    []*JSONString `json:"crawl_parse_fails"`
-	CrawledPages  []*JSONString `json:"crawled_pages"`
-	FailStatus    *string       `json:"fail_status"`
-	PageStats     PageStats     `json:"page_stats"`
+	CrawlerErrors []*common.JsonString `json:"crawler_service_errors"`
+	CrawlFails    []*common.JsonString `json:"crawl_parse_fails"`
+	CrawledPages  []*common.JsonString `json:"crawled_pages"`
+	FailStatus    *string              `json:"fail_status"`
+	PageStats     PageStats            `json:"page_stats"`
 }
 
 type PageStats struct {
@@ -62,8 +64,8 @@ type PageStats struct {
 }
 
 type MatchMask struct {
-	MatchMaskSummary MatchMaskSummary `json:"match_mask_summary"`
-	MatchMaskDetails *JSONString      `json:"match_mask_details"`
+	MatchMaskSummary MatchMaskSummary   `json:"match_mask_summary"`
+	MatchMaskDetails *common.JsonString `json:"match_mask_details"`
 }
 
 type MatchMaskSummary struct {
