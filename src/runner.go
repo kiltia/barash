@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"orb/runner/src/config"
+
 	"github.com/avast/retry-go/v4"
 	"github.com/go-resty/resty/v2"
 	"go.uber.org/zap"
@@ -14,18 +16,18 @@ import (
 
 type Runner[S StoredValueType, R ResponseType[S, P], P ParamsType] struct {
 	clickHouseClient     ClickhouseClient[S, P]
-	apiConfig            ApiConfig
+	apiConfig            config.ApiConfig
 	httpClient           *resty.Client
 	workerTimeout        time.Duration
-	httpRetries          Retries
-	runConfig            RunConfig
-	selectRetries        Retries
+	httpRetries          config.RetryConfig
+	runConfig            config.RunConfig
+	selectRetries        config.RetryConfig
 	logger               *zap.SugaredLogger
-	qualityControlConfig QualityControlConfig
+	qualityControlConfig config.QualityControlConfig
 }
 
 func NewRunner[S StoredValueType, R ResponseType[S, P], P ParamsType](
-	config RunnerConfig,
+	config config.RunnerConfig,
 ) *Runner[S, R, P] {
 	logger := zap.Must(config.LoggerConfig.Build()).Sugar()
 
@@ -121,7 +123,10 @@ func (r *Runner[S, R, P]) SendGetRequest(
 				"tag", TagResponseTimeout,
 			)
 		} else {
-			json.Unmarshal(response.Body(), &result)
+			err = json.Unmarshal(response.Body(), &result)
+			if err != nil {
+				return nil, err
+			}
 		}
 		storedValue := result.IntoWith(req.Params, i+1, url, statusCode)
 
@@ -260,7 +265,10 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 			// TODO(nrydanov): Check if standby still works when runner has
 			// nothing to do
 			if standby {
-				r.standby(ctx)
+				err := r.standby(ctx)
+				if err != nil {
+					return
+				}
 			}
 
 			bpStartTime = time.Now()
@@ -281,7 +289,7 @@ func (r *Runner[S, R, P]) standby(ctx context.Context) error {
 }
 
 func initHttpClient(
-	config RunnerConfig,
+	config config.RunnerConfig,
 	logger *zap.SugaredLogger,
 ) *resty.Client {
 	return resty.New().SetRetryCount(config.HttpRetries.NumRetries).

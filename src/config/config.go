@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"fmt"
@@ -11,9 +11,9 @@ import (
 type RunnerConfig struct {
 	ApiConfig            ApiConfig            `yaml:"verifier"`
 	ClickHouseConfig     ClickHouseConfig     `yaml:"clickhouse"`
-	Timeouts             Timeouts             `yaml:"timeouts"`
-	HttpRetries          Retries              `yaml:"http_retries"`
-	SelectRetries        Retries              `yaml:"select_retries"`
+	Timeouts             TimeoutConfig        `yaml:"timeouts"`
+	HttpRetries          RetryConfig          `yaml:"http_retries"`
+	SelectRetries        RetryConfig          `yaml:"select_retries"`
 	LoggerConfig         zap.Config           `yaml:"logger"`
 	RunConfig            RunConfig            `yaml:"run"`
 	QualityControlConfig QualityControlConfig `yaml:"quality_control_config"`
@@ -38,12 +38,12 @@ type ClickHouseConfig struct {
 	Port     string `yaml:"port"`
 }
 
-type Timeouts struct {
+type TimeoutConfig struct {
 	VerifierTimeout  int `yaml:"verifier_timeout"`
 	GoroutineTimeout int `yaml:"goroutine_timeout"`
 }
 
-type Retries struct {
+type RetryConfig struct {
 	NumRetries  int `yaml:"retries_number"`
 	MinWaitTime int `yaml:"min_wait_time"`
 	MaxWaitTime int `yaml:"max_wait_time"`
@@ -61,16 +61,19 @@ type RunConfig struct {
 	ExtraParams           map[string]string `yaml:"extra_params"`
 }
 
-func NewRunnerConfig() *RunnerConfig {
+func Load() (
+	runnerConfig RunnerConfig,
+	err error,
+) {
+	var content []byte
 	filepath := fmt.Sprintf("configs/%s.yaml", getEnv("MOD", "dev"))
-	content, err := os.ReadFile(filepath)
+	content, err = os.ReadFile(filepath)
 	if err != nil {
 		fmt.Printf("Got error: %v", err)
-		return nil
+		return runnerConfig, err
 	}
-	var runnerConfig RunnerConfig
-	yaml.Unmarshal(content, &runnerConfig)
-	return &runnerConfig
+	err = yaml.Unmarshal(content, &runnerConfig)
+	return runnerConfig, err
 }
 
 func getEnv(key string, defaultVal string) string {

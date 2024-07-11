@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"orb/runner/src/config"
+
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
@@ -14,7 +16,7 @@ type ClickhouseClient[S StoredValueType, P ParamsType] struct {
 }
 
 func NewClickHouseClient[S StoredValueType, P ParamsType](
-	config ClickHouseConfig,
+	config config.ClickHouseConfig,
 ) (
 	client *ClickhouseClient[S, P],
 	version *proto.ServerHandshake,
