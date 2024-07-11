@@ -61,6 +61,7 @@ func (response VerificationResponse) IntoWith(
 }
 
 type DebugInfo struct {
+	// TODO(nrydanov): Fix features (more information from Sergey Okunkov)
 	Features     *string      `json:"features"`
 	CrawlerDebug CrawlerDebug `json:"crawler_debug"`
 }

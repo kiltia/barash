@@ -82,7 +82,11 @@ func (r *Runner[S, R, P]) SendGetRequest(
 		return nil, err
 	}
 
-	ctx = context.WithValue(ctx, "unsuccessResponses", make([]*resty.Response, 0))
+	ctx = context.WithValue(
+		ctx,
+		"unsuccessResponses",
+		make([]*resty.Response, 0),
+	)
 	lastResponse, err := r.httpClient.R().SetContext(ctx).Get(url)
 	if err != nil {
 		return nil, err
@@ -340,12 +344,20 @@ func (r *Runner[S, R, P]) producer(
 				return
 			}
 			if task == nil {
-				r.logger.Infow("Producer has no work left, asking for a new batch", "producer_num", producerNum)
+				r.logger.Infow(
+					"Producer has no work left, asking for a new batch",
+					"producer_num",
+					producerNum,
+				)
 				nothingLeft <- true
 				break
 			}
 
-			r.logger.Debugw("Sending request to get page contents", "producer_num", producerNum)
+			r.logger.Debugw(
+				"Sending request to get page contents",
+				"producer_num",
+				producerNum,
+			)
 			resultList, err := r.SendGetRequest(ctx, *task)
 			if err != nil {
 				r.logger.Debugw(
