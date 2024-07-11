@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"orb/runner/src/config"
+	"orb/runner/src/util"
 
 	"github.com/avast/retry-go/v4"
 	"github.com/go-resty/resty/v2"
@@ -142,14 +143,20 @@ func (r *Runner[S, R, P]) controlQuality(
 	bpStartTime time.Time,
 	processedBatch *[]S,
 ) bool {
-	numSuccesses := int64(0)
 	numRequests := len(*processedBatch)
-	// TODO(nrydanov): Need to replace with one-line expression...
-	for _, report := range *processedBatch {
-		if report.GetStatusCode() == 200 {
-			numSuccesses += 1
-		}
-	}
+	numSuccesses := util.Reduce(
+		util.Map(*processedBatch, func(report S) int {
+			return report.GetStatusCode()
+		}),
+		0,
+		func(acc int, v int) int {
+			if v == 200 {
+				return acc + 1
+			}
+			return acc
+		},
+	)
+
 	sinceBatchStart := time.Since(bpStartTime)
 	standby := false
 	// NOTE(nrydanov): Case 1. Batch processing takes too much time
@@ -167,7 +174,7 @@ func (r *Runner[S, R, P]) controlQuality(
 	}
 
 	// NOTE(nrydanov): Case 2. Too many requests ends with errors
-	if numSuccesses < int64(
+	if numSuccesses < int(
 		float64(numRequests)*r.qualityControlConfig.Threshold,
 	) {
 		r.logger.Infow(
