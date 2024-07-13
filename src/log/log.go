@@ -1,4 +1,4 @@
-package main
+package log
 
 const (
 	TagClickHouseError   = "clickhouse_error"

@@ -1,11 +1,14 @@
-package main
+package rrequest
 
 import (
 	"fmt"
 	"net/url"
+
+	ri "orb/runner/src/runner/interface"
+	"orb/runner/src/runner/util"
 )
 
-type GetRequest[P ParamsType] struct {
+type GetRequest[P ri.ParamsType] struct {
 	Host   string
 	Port   string
 	Method string
@@ -21,7 +24,7 @@ func (req GetRequest[P]) CreateGetRequestLink(
 		Path:   req.Method,
 	}
 	params := url.Values{}
-	paramsMap, err := structToMap(req.Params)
+	paramsMap, err := util.ObjectToMap(req.Params)
 	if err != nil {
 		return "", fmt.Errorf("Unable to create request link. Reason: %v", err)
 	}
@@ -38,7 +41,7 @@ func (req GetRequest[P]) CreateGetRequestLink(
 	return urlString, nil
 }
 
-func NewGetRequest[P ParamsType](
+func NewGetRequest[P ri.ParamsType](
 	host string,
 	port string,
 	method string,

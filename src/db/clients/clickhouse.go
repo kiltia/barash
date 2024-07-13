@@ -1,24 +1,25 @@
-package main
+package dbclient
 
 import (
 	"context"
 	"fmt"
 
 	"orb/runner/src/config"
+	ri "orb/runner/src/runner/interface"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 )
 
-type ClickhouseClient[S StoredValueType, P ParamsType] struct {
+type ClickHouseClient[S ri.StoredValueType, P ri.ParamsType] struct {
 	Connection driver.Conn
 }
 
-func NewClickHouseClient[S StoredValueType, P ParamsType](
+func NewClickHouseClient[S ri.StoredValueType, P ri.ParamsType](
 	config config.ClickHouseConfig,
 ) (
-	client *ClickhouseClient[S, P],
+	client *ClickHouseClient[S, P],
 	version *proto.ServerHandshake,
 	err error,
 ) {
@@ -38,10 +39,10 @@ func NewClickHouseClient[S StoredValueType, P ParamsType](
 	if err != nil {
 		return nil, nil, err
 	}
-	return &ClickhouseClient[S, P]{Connection: conn}, version, err
+	return &ClickHouseClient[S, P]{Connection: conn}, version, err
 }
 
-func (client *ClickhouseClient[S, P]) AsyncInsertBatch(
+func (client *ClickHouseClient[S, P]) AsyncInsertBatch(
 	ctx context.Context,
 	batch []S,
 	tag string,
@@ -61,7 +62,7 @@ func (client *ClickhouseClient[S, P]) AsyncInsertBatch(
 	return nil
 }
 
-func (client *ClickhouseClient[S, P]) SelectNextBatch(
+func (client *ClickHouseClient[S, P]) SelectNextBatch(
 	ctx context.Context,
 	days int,
 	selectBatchSize int,

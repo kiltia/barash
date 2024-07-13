@@ -1,6 +1,13 @@
 package metaapi
 
-import "orb/runner/src/api/common"
+import (
+	"context"
+	"fmt"
+
+	"orb/runner/src/api/common"
+	rdata "orb/runner/src/runner/data"
+	"orb/runner/src/runner/util"
+)
 
 type VerifyParams struct {
 	Duns         string  `json:"duns"          ch:"duns"`
@@ -176,5 +183,36 @@ func (r VerificationResult) AsArray() []any {
 		MatchMaskSummary.DomainNameSimilarity,
 		response.FinalUrl,
 		response.Score,
+	}
+}
+
+type MetaApi struct{}
+
+func (srv *MetaApi) AfterBatch(
+	ctx context.Context,
+	batch rdata.ProcessedBatch[VerificationResult],
+) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+		successesWithScores := util.Reduce(
+			util.Map(batch.Values, func(res VerificationResult) bool {
+				return res.GetStatusCode() == 200 &&
+					res.VerificationResponse.Score != nil
+			}),
+			0,
+			func(acc int, v bool) int {
+				if v {
+					return acc + 1
+				}
+				return acc
+			},
+		)
+		// TODO(evgenymng): log this
+		fmt.Printf(
+			"Post-analyzed the processedBatch, successful responses with scores: %d",
+			successesWithScores,
+		)
 	}
 }
