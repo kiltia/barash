@@ -3,7 +3,7 @@
 package rinterface
 
 type (
-	StoredValueType interface {
+	StoredValue interface {
 		// Return **parameterized** INSERT query for inserting a
 		// row into the database.
 		//
@@ -16,6 +16,12 @@ type (
 		GetInsertQuery() string
 
 		// Return SELECT query for retrieving a row from the database.
+		//
+		// TODO(evgenymng): rework the query building flow,
+		// because now we expect from a user that they will
+		// have a specific number of template parameters in that
+		// query, which describe how old the records should be
+		// (which makes no sense in general).
 		GetSelectQuery() string
 
 		// Return CREATE TABLE query for creating a new table
@@ -31,9 +37,9 @@ type (
 		GetStatusCode() int
 	}
 
-	ResponseType[S StoredValueType, P ParamsType] interface {
-		IntoWith(params P, attemptNumber int, url string, status int) S
+	Response[S StoredValue, P StoredParams] interface {
+		IntoStored(params P, attemptNumber int, url string, status int) S
 	}
 
-	ParamsType interface{}
+	StoredParams interface{}
 )

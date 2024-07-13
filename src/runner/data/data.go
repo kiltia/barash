@@ -7,12 +7,12 @@ import (
 	ri "orb/runner/src/runner/interface"
 )
 
-type FetcherResult[S ri.StoredValueType] struct {
+type FetcherResult[S ri.StoredValue] struct {
 	Value               S
 	ProcessingStartTime time.Time
 }
 
-func NewFetcherResult[S ri.StoredValueType](
+func NewFetcherResult[S ri.StoredValue](
 	value S,
 	processingStartTime time.Time,
 ) FetcherResult[S] {
@@ -22,12 +22,12 @@ func NewFetcherResult[S ri.StoredValueType](
 	}
 }
 
-type ProcessedBatch[S ri.StoredValueType] struct {
+type ProcessedBatch[S ri.StoredValue] struct {
 	Values              []S
 	ProcessingStartTime time.Time
 }
 
-func NewProcessedBatch[S ri.StoredValueType](
+func NewProcessedBatch[S ri.StoredValue](
 	elements []S,
 	processingStartTime time.Time,
 ) ProcessedBatch[S] {
@@ -37,7 +37,17 @@ func NewProcessedBatch[S ri.StoredValueType](
 	}
 }
 
-type QualityControlResult[S ri.StoredValueType] struct {
+type QualityControlResult[S ri.StoredValue] struct {
 	FailCount int
 	Batch     ProcessedBatch[S]
+}
+
+func NewQualityControlResult[S ri.StoredValue](
+	failCount int,
+	batch ProcessedBatch[S],
+) QualityControlResult[S] {
+	return QualityControlResult[S]{
+		FailCount: failCount,
+		Batch:     batch,
+	}
 }

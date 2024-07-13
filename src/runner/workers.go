@@ -179,10 +179,7 @@ func (r *Runner[S, R, P]) qualityControl(
 				)
 				failCount++
 			}
-			qcResults <- rd.QualityControlResult[S]{
-				FailCount: failCount,
-				Batch:     batch,
-			}
+			qcResults <- rd.NewQualityControlResult(failCount, batch)
 
 		case <-ctx.Done():
 			log.S.Debugw(

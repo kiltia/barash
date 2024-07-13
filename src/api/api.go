@@ -7,6 +7,6 @@ import (
 	ri "orb/runner/src/runner/interface"
 )
 
-type Api[S ri.StoredValueType] interface {
-	AfterBatch(context.Context, rd.ProcessedBatch[S])
+type Api[S ri.StoredValue] interface {
+	AfterBatch(ctx context.Context, batch rd.ProcessedBatch[S], qcFails *int)
 }

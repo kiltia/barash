@@ -20,14 +20,14 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-type Runner[S ri.StoredValueType, R ri.ResponseType[S, P], P ri.ParamsType] struct {
+type Runner[S ri.StoredValue, R ri.Response[S, P], P ri.StoredParams] struct {
 	clickHouseClient     dbclient.ClickHouseClient[S, P]
 	httpClient           *resty.Client
 	workerTimeout        time.Duration
 	qualityControlConfig config.QualityControlConfig
 }
 
-func New[S ri.StoredValueType, R ri.ResponseType[S, P], P ri.ParamsType]() *Runner[S, R, P] {
+func New[S ri.StoredValue, R ri.Response[S, P], P ri.StoredParams]() *Runner[S, R, P] {
 	clickHouseClient, version, err := dbclient.NewClickHouseClient[S, P](
 		config.C.ClickHouse,
 	)
@@ -111,7 +111,7 @@ func (r *Runner[S, R, P]) SendGetRequest(
 				return nil, err
 			}
 		}
-		storedValue := result.IntoWith(req.Params, i+1, url, statusCode)
+		storedValue := result.IntoStored(req.Params, i+1, url, statusCode)
 
 		results = append(
 			results,
@@ -173,7 +173,6 @@ func (r *Runner[S, R, P]) Run(ctx context.Context, service api.Api[S]) {
 		case _, ok := <-nothingLeft:
 			log.S.Debug("Got \"nothing left\" signal from one of fetchers")
 			if !ok {
-				// TODO(nrydanov): What should we do when channels are closed?
 				return
 			}
 
@@ -217,7 +216,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context, service api.Api[S]) {
 				return
 			}
 
-			service.AfterBatch(ctx, res.Batch)
+			service.AfterBatch(ctx, res.Batch, &res.FailCount)
 
 			if res.FailCount > 0 {
 				log.S.Warnw(

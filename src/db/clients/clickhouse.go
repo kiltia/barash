@@ -12,11 +12,11 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 )
 
-type ClickHouseClient[S ri.StoredValueType, P ri.ParamsType] struct {
+type ClickHouseClient[S ri.StoredValue, P ri.StoredParams] struct {
 	Connection driver.Conn
 }
 
-func NewClickHouseClient[S ri.StoredValueType, P ri.ParamsType](
+func NewClickHouseClient[S ri.StoredValue, P ri.StoredParams](
 	config config.ClickHouseConfig,
 ) (
 	client *ClickHouseClient[S, P],
