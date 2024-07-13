@@ -21,7 +21,7 @@ jobs:
         run: goimports -d src
 
   gofumpt:
-    name: Line length checks
+    name: General formatting checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
