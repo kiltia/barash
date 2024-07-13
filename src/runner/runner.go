@@ -18,66 +18,48 @@ import (
 
 	"github.com/avast/retry-go/v4"
 	"github.com/go-resty/resty/v2"
-	"go.uber.org/zap"
 )
 
 type Runner[S ri.StoredValueType, R ri.ResponseType[S, P], P ri.ParamsType] struct {
 	clickHouseClient     dbclient.ClickHouseClient[S, P]
-	apiConfig            config.ApiConfig
 	httpClient           *resty.Client
 	workerTimeout        time.Duration
-	httpRetries          config.RetryConfig
-	runConfig            config.RunConfig
-	selectRetries        config.RetryConfig
-	logger               *zap.SugaredLogger
 	qualityControlConfig config.QualityControlConfig
 }
 
-func NewRunner[S ri.StoredValueType, R ri.ResponseType[S, P], P ri.ParamsType](
-	config config.RunnerConfig,
-) *Runner[S, R, P] {
-	logger := zap.Must(config.LoggerConfig.Build()).Sugar()
-
+func New[S ri.StoredValueType, R ri.ResponseType[S, P], P ri.ParamsType]() *Runner[S, R, P] {
 	clickHouseClient, version, err := dbclient.NewClickHouseClient[S, P](
-		config.ClickHouseConfig,
+		config.C.ClickHouse,
 	)
 	if err != nil {
-		logger.Errorw(
+		log.S.Errorw(
 			"Connection to the ClickHouse database was unsuccessful!",
 			"error", err,
 			"tag", log.TagClickHouseError,
 		)
 		return nil
 	} else {
-		logger.Infow(
+		log.S.Infow(
 			"Connection to the ClickHouse database was successful!",
 			"tag", log.TagClickHouseSuccess,
 		)
-		logger.Infow(
+		log.S.Infow(
 			fmt.Sprintf("%v", version),
 			"tag", log.TagClickHouseSuccess,
 		)
 	}
 
-	// logger.Infow("Creating table which is required for the run")
+	// log.S.Infow("Creating table which is required for the run")
 	// TODO(evgenymng): uncomment, when actual DDL is written
 	// var zeroInstance S
 	// zeroInstance.GetCreateQuery()
 
-	httpClient := initHttpClient(config, logger)
-
 	runner := Runner[S, R, P]{
 		clickHouseClient: *clickHouseClient,
-		apiConfig:        config.ApiConfig,
-		httpClient:       httpClient,
+		httpClient:       initHttpClient(),
 		workerTimeout: time.Duration(
-			config.Timeouts.GoroutineTimeout,
+			config.C.Timeouts.GoroutineTimeout,
 		) * time.Second,
-		runConfig:            config.RunConfig,
-		httpRetries:          config.HttpRetries,
-		selectRetries:        config.SelectRetries,
-		qualityControlConfig: config.QualityControlConfig,
-		logger:               logger,
 	}
 	return &runner
 }
@@ -86,7 +68,7 @@ func (r *Runner[S, R, P]) SendGetRequest(
 	ctx context.Context,
 	req rr.GetRequest[P],
 ) ([]S, error) {
-	url, err := req.CreateGetRequestLink(r.runConfig.ExtraParams)
+	url, err := req.CreateGetRequestLink(config.C.Run.ExtraParams)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +87,7 @@ func (r *Runner[S, R, P]) SendGetRequest(
 		Request.
 		Context().
 		Value(re.RequestContextKeyUnsuccessfulResponses).([]*resty.Response)
-	if lastResponse.IsSuccess() || r.httpRetries.NumRetries == 0 ||
+	if lastResponse.IsSuccess() || config.C.HttpRetries.NumRetries == 0 ||
 		lastResponse.StatusCode() == 0 {
 		responses = append(responses, lastResponse)
 	}
@@ -117,7 +99,7 @@ func (r *Runner[S, R, P]) SendGetRequest(
 		if statusCode == 0 {
 			result = *new(R)
 			statusCode = 599
-			r.logger.Debugw(
+			log.S.Debugw(
 				"Timeout was reached while waiting for a request",
 				"url", url,
 				"error", "TIMEOUT REACHED",
@@ -144,15 +126,15 @@ func (r *Runner[S, R, P]) Run(ctx context.Context, service api.Api[S]) {
 	// + 1 for the [nil] task
 	fetcherTasks := make(
 		chan *rr.GetRequest[P],
-		r.runConfig.SelectionBatchSize+1,
+		config.C.Run.SelectionBatchSize+1,
 	)
 	fetcherResults := make(
 		chan rd.FetcherResult[S],
-		r.runConfig.SelectionBatchSize,
+		config.C.Run.SelectionBatchSize,
 	)
 	writtenBatches := make(
 		chan rd.ProcessedBatch[S],
-		r.runConfig.WriterWorkers,
+		config.C.Run.WriterWorkers,
 	)
 
 	nothingLeft := make(chan bool, 1)
@@ -165,7 +147,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context, service api.Api[S]) {
 	workerCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	for i := 0; i < r.runConfig.FetcherWorkers; i++ {
+	for i := 0; i < config.C.Run.FetcherWorkers; i++ {
 		go r.fetcher(
 			workerCtx,
 			i,
@@ -174,7 +156,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context, service api.Api[S]) {
 			nothingLeft,
 		)
 	}
-	for i := 0; i < r.runConfig.WriterWorkers; i++ {
+	for i := 0; i < config.C.Run.WriterWorkers; i++ {
 		go r.writer(workerCtx, i, fetcherResults, writtenBatches)
 	}
 	go r.qualityControl(
@@ -189,7 +171,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context, service api.Api[S]) {
 	for {
 		select {
 		case _, ok := <-nothingLeft:
-			r.logger.Debug("Got \"nothing left\" signal from one of fetchers")
+			log.S.Debug("Got \"nothing left\" signal from one of fetchers")
 			if !ok {
 				// TODO(nrydanov): What should we do when channels are closed?
 				return
@@ -200,35 +182,35 @@ func (r *Runner[S, R, P]) Run(ctx context.Context, service api.Api[S]) {
 					var err error
 					selectedBatch, err = r.clickHouseClient.SelectNextBatch(
 						ctx,
-						r.runConfig.DayOffset,
-						r.runConfig.SelectionBatchSize,
+						config.C.Run.DayOffset,
+						config.C.Run.SelectionBatchSize,
 					)
 					return err
 				},
-				retry.Attempts(uint(r.selectRetries.NumRetries)+1),
+				retry.Attempts(uint(config.C.SelectRetries.NumRetries)+1),
 			)
 			if err != nil {
-				r.logger.Errorw(
+				log.S.Errorw(
 					"Failed to fetch URL parameters from the ClickHouse!",
 					"error", err,
 					"tag", log.TagClickHouseError,
 				)
 				break
 			}
-			r.logger.Debugw(
+			log.S.Debugw(
 				"Creating tasks for the fetchers",
 				"tag", log.TagRunnerDebug,
 			)
-			for _, task := range selectedBatch[:r.runConfig.VerificationBatchSize] {
+			for _, task := range selectedBatch[:config.C.Run.VerificationBatchSize] {
 				fetcherTasks <- rr.NewGetRequest(
-					r.apiConfig.Host,
-					r.apiConfig.Port,
-					r.apiConfig.Method,
+					config.C.Api.Host,
+					config.C.Api.Port,
+					config.C.Api.Method,
 					task,
 				)
 			}
 			fetcherTasks <- nil
-			selectedBatch = selectedBatch[r.runConfig.VerificationBatchSize:]
+			selectedBatch = selectedBatch[config.C.Run.VerificationBatchSize:]
 
 		case res, ok := <-qcResults:
 			if !ok {
@@ -238,7 +220,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context, service api.Api[S]) {
 			service.AfterBatch(ctx, res.Batch)
 
 			if res.FailCount > 0 {
-				r.logger.Warnw(
+				log.S.Warnw(
 					"Batch quality control was not passed",
 					"tag", log.TagQualityControl,
 					"fail_count", res.FailCount,
@@ -248,7 +230,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context, service api.Api[S]) {
 					return
 				}
 			} else {
-				r.logger.Infow(
+				log.S.Infow(
 					"Batch quality control has successfully been passed",
 					"tag", log.TagQualityControl,
 				)
@@ -258,9 +240,9 @@ func (r *Runner[S, R, P]) Run(ctx context.Context, service api.Api[S]) {
 }
 
 func (r *Runner[S, R, P]) standby(ctx context.Context) error {
-	r.logger.Infow("The runner has entered standby mode.")
-	waitTime := time.Duration(r.runConfig.SleepTime) * time.Second
-	defer r.logger.Infow("The runner has left standby mode")
+	log.S.Infow("The runner has entered standby mode.")
+	waitTime := time.Duration(config.C.Run.SleepTime) * time.Second
+	defer log.S.Infow("The runner has left standby mode")
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -269,18 +251,15 @@ func (r *Runner[S, R, P]) standby(ctx context.Context) error {
 	}
 }
 
-func initHttpClient(
-	config config.RunnerConfig,
-	logger *zap.SugaredLogger,
-) *resty.Client {
-	return resty.New().SetRetryCount(config.HttpRetries.NumRetries).
-		SetTimeout(time.Duration(time.Duration(config.Timeouts.VerifierTimeout) * time.Second)).
-		SetRetryWaitTime(time.Duration(config.HttpRetries.MinWaitTime) * time.Second).
-		SetRetryMaxWaitTime(time.Duration(config.HttpRetries.MaxWaitTime) * time.Second).
+func initHttpClient() *resty.Client {
+	return resty.New().SetRetryCount(config.C.HttpRetries.NumRetries).
+		SetTimeout(time.Duration(time.Duration(config.C.Timeouts.VerifierTimeout) * time.Second)).
+		SetRetryWaitTime(time.Duration(config.C.HttpRetries.MinWaitTime) * time.Second).
+		SetRetryMaxWaitTime(time.Duration(config.C.HttpRetries.MaxWaitTime) * time.Second).
 		AddRetryCondition(
 			func(r *resty.Response, err error) bool {
 				if r.StatusCode() >= http.StatusInternalServerError {
-					logger.Debugw(
+					log.S.Debugw(
 						"Retrying request",
 						"request_status_code", r.StatusCode(),
 						"verify_url", r.Request.URL,
@@ -306,5 +285,5 @@ func initHttpClient(
 				r.Request.SetContext(newCtx)
 			},
 		).
-		SetLogger(logger)
+		SetLogger(log.S)
 }

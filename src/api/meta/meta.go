@@ -2,9 +2,9 @@ package metaapi
 
 import (
 	"context"
-	"fmt"
 
 	"orb/runner/src/api/common"
+	"orb/runner/src/log"
 	rdata "orb/runner/src/runner/data"
 	"orb/runner/src/runner/util"
 )
@@ -188,6 +188,7 @@ func (r VerificationResult) AsArray() []any {
 
 type MetaApi struct{}
 
+// Implement the [api.Api] interface.
 func (srv *MetaApi) AfterBatch(
 	ctx context.Context,
 	batch rdata.ProcessedBatch[VerificationResult],
@@ -209,10 +210,9 @@ func (srv *MetaApi) AfterBatch(
 				return acc
 			},
 		)
-		// TODO(evgenymng): log this
-		fmt.Printf(
-			"Post-analyzed the processedBatch, successful responses with scores: %d",
-			successesWithScores,
+		log.S.Infow(
+			"Post-analyzed the processed batch",
+			"successes_with_scores", successesWithScores,
 		)
 	}
 }

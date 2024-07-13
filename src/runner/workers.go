@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"orb/runner/src/config"
 	"orb/runner/src/log"
 	rd "orb/runner/src/runner/data"
 	rr "orb/runner/src/runner/request"
@@ -26,7 +27,7 @@ func (r *Runner[S, R, P]) fetcher(
 				return
 			}
 			if task == nil {
-				r.logger.Infow(
+				log.S.Infow(
 					"Fetcher has no work left, asking for a new batch",
 					"fetcher_num", fetcherNum,
 					"tag", log.TagRunnerDebug,
@@ -35,14 +36,14 @@ func (r *Runner[S, R, P]) fetcher(
 				break
 			}
 
-			r.logger.Debugw(
+			log.S.Debugw(
 				"Sending request to get page contents",
 				"fetcher_num",
 				fetcherNum,
 			)
 			resultList, err := r.SendGetRequest(ctx, *task)
 			if err != nil {
-				r.logger.Debugw(
+				log.S.Debugw(
 					"There was an error, while sending the request "+
 						"to the subject API",
 					"error", err,
@@ -55,7 +56,7 @@ func (r *Runner[S, R, P]) fetcher(
 			}
 
 		case <-ctx.Done():
-			r.logger.Debugw(
+			log.S.Debugw(
 				"Fetcher's context is cancelled",
 				"fetcher_num", fetcherNum,
 				"error", ctx.Err(),
@@ -85,14 +86,14 @@ func (r *Runner[S, R, P]) writer(
 				oldest = &result.ProcessingStartTime
 			}
 
-			if len(batch) >= r.runConfig.InsertionBatchSize {
+			if len(batch) >= config.C.Run.InsertionBatchSize {
 				err := r.clickHouseClient.AsyncInsertBatch(
 					ctx,
 					batch,
-					r.runConfig.Tag,
+					config.C.Run.Tag,
 				)
 				if err != nil {
-					r.logger.Errorw(
+					log.S.Errorw(
 						"Insertion to the ClickHouse database was unsuccessful!",
 						"error",
 						err,
@@ -103,7 +104,7 @@ func (r *Runner[S, R, P]) writer(
 					)
 					break
 				}
-				r.logger.Infow(
+				log.S.Infow(
 					"Insertion to the ClickHouse database was successful!",
 					"batch_len", len(batch),
 					"consumer_num", consumerNum,
@@ -116,7 +117,7 @@ func (r *Runner[S, R, P]) writer(
 			}
 
 		case <-ctx.Done():
-			r.logger.Debugw(
+			log.S.Debugw(
 				"Consumer's context is cancelled",
 				"consumer_num", consumerNum,
 				"error", ctx.Err(),
@@ -154,12 +155,13 @@ func (r *Runner[S, R, P]) qualityControl(
 				},
 			)
 			sinceBatchStart := time.Since(batch.ProcessingStartTime)
+
 			// NOTE(nrydanov): Case 1. Batch processing takes too much time
 			if sinceBatchStart > time.Duration(
 				r.qualityControlConfig.Period,
 			)*time.Second {
-				r.logger.Infow(
-					"Batch processing takes longer than it should. ",
+				log.S.Infow(
+					"Batch processing takes longer than it should.",
 					"num_successes", numSuccesses,
 					"num_requests", numRequests,
 					"tag", log.TagQualityControl,
@@ -171,7 +173,7 @@ func (r *Runner[S, R, P]) qualityControl(
 			if numSuccesses < int(
 				float64(numRequests)*r.qualityControlConfig.Threshold,
 			) {
-				r.logger.Infow(
+				log.S.Infow(
 					"Too many 5xx errors from the API.",
 					"tag", log.TagQualityControl,
 				)
@@ -183,7 +185,7 @@ func (r *Runner[S, R, P]) qualityControl(
 			}
 
 		case <-ctx.Done():
-			r.logger.Debugw(
+			log.S.Debugw(
 				"Quality control routine's context is cancelled",
 				"error", ctx.Err(),
 			)
