@@ -13,7 +13,6 @@ func main() {
 	metaRunner := runner.New[
 		metaapi.VerificationResult,
 		metaapi.VerifyResponse,
-		metaapi.VerifyRequestParams,
 	]()
 	if metaRunner == nil {
 		return
