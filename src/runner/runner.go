@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"time"
 
-	"orb/runner/src/api"
 	"orb/runner/src/config"
 	dbclient "orb/runner/src/db/clients"
 	"orb/runner/src/log"
 	rd "orb/runner/src/runner/data"
 	re "orb/runner/src/runner/enum"
+	"orb/runner/src/runner/hooks"
 	ri "orb/runner/src/runner/interface"
 	rr "orb/runner/src/runner/request"
 
@@ -21,13 +21,17 @@ import (
 )
 
 type Runner[S ri.StoredValue, R ri.Response[S, P], P ri.StoredParams] struct {
-	clickHouseClient     dbclient.ClickHouseClient[S, P]
-	httpClient           *resty.Client
-	workerTimeout        time.Duration
-	qualityControlConfig config.QualityControlConfig
+	clickHouseClient dbclient.ClickHouseClient[S, P]
+	httpClient       *resty.Client
+	workerTimeout    time.Duration
+	hooks            hooks.Hooks[S]
 }
 
-func New[S ri.StoredValue, R ri.Response[S, P], P ri.StoredParams]() *Runner[S, R, P] {
+func New[
+	S ri.StoredValue,
+	R ri.Response[S, P],
+	P ri.StoredParams,
+](hs hooks.Hooks[S]) (*Runner[S, R, P], error) {
 	clickHouseClient, version, err := dbclient.NewClickHouseClient[S, P](
 		config.C.ClickHouse,
 	)
@@ -37,7 +41,7 @@ func New[S ri.StoredValue, R ri.Response[S, P], P ri.StoredParams]() *Runner[S, 
 			"error", err,
 			"tag", log.TagClickHouseError,
 		)
-		return nil
+		return nil, err
 	} else {
 		log.S.Infow(
 			"Connection to the ClickHouse database was successful!",
@@ -60,8 +64,9 @@ func New[S ri.StoredValue, R ri.Response[S, P], P ri.StoredParams]() *Runner[S, 
 		workerTimeout: time.Duration(
 			config.C.Timeouts.GoroutineTimeout,
 		) * time.Second,
+		hooks: hs,
 	}
-	return &runner
+	return &runner, nil
 }
 
 func (r *Runner[S, R, P]) SendGetRequest(
@@ -121,8 +126,8 @@ func (r *Runner[S, R, P]) SendGetRequest(
 	return results, nil
 }
 
-// Run the runner's job within a given context on a specified API.
-func (r *Runner[S, R, P]) Run(ctx context.Context, service api.Api[S]) {
+// Run the runner's job within a given context.
+func (r *Runner[S, R, P]) Run(ctx context.Context) {
 	// + 1 for the [nil] task
 	fetcherTasks := make(
 		chan *rr.GetRequest[P],
@@ -171,7 +176,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context, service api.Api[S]) {
 	for {
 		select {
 		case _, ok := <-nothingLeft:
-			log.S.Debug("Got \"nothing left\" signal from one of fetchers")
+			log.S.Debug(`Got "nothing left" signal from one of fetchers`)
 			if !ok {
 				return
 			}
@@ -216,7 +221,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context, service api.Api[S]) {
 				return
 			}
 
-			service.AfterBatch(ctx, res.Batch, &res.FailCount)
+			r.hooks.AfterBatch(ctx, res.Batch, &res.FailCount)
 
 			if res.FailCount > 0 {
 				log.S.Warnw(
@@ -239,7 +244,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context, service api.Api[S]) {
 }
 
 func (r *Runner[S, R, P]) standby(ctx context.Context) error {
-	log.S.Infow("The runner has entered standby mode.")
+	log.S.Infow("The runner has entered standby mode")
 	waitTime := time.Duration(config.C.Run.SleepTime) * time.Second
 	defer log.S.Infow("The runner has left standby mode")
 	select {

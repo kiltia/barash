@@ -1,4 +1,4 @@
-package api
+package hooks
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	ri "orb/runner/src/runner/interface"
 )
 
-type Api[S ri.StoredValue] interface {
+// NOTE(evgenymng): this interface's API is a subject to change
+type Hooks[S ri.StoredValue] interface {
 	AfterBatch(ctx context.Context, batch rd.ProcessedBatch[S], qcFails *int)
 }

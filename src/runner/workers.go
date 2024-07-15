@@ -158,7 +158,7 @@ func (r *Runner[S, R, P]) qualityControl(
 
 			// NOTE(nrydanov): Case 1. Batch processing takes too much time
 			if sinceBatchStart > time.Duration(
-				r.qualityControlConfig.Period,
+				config.C.QualityControl.Period,
 			)*time.Second {
 				log.S.Infow(
 					"Batch processing takes longer than it should.",
@@ -171,7 +171,7 @@ func (r *Runner[S, R, P]) qualityControl(
 
 			// NOTE(nrydanov): Case 2. Too many requests ends with errors
 			if numSuccesses < int(
-				float64(numRequests)*r.qualityControlConfig.Threshold,
+				float64(numRequests)*config.C.QualityControl.Threshold,
 			) {
 				log.S.Infow(
 					"Too many 5xx errors from the API.",

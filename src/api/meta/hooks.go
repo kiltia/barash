@@ -5,13 +5,17 @@ import (
 
 	"orb/runner/src/log"
 	rdata "orb/runner/src/runner/data"
+	"orb/runner/src/runner/hooks"
 	"orb/runner/src/runner/util"
 )
 
-type MetaApi struct{}
+type MetaApiHooks struct {
+	// NOTE(evgenymng): embed the dummy implementation just in case
+	hooks.DummyHooks[VerificationResult]
+}
 
-// Implement the [api.Api] interface.
-func (srv *MetaApi) AfterBatch(
+// Implement the [hooks.Hooks] interface.
+func (srv *MetaApiHooks) AfterBatch(
 	ctx context.Context,
 	batch rdata.ProcessedBatch[VerificationResult],
 	failCount *int,
