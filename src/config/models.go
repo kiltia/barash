@@ -33,7 +33,7 @@ type ClickHouseConfig struct {
 }
 
 type TimeoutConfig struct {
-	VerifierTimeout  int `yaml:"verifier_timeout"`
+	ApiTimeout       int `yaml:"api_timeout"`
 	GoroutineTimeout int `yaml:"goroutine_timeout"`
 }
 

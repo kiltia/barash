@@ -255,7 +255,7 @@ func (r *Runner[S, R, P]) standby(ctx context.Context) error {
 
 func initHttpClient() *resty.Client {
 	return resty.New().SetRetryCount(config.C.HttpRetries.NumRetries).
-		SetTimeout(time.Duration(time.Duration(config.C.Timeouts.VerifierTimeout) * time.Second)).
+		SetTimeout(time.Duration(time.Duration(config.C.Timeouts.ApiTimeout) * time.Second)).
 		SetRetryWaitTime(time.Duration(config.C.HttpRetries.MinWaitTime) * time.Second).
 		SetRetryMaxWaitTime(time.Duration(config.C.HttpRetries.MaxWaitTime) * time.Second).
 		AddRetryCondition(
