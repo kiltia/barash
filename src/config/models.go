@@ -44,12 +44,12 @@ type RetryConfig struct {
 }
 
 type RunConfig struct {
-	FetcherWorkers        int               `yaml:"fetcher_workers"`
-	WriterWorkers         int               `yaml:"writer_workers"`
-	VerificationBatchSize int               `yaml:"verification_batch_size"`
-	InsertionBatchSize    int               `yaml:"insertion_batch_size"`
-	DayOffset             int               `yaml:"day_offset"`
-	SleepTime             int               `yaml:"sleep_time"`
-	Tag                   string            `yaml:"tag"`
-	ExtraParams           map[string]string `yaml:"extra_params"`
+	FetcherWorkers     int               `yaml:"fetcher_workers"`
+	WriterWorkers      int               `yaml:"writer_workers"`
+	RequestBatchSize   int               `yaml:"request_batch_size"`
+	InsertionBatchSize int               `yaml:"insertion_batch_size"`
+	DayOffset          int               `yaml:"day_offset"`
+	SleepTime          int               `yaml:"sleep_time"`
+	Tag                string            `yaml:"tag"`
+	ExtraParams        map[string]string `yaml:"extra_params"`
 }

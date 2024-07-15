@@ -131,11 +131,11 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 	// + 1 for the [nil] task
 	fetcherTasks := make(
 		chan *rr.GetRequest[P],
-		config.C.Run.VerificationBatchSize+1,
+		config.C.Run.RequestBatchSize+1,
 	)
 	fetcherResults := make(
 		chan rd.FetcherResult[S],
-		config.C.Run.VerificationBatchSize,
+		config.C.Run.RequestBatchSize,
 	)
 	writtenBatches := make(
 		chan rd.ProcessedBatch[S],
@@ -186,7 +186,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 					selectedBatch, err = r.clickHouseClient.SelectNextBatch(
 						ctx,
 						config.C.Run.DayOffset,
-						config.C.Run.VerificationBatchSize,
+						config.C.Run.RequestBatchSize,
 					)
 					return err
 				},

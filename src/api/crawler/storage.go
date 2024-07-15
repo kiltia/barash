@@ -24,7 +24,7 @@ func (r CrawlingResult) GetStatusCode() int {
 
 // Implement the [rinterface.StoredValue] interface.
 func (r CrawlingResult) GetSelectQuery() string {
-    // TODO(nrydanov): Add select query here
+	// TODO(nrydanov): Add select query here
 	return ``
 }
 
