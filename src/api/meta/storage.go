@@ -25,7 +25,7 @@ func (r VerificationResult) GetStatusCode() int {
 }
 
 // Implement the [rinterface.StoredValue] interface.
-func (r VerificationResult) GetSelectQuery() string {
+func (r VerificationResult) GetContiniousSelectQuery() string {
 	return `
         with last as (
             select duns, url, max(ts) as max_ts
@@ -57,6 +57,11 @@ func (r VerificationResult) GetSelectQuery() string {
         )
         select * from final
     `
+}
+
+func (r VerificationResult) GetSimpleSelectQuery() string {
+	// TODO(nrydanov): Add simple select query here if required
+	return ""
 }
 
 // Implement the [rinterface.StoredValue] interface.

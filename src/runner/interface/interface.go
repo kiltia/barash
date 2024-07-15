@@ -15,14 +15,15 @@ type (
 		// (templated) query.
 		GetInsertQuery() string
 
-		// Return SELECT query for retrieving a row from the database.
-		//
-		// TODO(evgenymng): rework the query building flow,
-		// because now we expect from a user that they will
-		// have a specific number of template parameters in that
-		// query, which describe how old the records should be
-		// (which makes no sense in general).
-		GetSelectQuery() string
+		// Return SELECT query for retrieving a row from the database
+		// in continious mode, which means that rows are retrieved
+		// based on last processed time
+		GetContiniousSelectQuery() string
+
+		// Return SELECT query for retrieving rows from the database
+		// in simple mode, which means that rows are retrieved
+		// based on offset
+		GetSimpleSelectQuery() string
 
 		// Return CREATE TABLE query for creating a new table
 		// that will be used to store every run's data in a row.

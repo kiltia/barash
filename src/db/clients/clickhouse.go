@@ -64,12 +64,21 @@ func (client *ClickHouseClient[S, P]) AsyncInsertBatch(
 
 func (client *ClickHouseClient[S, P]) SelectNextBatch(
 	ctx context.Context,
-	days int,
-	batchSize int,
+	batchCounter int,
 ) (result []P, err error) {
 	var nilInstance S
-	rawQuery := nilInstance.GetSelectQuery()
-	query := fmt.Sprintf(rawQuery, days, batchSize)
+	var query string
+	requestedSize := config.C.Run.RequestBatchSize
+	switch config.C.Api.Mode {
+	case "continious":
+		days := config.C.Run.DayOffset
+		rawQuery := nilInstance.GetContiniousSelectQuery()
+		query = fmt.Sprintf(rawQuery, days, requestedSize)
+	case "simple":
+		offset := requestedSize * batchCounter
+		rawQuery := nilInstance.GetSimpleSelectQuery()
+		query = fmt.Sprintf(rawQuery, requestedSize, offset)
+	}
 	if err = client.Connection.Select(ctx, &result, query); err != nil {
 		return nil, err
 	}

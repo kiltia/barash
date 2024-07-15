@@ -11,7 +11,7 @@ type CrawlingResult struct {
 // Implement the [rinterface.StoredValue] interface.
 func (r CrawlingResult) GetInsertQuery() string {
 	return `
-        INSERT INTO master VALUES (
+        INSERT INTO crawler VALUES (
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now()
         )
     `
@@ -23,9 +23,14 @@ func (r CrawlingResult) GetStatusCode() int {
 }
 
 // Implement the [rinterface.StoredValue] interface.
-func (r CrawlingResult) GetSelectQuery() string {
-	// TODO(nrydanov): Add select query here
-	return ``
+func (r CrawlingResult) GetSimpleSelectQuery() string {
+	return `
+        SELECT url from master LIMIT %d OFFSET %d
+    `
+}
+
+func (r CrawlingResult) GetContiniousSelectQuery() string {
+	return ""
 }
 
 // Implement the [rinterface.StoredValue] interface.

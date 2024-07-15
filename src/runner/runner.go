@@ -171,6 +171,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 	)
 
 	nothingLeft <- true
+	batchCounter := 0
 
 	for {
 		select {
@@ -185,8 +186,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 				func() (err error) {
 					selectedBatch, err = r.clickHouseClient.SelectNextBatch(
 						ctx,
-						config.C.Run.DayOffset,
-						config.C.Run.RequestBatchSize,
+						batchCounter,
 					)
 					return err
 				},
@@ -200,6 +200,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 				)
 				break
 			}
+			batchCounter += 1
 			log.S.Debugw(
 				"Creating tasks for the fetchers",
 				"tag", log.TagRunnerDebug,
