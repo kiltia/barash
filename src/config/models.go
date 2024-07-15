@@ -46,7 +46,6 @@ type RetryConfig struct {
 type RunConfig struct {
 	FetcherWorkers        int               `yaml:"fetcher_workers"`
 	WriterWorkers         int               `yaml:"writer_workers"`
-	SelectionBatchSize    int               `yaml:"selection_batch_size"`
 	VerificationBatchSize int               `yaml:"verification_batch_size"`
 	InsertionBatchSize    int               `yaml:"insertion_batch_size"`
 	DayOffset             int               `yaml:"day_offset"`

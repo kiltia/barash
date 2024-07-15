@@ -131,11 +131,11 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 	// + 1 for the [nil] task
 	fetcherTasks := make(
 		chan *rr.GetRequest[P],
-		config.C.Run.SelectionBatchSize+1,
+		config.C.Run.VerificationBatchSize+1,
 	)
 	fetcherResults := make(
 		chan rd.FetcherResult[S],
-		config.C.Run.SelectionBatchSize,
+		config.C.Run.VerificationBatchSize,
 	)
 	writtenBatches := make(
 		chan rd.ProcessedBatch[S],
@@ -170,7 +170,6 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 		qcResults,
 	)
 
-	selectedBatch := []P{}
 	nothingLeft <- true
 
 	for {
@@ -181,13 +180,13 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 				return
 			}
 
+			var selectedBatch []P
 			err := retry.Do(
-				func() error {
-					var err error
+				func() (err error) {
 					selectedBatch, err = r.clickHouseClient.SelectNextBatch(
 						ctx,
 						config.C.Run.DayOffset,
-						config.C.Run.SelectionBatchSize,
+						config.C.Run.VerificationBatchSize,
 					)
 					return err
 				},
@@ -205,7 +204,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 				"Creating tasks for the fetchers",
 				"tag", log.TagRunnerDebug,
 			)
-			for _, task := range selectedBatch[:config.C.Run.VerificationBatchSize] {
+			for _, task := range selectedBatch {
 				fetcherTasks <- rr.NewGetRequest(
 					config.C.Api.Host,
 					config.C.Api.Port,
@@ -214,7 +213,6 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 				)
 			}
 			fetcherTasks <- nil
-			selectedBatch = selectedBatch[config.C.Run.VerificationBatchSize:]
 
 		case res, ok := <-qcResults:
 			if !ok {
