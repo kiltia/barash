@@ -22,7 +22,7 @@ func (resp VerifyResponse) IntoStored(
 		AttemptsNumber:       n,
 		VerifyParams:         params,
 		VerificationResponse: &resp,
-		VerificationLink:     url,
+		RequestLink:          url,
 		StatusCode:           status,
 	}
 }

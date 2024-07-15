@@ -3,7 +3,7 @@ package metaapi
 type VerificationResult struct {
 	StatusCode           int
 	VerifyParams         VerifyRequestParams
-	VerificationLink     string
+	RequestLink          string
 	AttemptsNumber       int
 	VerificationResponse *VerifyResponse
 }
@@ -78,7 +78,7 @@ func (r VerificationResult) AsArray() []any {
 		verifyParams.Duns,
 		true,
 		verifyParams.Url,
-		r.VerificationLink,
+		r.RequestLink,
 		r.StatusCode,
 		response.Error,
 		crawlerDebug.FailStatus,
