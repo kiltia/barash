@@ -44,6 +44,13 @@ func (r CrawlingResult) AsArray() []any {
 	crawlingParams := r.CrawlerParams
 	response := r.CrawlingResponse
 
+    urls := []string{}
+
+    // TODO(nrydanov): Filter out bad urls
+    for _, url := range response.Parsed.Urls {
+        urls = append(urls, url.URL)
+    }
+
 	return []any{
 		crawlingParams.Url,
 		r.RequestLink,
@@ -54,6 +61,6 @@ func (r CrawlingResult) AsArray() []any {
 		response.Status,
 		response.ResponseSize,
 		response.HeadlessUsed,
-		response.Parsed.Urls,
+        urls,
 	}
 }

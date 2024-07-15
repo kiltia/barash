@@ -13,5 +13,5 @@ const (
 type CrawlerParams struct {
 	Url              string    `json:"url"              ch:"url"`
 	HeadlessStrategy string    `json:"headless_browser"`
-	Fields           *[]string `json:"field"`
+	Fields           *[]string `json:"fields"`
 }

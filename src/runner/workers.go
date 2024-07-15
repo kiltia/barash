@@ -52,7 +52,6 @@ func (r *Runner[S, R, P]) fetcher(
 			}
 
 			for _, result := range resultList {
-                log.S.Warn("abb")
 				results <- rd.NewFetcherResult(result, startTime)
 			}
 
