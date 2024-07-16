@@ -1,5 +1,7 @@
 package meta
 
+import "orb/runner/src/log"
+
 type VerificationResult struct {
 	StatusCode           int
 	VerifyParams         VerifyRequestParams
@@ -24,8 +26,12 @@ func (r VerificationResult) GetStatusCode() int {
 	return r.StatusCode
 }
 
+func (r VerificationResult) GetUrl() string {
+	return r.VerifyParams.Url
+}
+
 // Implement the [rinterface.StoredValue] interface.
-func (r VerifyRequestParams) GetContiniousSelectQuery() string {
+func (_ VerifyRequestParams) GetContiniousSelectQuery() string {
 	return `
         with last as (
             select duns, url, max(ts) as max_ts
@@ -59,14 +65,18 @@ func (r VerifyRequestParams) GetContiniousSelectQuery() string {
     `
 }
 
-func (r VerifyRequestParams) GetSimpleSelectQuery() string {
-	// TODO(nrydanov): Add simple select query here if required
+func (_ VerifyRequestParams) GetSimpleSelectQuery() string {
+	log.S.Panicw("Method is not implemented")
 	return ""
+}
+
+func (p VerifyRequestParams) GetUrl() string {
+	return p.Url
 }
 
 // Implement the [rinterface.StoredValue] interface.
 func (r VerificationResult) GetCreateQuery() string {
-	// TODO(evgenymng): Return something
+	log.S.Panicw("Method is not implemented")
 	return ""
 }
 

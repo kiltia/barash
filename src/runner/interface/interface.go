@@ -28,6 +28,7 @@ type (
 
 		// Get value of the status code field.
 		GetStatusCode() int
+		GetUrl() string
 	}
 
 	Response[S StoredValue, P StoredParams] interface {
@@ -50,5 +51,6 @@ type (
 		// in simple mode, which means that rows are retrieved
 		// based on offset
 		GetSimpleSelectQuery() string
+		GetUrl() string
 	}
 )

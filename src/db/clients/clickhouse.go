@@ -80,6 +80,8 @@ func (client *ClickHouseClient[S, P]) SelectNextBatch(
 		offset := requestedSize * batchCounter
 		rawQuery := nilInstance.GetSimpleSelectQuery()
 		query = fmt.Sprintf(rawQuery, requestedSize, offset)
+	default:
+		log.S.Panicw("Unexpected mode", "input_value", config.C.Api.Type)
 	}
 	if err = client.Connection.Select(ctx, &result, query); err != nil {
 		return nil, err

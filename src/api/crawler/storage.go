@@ -28,15 +28,23 @@ func (r CrawlingResult) GetStatusCode() int {
 	return r.StatusCode
 }
 
+func (r CrawlingResult) GetUrl() string {
+	return r.CrawlerParams.Url
+}
+
 // Implement the [rinterface.StoredValue] interface.
-func (r CrawlerParams) GetSimpleSelectQuery() string {
+func (_ CrawlerParams) GetSimpleSelectQuery() string {
 	return `
         SELECT url from master LIMIT %d OFFSET %d
     `
 }
 
-func (r CrawlerParams) GetContiniousSelectQuery() string {
-	return ""
+func (_ CrawlerParams) GetContiniousSelectQuery() string {
+	panic("Method is not implemented")
+}
+
+func (p CrawlerParams) GetUrl() string {
+	return p.Url
 }
 
 // Implement the [rinterface.StoredValue] interface.

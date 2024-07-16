@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"orb/runner/src/config"
@@ -51,6 +52,7 @@ func (r *Runner[S, R, P]) fetcher(
 				break
 			}
 
+			log.S.Debugw("Sending fetching results")
 			for _, result := range resultList {
 				results <- rd.NewFetcherResult(result, startTime)
 			}
@@ -71,6 +73,7 @@ func (r *Runner[S, R, P]) writer(
 	consumerNum int,
 	results chan rd.FetcherResult[S],
 	processedBatches chan rd.ProcessedBatch[S],
+	inProgress *sync.Map,
 ) {
 	var oldest *time.Time
 	var batch []S
@@ -87,6 +90,9 @@ func (r *Runner[S, R, P]) writer(
 			}
 
 			if len(batch) >= config.C.Run.InsertionBatchSize {
+				for _, result := range batch {
+					unlockUrl(result.GetUrl(), inProgress)
+				}
 				err := r.clickHouseClient.AsyncInsertBatch(
 					ctx,
 					batch,

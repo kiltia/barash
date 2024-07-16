@@ -30,5 +30,7 @@ func main() {
 			log.S.Fatalw("Error in runner initialization", "error", err)
 		}
 		instance.Run(context.Background())
+	default:
+		log.S.Panicw("Unexpected API type", "input_value", config.C.Api.Type)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"orb/runner/src/config"
@@ -53,11 +54,6 @@ func New[
 		)
 	}
 
-	// log.S.Infow("Creating table which is required for the run")
-	// TODO(evgenymng): uncomment, when actual DDL is written
-	// var zeroInstance S
-	// zeroInstance.GetCreateQuery()
-
 	runner := Runner[S, R, P]{
 		clickHouseClient: *clickHouseClient,
 		httpClient:       initHttpClient(),
@@ -75,6 +71,7 @@ func (r *Runner[S, R, P]) SendGetRequest(
 ) ([]S, error) {
 	url, err := req.CreateGetRequestLink(config.C.Run.ExtraParams)
 	if err != nil {
+		log.S.Error("Got an error while creating a link", "error", err)
 		return nil, err
 	}
 
@@ -85,6 +82,7 @@ func (r *Runner[S, R, P]) SendGetRequest(
 	)
 	lastResponse, err := r.httpClient.R().SetContext(ctx).Get(url)
 	if err != nil {
+		log.S.Error("Got an error while completing request", "error", err)
 		return nil, err
 	}
 
@@ -113,6 +111,7 @@ func (r *Runner[S, R, P]) SendGetRequest(
 		} else {
 			err = json.Unmarshal(response.Body(), &result)
 			if err != nil {
+				log.S.Error("Got an error while unmarshalling response", "error", err)
 				return nil, err
 			}
 		}
@@ -160,6 +159,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 
 	r.initTable(ctx)
 
+	var inProgress sync.Map
 	for i := 0; i < config.C.Run.FetcherWorkers; i++ {
 		go r.fetcher(
 			workerCtx,
@@ -170,7 +170,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 		)
 	}
 	for i := 0; i < config.C.Run.WriterWorkers; i++ {
-		go r.writer(workerCtx, i, fetcherResults, writtenBatches)
+		go r.writer(workerCtx, i, fetcherResults, writtenBatches, &inProgress)
 	}
 	go r.qualityControl(
 		workerCtx,
@@ -196,6 +196,17 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 						ctx,
 						batchCounter,
 					)
+
+					filteredBatch := *new([]P)
+					for _, rd := range selectedBatch {
+						stored := lockUrl(rd.GetUrl(), &inProgress)
+						if stored {
+							filteredBatch = append(filteredBatch, rd)
+						} else {
+							log.S.Debugw("Batch contains URL that is being processing, filtering out.", "url", rd.GetUrl())
+						}
+					}
+					selectedBatch = filteredBatch
 					return err
 				},
 				retry.Attempts(uint(config.C.SelectRetries.NumRetries)+1),
@@ -263,6 +274,10 @@ func (r *Runner[S, R, P]) standby(ctx context.Context) error {
 }
 
 func (r *Runner[S, R, P]) initTable(ctx context.Context) {
+	if config.C.Api.Mode == config.ContiniousMode {
+		log.S.Info("Running in continious mode, skipping initialization")
+		return
+	}
 	var nilInstance S
 	err := r.clickHouseClient.Connection.Exec(ctx, nilInstance.GetCreateQuery())
 
@@ -293,7 +308,7 @@ func initHttpClient() *resty.Client {
 			},
 		).
 		// TODO(nrydanov): Find other way to handle list of unsucessful responses
-		// as using WithValue for these purposes is anti-pattern
+		// as using WithValue for these purposes seems like anti-pattern
 		AddRetryHook(
 			func(r *resty.Response, err error) {
 				ctx := r.Request.Context()
