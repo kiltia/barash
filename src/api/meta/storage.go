@@ -1,4 +1,4 @@
-package metaapi
+package meta
 
 type VerificationResult struct {
 	StatusCode           int

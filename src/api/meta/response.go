@@ -1,4 +1,4 @@
-package metaapi
+package meta
 
 import "orb/runner/src/api/common"
 

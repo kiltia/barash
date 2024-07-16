@@ -1,4 +1,4 @@
-package metaapi
+package meta
 
 import (
 	"context"

@@ -1,4 +1,4 @@
-package metaapi
+package meta
 
 // Request query parameters for the Meta API endpoint.
 type VerifyRequestParams struct {

@@ -1,5 +1,7 @@
 package crawler
 
+import "strings"
+
 type CrawlingResult struct {
 	StatusCode       int
 	CrawlerParams    CrawlerParams
@@ -44,12 +46,14 @@ func (r CrawlingResult) AsArray() []any {
 	crawlingParams := r.CrawlerParams
 	response := r.CrawlingResponse
 
-    urls := []string{}
+	urls := []string{}
 
-    // TODO(nrydanov): Filter out bad urls
-    for _, url := range response.Parsed.Urls {
-        urls = append(urls, url.URL)
-    }
+	for _, url := range response.Parsed.Urls {
+		if url.TagName == "a" && url.Type == "href" &&
+			(strings.HasPrefix(url.URL, "http") || strings.HasPrefix(url.URL, "https")) {
+			urls = append(urls, url.URL)
+		}
+	}
 
 	return []any{
 		crawlingParams.Url,
@@ -61,6 +65,6 @@ func (r CrawlingResult) AsArray() []any {
 		response.Status,
 		response.ResponseSize,
 		response.HeadlessUsed,
-        urls,
+		urls,
 	}
 }
