@@ -17,5 +17,4 @@ func (srv *CrawlerApiHooks) AfterBatch(
 	batch rdata.ProcessedBatch[CrawlingResult],
 	failCount *int,
 ) {
-	return
 }
