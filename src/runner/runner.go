@@ -116,7 +116,13 @@ func (r *Runner[S, R, P]) SendGetRequest(
 				return nil, err
 			}
 		}
-		storedValue := result.IntoStored(req.Params, i+1, url, statusCode)
+		storedValue := result.IntoStored(
+			req.Params,
+			i+1,
+			url,
+			statusCode,
+			response.Time(),
+		)
 
 		results = append(
 			results,

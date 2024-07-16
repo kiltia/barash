@@ -1,12 +1,16 @@
 package crawler
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 type CrawlingResult struct {
 	StatusCode       int
 	CrawlerParams    CrawlerParams
 	RequestLink      string
 	AttemptsNumber   int
+	TimeElapsed      time.Duration
 	CrawlingResponse *CrawlerResponse
 }
 
@@ -14,7 +18,7 @@ type CrawlingResult struct {
 func (r CrawlingResult) GetInsertQuery() string {
 	return `
         INSERT INTO crawler VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now()
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now()
         )
     `
 }
@@ -25,13 +29,13 @@ func (r CrawlingResult) GetStatusCode() int {
 }
 
 // Implement the [rinterface.StoredValue] interface.
-func (r CrawlingResult) GetSimpleSelectQuery() string {
+func (r CrawlerParams) GetSimpleSelectQuery() string {
 	return `
         SELECT url from master LIMIT %d OFFSET %d
     `
 }
 
-func (r CrawlingResult) GetContiniousSelectQuery() string {
+func (r CrawlerParams) GetContiniousSelectQuery() string {
 	return ""
 }
 
@@ -66,5 +70,6 @@ func (r CrawlingResult) AsArray() []any {
 		response.ResponseSize,
 		response.HeadlessUsed,
 		urls,
+		r.TimeElapsed.Abs().Milliseconds(),
 	}
 }

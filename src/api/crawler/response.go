@@ -1,5 +1,7 @@
 package crawler
 
+import "time"
+
 type CrawlerResponse struct {
 	OriginalUrl  string            `json:"original_url"`
 	FinalUrl     string            `json:"final_url"`
@@ -14,6 +16,7 @@ func (resp CrawlerResponse) IntoStored(
 	n int,
 	url string,
 	status int,
+	timeElapsed time.Duration,
 ) CrawlingResult {
 	return CrawlingResult{
 		AttemptsNumber:   n,
@@ -21,6 +24,7 @@ func (resp CrawlerResponse) IntoStored(
 		CrawlingResponse: &resp,
 		RequestLink:      url,
 		StatusCode:       status,
+		TimeElapsed:      timeElapsed,
 	}
 }
 

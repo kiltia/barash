@@ -2,6 +2,8 @@
 // in order to verify their API.
 package rinterface
 
+import "time"
+
 type (
 	StoredValue interface {
 		// Return **parameterized** INSERT query for inserting a
@@ -14,16 +16,6 @@ type (
 		// Ideally, you should only return a single parameterized
 		// (templated) query.
 		GetInsertQuery() string
-
-		// Return SELECT query for retrieving a row from the database
-		// in continious mode, which means that rows are retrieved
-		// based on last processed time
-		GetContiniousSelectQuery() string
-
-		// Return SELECT query for retrieving rows from the database
-		// in simple mode, which means that rows are retrieved
-		// based on offset
-		GetSimpleSelectQuery() string
 
 		// Return CREATE TABLE query for creating a new table
 		// that will be used to store every run's data in a row.
@@ -39,8 +31,24 @@ type (
 	}
 
 	Response[S StoredValue, P StoredParams] interface {
-		IntoStored(params P, attemptNumber int, url string, status int) S
+		IntoStored(
+			params P,
+			attemptNumber int,
+			url string,
+			status int,
+			timeElapsed time.Duration,
+		) S
 	}
 
-	StoredParams interface{}
+	StoredParams interface {
+		// Return SELECT query for retrieving a row from the database
+		// in continious mode, which means that rows are retrieved
+		// based on last processed time
+		GetContiniousSelectQuery() string
+
+		// Return SELECT query for retrieving rows from the database
+		// in simple mode, which means that rows are retrieved
+		// based on offset
+		GetSimpleSelectQuery() string
+	}
 )

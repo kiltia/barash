@@ -10,14 +10,9 @@ import (
 	"orb/runner/src/runner"
 )
 
-const (
-	CrawlerApi = "crawler"
-	MetaApi    = "meta"
-)
-
 func main() {
-	switch config.C.Api.Type {
-	case CrawlerApi:
+	switch string(config.C.Api.Type) {
+	case string(config.CrawlerApi):
 		hooks := crawler.CrawlerApiHooks{}
 		instance, err := runner.New[
 			crawler.CrawlingResult, crawler.CrawlerResponse,
@@ -26,7 +21,7 @@ func main() {
 			log.S.Fatalw("Error in runner initialization", "error", err)
 		}
 		instance.Run(context.Background())
-	case MetaApi:
+	case string(config.MetaApi):
 		hooks := meta.MetaApiHooks{}
 		instance, err := runner.New[
 			meta.VerificationResult, meta.VerifyResponse,

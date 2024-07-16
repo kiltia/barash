@@ -1,6 +1,10 @@
 package meta
 
-import "orb/runner/src/api/common"
+import (
+	"time"
+
+	"orb/runner/src/api/common"
+)
 
 // Response from the Meta API endpoint.
 type VerifyResponse struct {
@@ -17,6 +21,7 @@ func (resp VerifyResponse) IntoStored(
 	n int,
 	url string,
 	status int,
+	timeElapsed time.Duration,
 ) VerificationResult {
 	return VerificationResult{
 		AttemptsNumber:       n,

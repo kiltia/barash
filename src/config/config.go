@@ -7,6 +7,21 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+type (
+	ApiType    string
+	RunnerMode string
+)
+
+const (
+	CrawlerApi ApiType = "crawler"
+	MetaApi    ApiType = "meta"
+)
+
+const (
+	BatchMode      RunnerMode = "batch"
+	ContiniousMode RunnerMode = "continious"
+)
+
 var C *Config
 
 func Load() (
