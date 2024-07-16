@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"orb/runner/src/config"
+	"orb/runner/src/log"
 	ri "orb/runner/src/runner/interface"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
@@ -66,15 +67,16 @@ func (client *ClickHouseClient[S, P]) SelectNextBatch(
 	ctx context.Context,
 	batchCounter int,
 ) (result []P, err error) {
+	log.S.Debugw("Trying to retrieve a new batch from database")
 	var nilInstance P
 	var query string
 	requestedSize := config.C.Run.RequestBatchSize
 	switch config.C.Api.Mode {
-	case string(config.ContiniousMode):
+	case config.ContiniousMode:
 		days := config.C.Run.DayOffset
 		rawQuery := nilInstance.GetContiniousSelectQuery()
 		query = fmt.Sprintf(rawQuery, days, requestedSize)
-	case string(config.BatchMode):
+	case config.BatchMode:
 		offset := requestedSize * batchCounter
 		rawQuery := nilInstance.GetSimpleSelectQuery()
 		query = fmt.Sprintf(rawQuery, requestedSize, offset)

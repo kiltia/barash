@@ -251,7 +251,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 }
 
 func (r *Runner[S, R, P]) standby(ctx context.Context) error {
-	log.S.Infow("The runner has entered standby mode")
+	log.S.Infow("The runner is entering standby mode")
 	waitTime := time.Duration(config.C.Run.SleepTime) * time.Second
 	defer log.S.Infow("The runner has left standby mode")
 	select {
@@ -267,10 +267,10 @@ func (r *Runner[S, R, P]) initTable(ctx context.Context) {
 	err := r.clickHouseClient.Connection.Exec(ctx, nilInstance.GetCreateQuery())
 
 	if err != nil {
-		log.S.Warnw("Failed to create table. Probably, it already exists")
+		log.S.Warnw("Table creation script has failed", "reason", err)
 	} else {
-        log.S.Info("Successfully initialized table for Runner results")
-    }
+		log.S.Info("Successfully initialized table for Runner results")
+	}
 }
 
 func initHttpClient() *resty.Client {

@@ -11,8 +11,8 @@ import (
 )
 
 func main() {
-	switch string(config.C.Api.Type) {
-	case string(config.CrawlerApi):
+	switch config.C.Api.Type {
+	case config.CrawlerApi:
 		hooks := crawler.CrawlerApiHooks{}
 		instance, err := runner.New[
 			crawler.CrawlingResult, crawler.CrawlerResponse,
@@ -21,7 +21,7 @@ func main() {
 			log.S.Fatalw("Error in runner initialization", "error", err)
 		}
 		instance.Run(context.Background())
-	case string(config.MetaApi):
+	case config.MetaApi:
 		hooks := meta.MetaApiHooks{}
 		instance, err := runner.New[
 			meta.VerificationResult, meta.VerifyResponse,

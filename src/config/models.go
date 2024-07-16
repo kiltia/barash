@@ -19,12 +19,11 @@ type QualityControlConfig struct {
 }
 
 type ApiConfig struct {
-	// TODO(nrydanov): Replace with enum
-	Mode   string `yaml:"mode"`
-	Type   string `yaml:"type"`
-	Host   string `yaml:"host"`
-	Port   string `yaml:"port"`
-	Method string `yaml:"method"`
+	Mode   RunnerMode `yaml:"mode"`
+	Type   ApiType    `yaml:"type"`
+	Host   string     `yaml:"host"`
+	Port   string     `yaml:"port"`
+	Method string     `yaml:"method"`
 }
 
 type ClickHouseConfig struct {
