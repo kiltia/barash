@@ -41,8 +41,26 @@ func (r CrawlerParams) GetContiniousSelectQuery() string {
 
 // Implement the [rinterface.StoredValue] interface.
 func (r CrawlingResult) GetCreateQuery() string {
-	// TODO(evgenymng): Return something
-	return ""
+	return `
+        CREATE TABLE wv.crawler
+        (
+            url String,
+            request_link String,
+            status Int16,
+            attempts Int16,
+            original_url String,
+            final_url String,
+            status_code Int16,
+            response_size Int128,
+            headless_used Bool,
+            urls Array(String),
+            time_elapsed Int32,
+            tag String,
+            ts DateTime
+        )
+        ENGINE = MergeTree
+        ORDER BY ts
+    `
 }
 
 // Implement the [rinterface.StoredValue] interface.

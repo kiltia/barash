@@ -158,6 +158,8 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 	workerCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	r.initTable(ctx)
+
 	for i := 0; i < config.C.Run.FetcherWorkers; i++ {
 		go r.fetcher(
 			workerCtx,
@@ -258,6 +260,17 @@ func (r *Runner[S, R, P]) standby(ctx context.Context) error {
 	case <-time.After(waitTime):
 		return nil
 	}
+}
+
+func (r *Runner[S, R, P]) initTable(ctx context.Context) {
+	var nilInstance S
+	err := r.clickHouseClient.Connection.Exec(ctx, nilInstance.GetCreateQuery())
+
+	if err != nil {
+		log.S.Warnw("Failed to create table. Probably, it already exists")
+	} else {
+        log.S.Info("Successfully initialized table for Runner results")
+    }
 }
 
 func initHttpClient() *resty.Client {
