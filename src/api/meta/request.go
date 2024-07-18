@@ -1,7 +1,7 @@
 package meta
 
 // Request query parameters for the Meta API endpoint.
-type VerifyRequestParams struct {
+type MetaRequest struct {
 	Duns         string  `json:"duns"          ch:"duns"`
 	Url          string  `json:"url"           ch:"url"`
 	Name         *string `json:"name"          ch:"name"`

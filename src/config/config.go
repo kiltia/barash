@@ -18,7 +18,7 @@ const (
 )
 
 const (
-	BatchMode      RunnerMode = "batch"
+	TwoTableMode   RunnerMode = "two-table"
 	ContiniousMode RunnerMode = "continious"
 )
 

@@ -1,6 +1,8 @@
 package config
 
-import "go.uber.org/zap"
+import (
+	"go.uber.org/zap"
+)
 
 type Config struct {
 	Api            ApiConfig            `yaml:"api"`
@@ -19,11 +21,10 @@ type QualityControlConfig struct {
 }
 
 type ApiConfig struct {
-	Mode   RunnerMode `yaml:"mode"`
-	Type   ApiType    `yaml:"type"`
-	Host   string     `yaml:"host"`
-	Port   string     `yaml:"port"`
-	Method string     `yaml:"method"`
+	Type   ApiType `yaml:"type"`
+	Host   string  `yaml:"host"`
+	Port   string  `yaml:"port"`
+	Method string  `yaml:"method"`
 }
 
 type ClickHouseConfig struct {
@@ -45,13 +46,20 @@ type RetryConfig struct {
 	MaxWaitTime int `yaml:"max_wait_time"`
 }
 
+type TableData struct {
+	ColumnType string `yaml:"type"`
+	ColumnName string `yaml:"column"`
+	Freshness  int    `yaml:"freshness"`
+}
+
 type RunConfig struct {
-	FetcherWorkers     int               `yaml:"fetcher_workers"`
-	WriterWorkers      int               `yaml:"writer_workers"`
-	RequestBatchSize   int               `yaml:"request_batch_size"`
-	InsertionBatchSize int               `yaml:"insertion_batch_size"`
-	DayOffset          int               `yaml:"day_offset"`
-	SleepTime          int               `yaml:"sleep_time"`
-	Tag                string            `yaml:"tag"`
-	ExtraParams        map[string]string `yaml:"extra_params"`
+	FetcherWorkers   int               `yaml:"fetcher_workers"`
+	WriterWorkers    int               `yaml:"writer_workers"`
+	RequestBatchSize int               `yaml:"request_batch_size"`
+	BatchSize        int               `yaml:"batch_size"`
+	SleepTime        int               `yaml:"sleep_time"`
+	Tag              string            `yaml:"tag"`
+	ExtraParams      map[string]string `yaml:"extra_params"`
+	Mode             RunnerMode        `yaml:"mode"`
+	TableData        TableData         `yaml:"table_data"`
 }

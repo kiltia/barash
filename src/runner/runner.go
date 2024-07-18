@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	"orb/runner/src/config"
@@ -21,19 +20,21 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-type Runner[S ri.StoredValue, R ri.Response[S, P], P ri.StoredParams] struct {
-	clickHouseClient dbclient.ClickHouseClient[S, P]
+type Runner[S ri.StoredValue, R ri.Response[S, P], P ri.StoredParams, Q ri.QueryBuilder] struct {
+	clickHouseClient dbclient.ClickHouseClient[S, P, Q]
 	httpClient       *resty.Client
 	workerTimeout    time.Duration
 	hooks            hooks.Hooks[S]
+	queryBuilder     *Q
 }
 
 func New[
 	S ri.StoredValue,
 	R ri.Response[S, P],
 	P ri.StoredParams,
-](hs hooks.Hooks[S]) (*Runner[S, R, P], error) {
-	clickHouseClient, version, err := dbclient.NewClickHouseClient[S, P](
+	Q ri.QueryBuilder,
+](hs hooks.Hooks[S], qb *Q) (*Runner[S, R, P, Q], error) {
+	clickHouseClient, version, err := dbclient.NewClickHouseClient[S, P, Q](
 		config.C.ClickHouse,
 	)
 	if err != nil {
@@ -54,18 +55,19 @@ func New[
 		)
 	}
 
-	runner := Runner[S, R, P]{
+	runner := Runner[S, R, P, Q]{
 		clickHouseClient: *clickHouseClient,
 		httpClient:       initHttpClient(),
 		workerTimeout: time.Duration(
 			config.C.Timeouts.GoroutineTimeout,
 		) * time.Second,
 		hooks: hs,
+        queryBuilder: qb,
 	}
 	return &runner, nil
 }
 
-func (r *Runner[S, R, P]) SendGetRequest(
+func (r *Runner[S, R, P, Q]) SendGetRequest(
 	ctx context.Context,
 	req rr.GetRequest[P],
 ) ([]S, error) {
@@ -132,7 +134,7 @@ func (r *Runner[S, R, P]) SendGetRequest(
 }
 
 // Run the runner's job within a given context.
-func (r *Runner[S, R, P]) Run(ctx context.Context) {
+func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 	// + 1 for the [nil] task
 	fetcherTasks := make(
 		chan *rr.GetRequest[P],
@@ -159,7 +161,6 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 
 	r.initTable(ctx)
 
-	var inProgress sync.Map
 	for i := 0; i < config.C.Run.FetcherWorkers; i++ {
 		go r.fetcher(
 			workerCtx,
@@ -170,7 +171,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 		)
 	}
 	for i := 0; i < config.C.Run.WriterWorkers; i++ {
-		go r.writer(workerCtx, i, fetcherResults, writtenBatches, &inProgress)
+		go r.writer(workerCtx, i, fetcherResults, writtenBatches)
 	}
 	go r.qualityControl(
 		workerCtx,
@@ -194,19 +195,9 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 				func() (err error) {
 					selectedBatch, err = r.clickHouseClient.SelectNextBatch(
 						ctx,
-						batchCounter,
+						r.queryBuilder,
 					)
 
-					filteredBatch := *new([]P)
-					for _, rd := range selectedBatch {
-						stored := lockUrl(rd.GetUrl(), &inProgress)
-						if stored {
-							filteredBatch = append(filteredBatch, rd)
-						} else {
-							log.S.Debugw("Batch contains URL that is being processing, filtering out.", "url", rd.GetUrl())
-						}
-					}
-					selectedBatch = filteredBatch
 					return err
 				},
 				retry.Attempts(uint(config.C.SelectRetries.NumRetries)+1),
@@ -261,7 +252,7 @@ func (r *Runner[S, R, P]) Run(ctx context.Context) {
 	}
 }
 
-func (r *Runner[S, R, P]) standby(ctx context.Context) error {
+func (r *Runner[S, R, P, Q]) standby(ctx context.Context) error {
 	log.S.Infow("The runner is entering standby mode")
 	waitTime := time.Duration(config.C.Run.SleepTime) * time.Second
 	defer log.S.Infow("The runner has left standby mode")
@@ -273,9 +264,9 @@ func (r *Runner[S, R, P]) standby(ctx context.Context) error {
 	}
 }
 
-func (r *Runner[S, R, P]) initTable(ctx context.Context) {
-	if config.C.Api.Mode == config.ContiniousMode {
-		log.S.Info("Running in continious mode, skipping initialization")
+func (r *Runner[S, R, P, Q]) initTable(ctx context.Context) {
+	if config.C.Run.Mode == config.ContiniousMode {
+		log.S.Info("Running in continious mode, skipping table initialization")
 		return
 	}
 	var nilInstance S

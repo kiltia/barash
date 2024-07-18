@@ -17,7 +17,7 @@ type VerifyResponse struct {
 
 // Implement the [rinterface.Response] interface.
 func (resp VerifyResponse) IntoStored(
-	params VerifyRequestParams,
+	params MetaRequest,
 	n int,
 	url string,
 	status int,

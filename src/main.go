@@ -14,18 +14,24 @@ func main() {
 	switch config.C.Api.Type {
 	case config.CrawlerApi:
 		hooks := crawler.CrawlerApiHooks{}
+		queryBuilder := crawler.CrawlerQueryBuilder{
+			Offset: config.C.Run.BatchSize, Limit: config.C.Run.BatchSize,
+		}
 		instance, err := runner.New[
 			crawler.CrawlingResult, crawler.CrawlerResponse,
-		](&hooks)
+		](&hooks, &queryBuilder)
 		if err != nil {
 			log.S.Fatalw("Error in runner initialization", "error", err)
 		}
 		instance.Run(context.Background())
 	case config.MetaApi:
 		hooks := meta.MetaApiHooks{}
+		queryBuilder := meta.MetaQueryBuilder{
+			Offset: config.C.Run.TableData.Freshness, Limit: config.C.Run.BatchSize,
+		}
 		instance, err := runner.New[
 			meta.VerificationResult, meta.VerifyResponse,
-		](&hooks)
+		](&hooks, &queryBuilder)
 		if err != nil {
 			log.S.Fatalw("Error in runner initialization", "error", err)
 		}

@@ -41,7 +41,7 @@ type (
 		) S
 	}
 
-	StoredParams interface {
+	QueryBuilder interface {
 		// Return SELECT query for retrieving a row from the database
 		// in continious mode, which means that rows are retrieved
 		// based on last processed time
@@ -50,7 +50,10 @@ type (
 		// Return SELECT query for retrieving rows from the database
 		// in simple mode, which means that rows are retrieved
 		// based on offset
-		GetSimpleSelectQuery() string
+		GetTwoTableSelectQuery() string
+	}
+
+	StoredParams interface {
 		GetUrl() string
 	}
 )

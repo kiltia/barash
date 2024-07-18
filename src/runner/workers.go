@@ -2,7 +2,6 @@ package runner
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"orb/runner/src/config"
@@ -12,7 +11,7 @@ import (
 	"orb/runner/src/runner/util"
 )
 
-func (r *Runner[S, R, P]) fetcher(
+func (r *Runner[S, R, P, Q]) fetcher(
 	ctx context.Context,
 	fetcherNum int,
 	tasks chan *rr.GetRequest[P],
@@ -68,12 +67,11 @@ func (r *Runner[S, R, P]) fetcher(
 	}
 }
 
-func (r *Runner[S, R, P]) writer(
+func (r *Runner[S, R, P, Q]) writer(
 	ctx context.Context,
 	consumerNum int,
 	results chan rd.FetcherResult[S],
 	processedBatches chan rd.ProcessedBatch[S],
-	inProgress *sync.Map,
 ) {
 	var oldest *time.Time
 	var batch []S
@@ -89,10 +87,7 @@ func (r *Runner[S, R, P]) writer(
 				oldest = &result.ProcessingStartTime
 			}
 
-			if len(batch) >= config.C.Run.InsertionBatchSize {
-				for _, result := range batch {
-					unlockUrl(result.GetUrl(), inProgress)
-				}
+			if len(batch) >= config.C.Run.BatchSize {
 				err := r.clickHouseClient.AsyncInsertBatch(
 					ctx,
 					batch,
@@ -134,7 +129,7 @@ func (r *Runner[S, R, P]) writer(
 	}
 }
 
-func (r *Runner[S, R, P]) qualityControl(
+func (r *Runner[S, R, P, Q]) qualityControl(
 	ctx context.Context,
 	processedBatches chan rd.ProcessedBatch[S],
 	qcResults chan rd.QualityControlResult[S],

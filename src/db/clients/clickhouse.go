@@ -13,14 +13,14 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 )
 
-type ClickHouseClient[S ri.StoredValue, P ri.StoredParams] struct {
+type ClickHouseClient[S ri.StoredValue, P ri.StoredParams, Q ri.QueryBuilder] struct {
 	Connection driver.Conn
 }
 
-func NewClickHouseClient[S ri.StoredValue, P ri.StoredParams](
+func NewClickHouseClient[S ri.StoredValue, P ri.StoredParams, Q ri.QueryBuilder](
 	config config.ClickHouseConfig,
 ) (
-	client *ClickHouseClient[S, P],
+	client *ClickHouseClient[S, P, Q],
 	version *proto.ServerHandshake,
 	err error,
 ) {
@@ -40,10 +40,10 @@ func NewClickHouseClient[S ri.StoredValue, P ri.StoredParams](
 	if err != nil {
 		return nil, nil, err
 	}
-	return &ClickHouseClient[S, P]{Connection: conn}, version, err
+	return &ClickHouseClient[S, P, Q]{Connection: conn}, version, err
 }
 
-func (client *ClickHouseClient[S, P]) AsyncInsertBatch(
+func (client *ClickHouseClient[S, P, Q]) AsyncInsertBatch(
 	ctx context.Context,
 	batch []S,
 	tag string,
@@ -63,28 +63,25 @@ func (client *ClickHouseClient[S, P]) AsyncInsertBatch(
 	return nil
 }
 
-func (client *ClickHouseClient[S, P]) SelectNextBatch(
+func (client *ClickHouseClient[S, P, Q]) SelectNextBatch(
 	ctx context.Context,
-	batchCounter int,
+	queryBuilder *Q,
 ) (result []P, err error) {
 	log.S.Debugw("Trying to retrieve a new batch from database")
-	var nilInstance P
 	var query string
-	requestedSize := config.C.Run.RequestBatchSize
-	switch config.C.Api.Mode {
+	switch config.C.Run.Mode {
 	case config.ContiniousMode:
-		days := config.C.Run.DayOffset
-		rawQuery := nilInstance.GetContiniousSelectQuery()
-		query = fmt.Sprintf(rawQuery, days, requestedSize)
-	case config.BatchMode:
-		offset := requestedSize * batchCounter
-		rawQuery := nilInstance.GetSimpleSelectQuery()
-		query = fmt.Sprintf(rawQuery, requestedSize, offset)
+		query = (*queryBuilder).GetContiniousSelectQuery()
+	case config.TwoTableMode:
+		query = (*queryBuilder).GetTwoTableSelectQuery()
 	default:
 		log.S.Panicw("Unexpected mode", "input_value", config.C.Api.Type)
 	}
+    log.S.Debugw("Sending query to database", "query", query)
 	if err = client.Connection.Select(ctx, &result, query); err != nil {
+        log.S.Error("Got an error while retrieving records from database", "error", err)
 		return nil, err
 	}
+    log.S.Debugw("Successfully got records from database", "count", len(result))
 	return result, nil
 }

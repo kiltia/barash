@@ -7,7 +7,7 @@ import (
 
 type CrawlingResult struct {
 	StatusCode       int
-	CrawlerParams    CrawlerParams
+	CrawlerParams    CrawlerRequest
 	RequestLink      string
 	AttemptsNumber   int
 	TimeElapsed      time.Duration
@@ -32,18 +32,7 @@ func (r CrawlingResult) GetUrl() string {
 	return r.CrawlerParams.Url
 }
 
-// Implement the [rinterface.StoredValue] interface.
-func (_ CrawlerParams) GetSimpleSelectQuery() string {
-	return `
-        SELECT url from master LIMIT %d OFFSET %d
-    `
-}
-
-func (_ CrawlerParams) GetContiniousSelectQuery() string {
-	panic("Method is not implemented")
-}
-
-func (p CrawlerParams) GetUrl() string {
+func (p CrawlerRequest) GetUrl() string {
 	return p.Url
 }
 
