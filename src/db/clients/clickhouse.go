@@ -65,15 +65,15 @@ func (client *ClickHouseClient[S, P, Q]) AsyncInsertBatch(
 
 func (client *ClickHouseClient[S, P, Q]) SelectNextBatch(
 	ctx context.Context,
-	queryBuilder *Q,
+	queryBuilder Q,
 ) (result []P, err error) {
 	log.S.Debugw("Trying to retrieve a new batch from database")
 	var query string
 	switch config.C.Run.Mode {
 	case config.ContiniousMode:
-		query = (*queryBuilder).GetContiniousSelectQuery()
+		query = queryBuilder.GetContiniousSelectQuery()
 	case config.TwoTableMode:
-		query = (*queryBuilder).GetTwoTableSelectQuery()
+		query = queryBuilder.GetTwoTableSelectQuery()
 	default:
 		log.S.Panicw("Unexpected mode", "input_value", config.C.Api.Type)
 	}

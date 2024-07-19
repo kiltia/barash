@@ -23,17 +23,17 @@ func NewFetcherResult[S ri.StoredValue](
 }
 
 type ProcessedBatch[S ri.StoredValue] struct {
-	Values              []S
-	ProcessingStartTime time.Time
+	Values         []S
+	ProcessingTime time.Duration
 }
 
 func NewProcessedBatch[S ri.StoredValue](
 	elements []S,
-	processingStartTime time.Time,
+	processingTime time.Duration,
 ) ProcessedBatch[S] {
 	return ProcessedBatch[S]{
-		Values:              elements,
-		ProcessingStartTime: processingStartTime,
+		Values:         elements,
+		ProcessingTime: processingTime,
 	}
 }
 

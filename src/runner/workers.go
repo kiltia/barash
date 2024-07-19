@@ -72,49 +72,52 @@ func (r *Runner[S, R, P, Q]) writer(
 	consumerNum int,
 	results chan rd.FetcherResult[S],
 	processedBatches chan rd.ProcessedBatch[S],
+	forceFlush chan bool,
 ) {
-	var oldest *time.Time
+	startTime := time.Now()
 	var batch []S
+	insertBatch := func(batch *[]S) {
+		err := r.clickHouseClient.AsyncInsertBatch(
+			ctx,
+			*batch,
+			config.C.Run.Tag,
+		)
+		if err != nil {
+			log.S.Errorw(
+				"Insertion to the ClickHouse database was unsuccessful!",
+				"error",
+				err,
+				"consumer_num",
+				consumerNum,
+				"tag",
+				log.TagClickHouseError,
+			)
+			return
+		}
+		log.S.Infow(
+			"Insertion to the ClickHouse database was successful!",
+			"batch_len", len(*batch),
+			"consumer_num", consumerNum,
+			"tag", log.TagClickHouseSuccess,
+		)
+
+		processedBatches <- rd.NewProcessedBatch(*batch, time.Since(startTime))
+		*batch = []S{}
+	}
+
 	for {
 		select {
+		case <-forceFlush:
+			insertBatch(&batch)
 		case result, ok := <-results:
 			if !ok {
 				return
 			}
 
 			batch = append(batch, result.Value)
-			if oldest == nil || result.ProcessingStartTime.Before(*oldest) {
-				oldest = &result.ProcessingStartTime
-			}
 
 			if len(batch) >= config.C.Run.BatchSize {
-				err := r.clickHouseClient.AsyncInsertBatch(
-					ctx,
-					batch,
-					config.C.Run.Tag,
-				)
-				if err != nil {
-					log.S.Errorw(
-						"Insertion to the ClickHouse database was unsuccessful!",
-						"error",
-						err,
-						"consumer_num",
-						consumerNum,
-						"tag",
-						log.TagClickHouseError,
-					)
-					break
-				}
-				log.S.Infow(
-					"Insertion to the ClickHouse database was successful!",
-					"batch_len", len(batch),
-					"consumer_num", consumerNum,
-					"tag", log.TagClickHouseSuccess,
-				)
-
-				processedBatches <- rd.NewProcessedBatch(batch, *oldest)
-				batch = []S{}
-				oldest = nil
+				insertBatch(&batch)
 			}
 
 		case <-ctx.Done():
@@ -155,10 +158,9 @@ func (r *Runner[S, R, P, Q]) qualityControl(
 					return acc
 				},
 			)
-			sinceBatchStart := time.Since(batch.ProcessingStartTime)
 
 			// NOTE(nrydanov): Case 1. Batch processing takes too much time
-			if sinceBatchStart > time.Duration(
+			if batch.ProcessingTime > time.Duration(
 				config.C.QualityControl.Period,
 			)*time.Second {
 				log.S.Infow(

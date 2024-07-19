@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"time"
 
 	"orb/runner/src/api/crawler"
 	"orb/runner/src/api/meta"
@@ -16,8 +15,9 @@ func main() {
 	case config.CrawlerApi:
 		hooks := crawler.CrawlerApiHooks{}
 		queryBuilder := crawler.CrawlerQueryBuilder{
-			Offset: config.C.Run.BatchSize, Limit: config.C.Run.BatchSize,
+			BatchSize: config.C.Run.BatchSize,
 		}
+        queryBuilder.ResetState()
 		instance, err := runner.New[
 			crawler.CrawlingResult, crawler.CrawlerResponse,
 		](&hooks, &queryBuilder)
@@ -28,10 +28,10 @@ func main() {
 	case config.MetaApi:
 		hooks := meta.MetaApiHooks{}
 		queryBuilder := meta.MetaQueryBuilder{
-			Offset:        config.C.Run.TableData.Freshness,
-			Limit:         config.C.Run.BatchSize,
-			LastTimestamp: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC),
+			Offset: config.C.Run.TableData.Freshness,
+			Limit:  config.C.Run.BatchSize,
 		}
+		queryBuilder.ResetState()
 		instance, err := runner.New[
 			meta.MetaResult, meta.MetaResponse,
 		](&hooks, &queryBuilder)

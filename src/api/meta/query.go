@@ -12,13 +12,17 @@ type MetaQueryBuilder struct {
 	LastTimestamp time.Time
 }
 
-func (qb MetaQueryBuilder) UpdateState(batch []MetaRequest) {
+func (qb *MetaQueryBuilder) UpdateState(batch []MetaRequest) {
 	for _, el := range batch {
 		if el.Timestamp.Sub(qb.LastTimestamp) > 0 {
 			qb.LastTimestamp = el.Timestamp
 		}
 	}
     log.S.Debugw("Updating inner state of query builder", "timestamp", qb.LastTimestamp)
+}
+
+func (qb *MetaQueryBuilder) ResetState() {
+    qb.LastTimestamp = time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
 }
 
 // Implement the [rinterface.StoredValue] interface.

@@ -53,6 +53,8 @@ type (
 		GetTwoTableSelectQuery() string
 
 		UpdateState(batch []P)
+
+        ResetState()
 	}
 
 	StoredParams interface {

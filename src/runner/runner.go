@@ -25,7 +25,7 @@ type Runner[S ri.StoredValue, R ri.Response[S, P], P ri.StoredParams, Q ri.Query
 	httpClient       *resty.Client
 	workerTimeout    time.Duration
 	hooks            hooks.Hooks[S]
-	queryBuilder     *Q
+	queryBuilder     Q
 }
 
 func New[
@@ -33,7 +33,7 @@ func New[
 	R ri.Response[S, P],
 	P ri.StoredParams,
 	Q ri.QueryBuilder[P],
-](hs hooks.Hooks[S], qb *Q) (*Runner[S, R, P, Q], error) {
+](hs hooks.Hooks[S], qb Q) (*Runner[S, R, P, Q], error) {
 	clickHouseClient, version, err := dbclient.NewClickHouseClient[S, P, Q](
 		config.C.ClickHouse,
 	)
@@ -148,6 +148,9 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 		chan rd.ProcessedBatch[S],
 		config.C.Run.WriterWorkers,
 	)
+    forceFlush := make(
+        chan bool, 1,
+    )
 
 	nothingLeft := make(chan bool, 1)
 	qcResults := make(chan rd.QualityControlResult[S], 1)
@@ -171,7 +174,7 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 		)
 	}
 	for i := 0; i < config.C.Run.WriterWorkers; i++ {
-		go r.writer(workerCtx, i, fetcherResults, writtenBatches)
+		go r.writer(workerCtx, i, fetcherResults, writtenBatches, forceFlush)
 	}
 	go r.qualityControl(
 		workerCtx,
@@ -180,7 +183,6 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 	)
 
 	nothingLeft <- true
-	batchCounter := 0
 
 	for {
 		select {
@@ -210,12 +212,12 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 				)
 				break
 			}
-            (*r.queryBuilder).UpdateState(selectedBatch)
 			if len(selectedBatch) == 0 {
-				log.S.Infow("Runner has nothing to do, entering standby mode", "sleep_time", config.C.Run.SleepTime)
+				log.S.Infow("Runner has nothing to do, forcing data insert before standby", "sleep_time", config.C.Run.SleepTime)
+                forceFlush <- true
 				r.standby(ctx)
 			}
-			batchCounter += 1
+			r.queryBuilder.UpdateState(selectedBatch)
 			log.S.Debugw(
 				"Creating tasks for the fetchers",
 				"tag", log.TagRunnerDebug,
