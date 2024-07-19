@@ -6,11 +6,11 @@ import (
 )
 
 type CrawlerResult struct {
-	StatusCode       int
-	CrawlerParams    CrawlerParams
-	RequestLink      string
-	AttemptsNumber   int
-	TimeElapsed      time.Duration
+	StatusCode      int
+	CrawlerParams   CrawlerParams
+	RequestLink     string
+	AttemptsNumber  int
+	TimeElapsed     time.Duration
 	CrawlerResponse *CrawlerResponse
 }
 
@@ -72,7 +72,7 @@ func (r CrawlerResult) AsArray() []any {
 		r.RequestLink,
 		r.StatusCode,
 		response.Status,
-        r.CrawlerResponse.ErrorInfo.Reason,
+		r.CrawlerResponse.ErrorInfo.Reason,
 		r.AttemptsNumber,
 		response.OriginalUrl,
 		response.FinalUrl,

@@ -47,7 +47,6 @@ type (
 	}
 
 	QueryBuilder[S StoredValue, P StoredParams] interface {
-
 		GetSelectQuery() string
 
 		// Updating QueryBuilder's inner state

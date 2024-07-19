@@ -80,7 +80,11 @@ func (r *Runner[S, R, P, Q]) writer(
 	lastBatchTime := initialTime
 	insertBatch := func() {
 		if len(batch) == 0 {
-			log.S.Infow("Batch is empty, SQL insert query won't be executed", "writer_num", writerNum)
+			log.S.Infow(
+				"Batch is empty, SQL insert query won't be executed",
+				"writer_num",
+				writerNum,
+			)
 			return
 		}
 		err := r.clickHouseClient.AsyncInsertBatch(

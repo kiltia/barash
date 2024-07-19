@@ -174,7 +174,7 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 			i,
 			fetcherResults,
 			writtenBatches,
-            time.Now(),
+			time.Now(),
 		)
 	}
 	go r.qualityControl(
@@ -213,7 +213,7 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 				)
 				break
 			}
-            taskCount := len(selectedBatch)
+			taskCount := len(selectedBatch)
 			if taskCount == 0 {
 				log.S.Infow(
 					"Runner has nothing to do, making attempt to insert data before standby",

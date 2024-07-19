@@ -2,17 +2,18 @@ package crawler
 
 import (
 	"fmt"
+
 	"orb/runner/src/config"
 )
 
 type CrawlerQueryBuilder struct {
 	Offset    int
 	BatchSize int
-    Mode config.RunnerMode
+	Mode      config.RunnerMode
 }
 
 func (qb *CrawlerQueryBuilder) UpdateState(batch []CrawlerParams) {
-    qb.Offset += qb.BatchSize
+	qb.Offset += qb.BatchSize
 }
 
 func (qb *CrawlerQueryBuilder) ResetState() {
@@ -32,9 +33,9 @@ func (qb *CrawlerQueryBuilder) GetTwoTableSelectQuery() string {
 
 func (qb CrawlerQueryBuilder) GetSelectQuery() string {
 	switch qb.Mode {
-    case config.TwoTableMode:
-        return qb.GetTwoTableSelectQuery()
-    default:
-        panic("Not implemented")
-    }
+	case config.TwoTableMode:
+		return qb.GetTwoTableSelectQuery()
+	default:
+		panic("Not implemented")
+	}
 }
