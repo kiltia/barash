@@ -28,10 +28,6 @@ func (r CrawlingResult) GetStatusCode() int {
 	return r.StatusCode
 }
 
-func (r CrawlingResult) GetUrl() string {
-	return r.CrawlerParams.Url
-}
-
 func (p CrawlerRequest) GetUrl() string {
 	return p.Url
 }

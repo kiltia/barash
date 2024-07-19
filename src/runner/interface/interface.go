@@ -28,10 +28,9 @@ type (
 
 		// Get value of the status code field.
 		GetStatusCode() int
-		GetUrl() string
 	}
 
-	Response[S StoredValue, P StoredParams] interface {
+	Response[S StoredValue, P StoredRequest] interface {
 		IntoStored(
 			params P,
 			attemptNumber int,
@@ -41,7 +40,7 @@ type (
 		) S
 	}
 
-	QueryBuilder[P StoredParams] interface {
+	QueryBuilder[P StoredRequest] interface {
 		// Return SELECT query for retrieving a row from the database
 		// in continious mode, which means that rows are retrieved
 		// based on last processed time
@@ -52,12 +51,15 @@ type (
 		// based on offset
 		GetTwoTableSelectQuery() string
 
+		// Updating QueryBuilder's inner state
+		// based on data that was selected from the database
 		UpdateState(batch []P)
 
-        ResetState()
+		// Refreshes inner state
+		ResetState()
 	}
 
-	StoredParams interface {
+	StoredRequest interface {
 		GetUrl() string
 	}
 )

@@ -9,7 +9,7 @@ import (
 	"orb/runner/src/runner/util"
 )
 
-type GetRequest[P ri.StoredParams] struct {
+type GetRequest[P ri.StoredRequest] struct {
 	Host   string
 	Port   string
 	Method string
@@ -43,7 +43,7 @@ func (req GetRequest[P]) CreateGetRequestLink(
 	return urlString, nil
 }
 
-func NewGetRequest[P ri.StoredParams](
+func NewGetRequest[P ri.StoredRequest](
 	host string,
 	port string,
 	method string,

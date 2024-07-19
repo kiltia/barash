@@ -22,6 +22,7 @@ func (r *Runner[S, R, P, Q]) fetcher(
 		select {
 		case task, ok := <-tasks:
 			startTime := time.Now()
+
 			if !ok {
 				// TODO(nrydanov): What should we do when channels are closed?
 				return
@@ -55,7 +56,6 @@ func (r *Runner[S, R, P, Q]) fetcher(
 			for _, result := range resultList {
 				results <- rd.NewFetcherResult(result, startTime)
 			}
-
 		case <-ctx.Done():
 			log.S.Debugw(
 				"Fetcher's context is cancelled",
@@ -72,7 +72,7 @@ func (r *Runner[S, R, P, Q]) writer(
 	consumerNum int,
 	results chan rd.FetcherResult[S],
 	processedBatches chan rd.ProcessedBatch[S],
-    startTime *time.Time,
+	startTime *time.Time,
 	forceFlush chan bool,
 ) {
 	var batch []S

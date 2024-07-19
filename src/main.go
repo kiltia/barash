@@ -17,7 +17,7 @@ func main() {
 		queryBuilder := crawler.CrawlerQueryBuilder{
 			BatchSize: config.C.Run.BatchSize,
 		}
-        queryBuilder.ResetState()
+		queryBuilder.ResetState()
 		instance, err := runner.New[
 			crawler.CrawlingResult, crawler.CrawlerResponse,
 		](&hooks, &queryBuilder)

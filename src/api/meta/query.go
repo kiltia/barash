@@ -2,8 +2,9 @@ package meta
 
 import (
 	"fmt"
-	"orb/runner/src/log"
 	"time"
+
+	"orb/runner/src/log"
 )
 
 type MetaQueryBuilder struct {
@@ -18,11 +19,15 @@ func (qb *MetaQueryBuilder) UpdateState(batch []MetaRequest) {
 			qb.LastTimestamp = el.Timestamp
 		}
 	}
-    log.S.Debugw("Updating inner state of query builder", "timestamp", qb.LastTimestamp)
+	log.S.Debugw(
+		"Updating inner state of query builder",
+		"timestamp",
+		qb.LastTimestamp,
+	)
 }
 
 func (qb *MetaQueryBuilder) ResetState() {
-    qb.LastTimestamp = time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
+	qb.LastTimestamp = time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
 }
 
 // Implement the [rinterface.StoredValue] interface.
