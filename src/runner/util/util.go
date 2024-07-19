@@ -3,6 +3,7 @@ package util
 import (
 	"encoding/json"
 	"math"
+	"reflect"
 )
 
 var NAN = math.NaN()
@@ -17,6 +18,13 @@ func ObjectToMap[T any](data T) (map[string]*string, error) {
 	err = json.Unmarshal(dataBytes, &mapData)
 	if err != nil {
 		return nil, err
+	}
+	v := reflect.ValueOf(data)
+	for i := 0; i < v.NumField(); i++ {
+		tagValue := v.Type().Field(i).Tag.Get("json")
+		if tagValue == "" {
+			delete(mapData, v.Type().Field(i).Name)
+		}
 	}
 	return mapData, nil
 }

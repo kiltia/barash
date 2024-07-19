@@ -13,11 +13,11 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 )
 
-type ClickHouseClient[S ri.StoredValue, P ri.StoredParams, Q ri.QueryBuilder] struct {
+type ClickHouseClient[S ri.StoredValue, P ri.StoredParams, Q ri.QueryBuilder[P]] struct {
 	Connection driver.Conn
 }
 
-func NewClickHouseClient[S ri.StoredValue, P ri.StoredParams, Q ri.QueryBuilder](
+func NewClickHouseClient[S ri.StoredValue, P ri.StoredParams, Q ri.QueryBuilder[P]](
 	config config.ClickHouseConfig,
 ) (
 	client *ClickHouseClient[S, P, Q],
@@ -77,11 +77,15 @@ func (client *ClickHouseClient[S, P, Q]) SelectNextBatch(
 	default:
 		log.S.Panicw("Unexpected mode", "input_value", config.C.Api.Type)
 	}
-    log.S.Debugw("Sending query to database", "query", query)
+	log.S.Debugw("Sending query to database", "query", query)
 	if err = client.Connection.Select(ctx, &result, query); err != nil {
-        log.S.Error("Got an error while retrieving records from database", "error", err)
+		log.S.Error(
+			"Got an error while retrieving records from database",
+			"error",
+			err,
+		)
 		return nil, err
 	}
-    log.S.Debugw("Successfully got records from database", "count", len(result))
+	log.S.Debugw("Successfully got records from database", "count", len(result))
 	return result, nil
 }

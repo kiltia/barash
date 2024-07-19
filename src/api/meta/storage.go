@@ -1,15 +1,15 @@
 package meta
 
-type VerificationResult struct {
+type MetaResult struct {
 	StatusCode           int
 	VerifyParams         MetaRequest
 	RequestLink          string
 	AttemptsNumber       int
-	VerificationResponse *VerifyResponse
+	VerificationResponse *MetaResponse
 }
 
 // Implement the [rinterface.StoredValue] interface.
-func (r VerificationResult) GetInsertQuery() string {
+func (r MetaResult) GetInsertQuery() string {
 	return `
         INSERT INTO master VALUES (
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
@@ -20,11 +20,11 @@ func (r VerificationResult) GetInsertQuery() string {
 }
 
 // Implement the [rinterface.StoredValue] interface.
-func (r VerificationResult) GetStatusCode() int {
+func (r MetaResult) GetStatusCode() int {
 	return r.StatusCode
 }
 
-func (r VerificationResult) GetUrl() string {
+func (r MetaResult) GetUrl() string {
 	return r.VerifyParams.Url
 }
 
@@ -37,12 +37,12 @@ func (p MetaRequest) GetUrl() string {
 }
 
 // Implement the [rinterface.StoredValue] interface.
-func (r VerificationResult) GetCreateQuery() string {
+func (r MetaResult) GetCreateQuery() string {
 	panic("Method is not implemented")
 }
 
 // Implement the [rinterface.StoredValue] interface.
-func (r VerificationResult) AsArray() []any {
+func (r MetaResult) AsArray() []any {
 	verifyParams := r.VerifyParams
 	response := r.VerificationResponse
 	debugInfo := r.VerificationResponse.DebugInfo

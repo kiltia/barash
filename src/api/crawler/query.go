@@ -9,6 +9,9 @@ type CrawlerQueryBuilder struct {
 	Limit  int
 }
 
+func (qb CrawlerQueryBuilder) UpdateState(batch []CrawlerRequest) {
+}
+
 func (qb CrawlerQueryBuilder) GetTwoTableSelectQuery() string {
 	query := fmt.Sprintf(`
         SELECT url from master LIMIT %d OFFSET %d

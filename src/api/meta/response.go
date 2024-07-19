@@ -7,7 +7,7 @@ import (
 )
 
 // Response from the Meta API endpoint.
-type VerifyResponse struct {
+type MetaResponse struct {
 	Score     *float64  `json:"score"`
 	Error     *string   `json:"component_error"`
 	FinalUrl  *string   `json:"final_url"`
@@ -16,14 +16,14 @@ type VerifyResponse struct {
 }
 
 // Implement the [rinterface.Response] interface.
-func (resp VerifyResponse) IntoStored(
+func (resp MetaResponse) IntoStored(
 	params MetaRequest,
 	n int,
 	url string,
 	status int,
 	timeElapsed time.Duration,
-) VerificationResult {
-	return VerificationResult{
+) MetaResult {
+	return MetaResult{
 		AttemptsNumber:       n,
 		VerifyParams:         params,
 		VerificationResponse: &resp,

@@ -20,7 +20,7 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-type Runner[S ri.StoredValue, R ri.Response[S, P], P ri.StoredParams, Q ri.QueryBuilder] struct {
+type Runner[S ri.StoredValue, R ri.Response[S, P], P ri.StoredParams, Q ri.QueryBuilder[P]] struct {
 	clickHouseClient dbclient.ClickHouseClient[S, P, Q]
 	httpClient       *resty.Client
 	workerTimeout    time.Duration
@@ -32,7 +32,7 @@ func New[
 	S ri.StoredValue,
 	R ri.Response[S, P],
 	P ri.StoredParams,
-	Q ri.QueryBuilder,
+	Q ri.QueryBuilder[P],
 ](hs hooks.Hooks[S], qb *Q) (*Runner[S, R, P, Q], error) {
 	clickHouseClient, version, err := dbclient.NewClickHouseClient[S, P, Q](
 		config.C.ClickHouse,
@@ -61,8 +61,8 @@ func New[
 		workerTimeout: time.Duration(
 			config.C.Timeouts.GoroutineTimeout,
 		) * time.Second,
-		hooks: hs,
-        queryBuilder: qb,
+		hooks:        hs,
+		queryBuilder: qb,
 	}
 	return &runner, nil
 }
@@ -209,6 +209,11 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 					"tag", log.TagClickHouseError,
 				)
 				break
+			}
+            (*r.queryBuilder).UpdateState(selectedBatch)
+			if len(selectedBatch) == 0 {
+				log.S.Infow("Runner has nothing to do, entering standby mode", "sleep_time", config.C.Run.SleepTime)
+				r.standby(ctx)
 			}
 			batchCounter += 1
 			log.S.Debugw(

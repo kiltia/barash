@@ -41,7 +41,7 @@ type (
 		) S
 	}
 
-	QueryBuilder interface {
+	QueryBuilder[P StoredParams] interface {
 		// Return SELECT query for retrieving a row from the database
 		// in continious mode, which means that rows are retrieved
 		// based on last processed time
@@ -51,6 +51,8 @@ type (
 		// in simple mode, which means that rows are retrieved
 		// based on offset
 		GetTwoTableSelectQuery() string
+
+		UpdateState(batch []P)
 	}
 
 	StoredParams interface {

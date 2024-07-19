@@ -11,13 +11,13 @@ import (
 
 type MetaApiHooks struct {
 	// NOTE(evgenymng): embed the dummy implementation just in case
-	hooks.DummyHooks[VerificationResult]
+	hooks.DummyHooks[MetaResult]
 }
 
 // Implement the [hooks.Hooks] interface.
 func (srv *MetaApiHooks) AfterBatch(
 	ctx context.Context,
-	batch rdata.ProcessedBatch[VerificationResult],
+	batch rdata.ProcessedBatch[MetaResult],
 	failCount *int,
 ) {
 	select {
@@ -25,7 +25,7 @@ func (srv *MetaApiHooks) AfterBatch(
 		return
 	default:
 		successesWithScores := util.Reduce(
-			util.Map(batch.Values, func(res VerificationResult) bool {
+			util.Map(batch.Values, func(res MetaResult) bool {
 				return res.GetStatusCode() == 200 &&
 					res.VerificationResponse.Score != nil
 			}),

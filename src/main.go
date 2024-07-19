@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"time"
 
 	"orb/runner/src/api/crawler"
 	"orb/runner/src/api/meta"
@@ -27,10 +28,12 @@ func main() {
 	case config.MetaApi:
 		hooks := meta.MetaApiHooks{}
 		queryBuilder := meta.MetaQueryBuilder{
-			Offset: config.C.Run.TableData.Freshness, Limit: config.C.Run.BatchSize,
+			Offset:        config.C.Run.TableData.Freshness,
+			Limit:         config.C.Run.BatchSize,
+			LastTimestamp: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC),
 		}
 		instance, err := runner.New[
-			meta.VerificationResult, meta.VerifyResponse,
+			meta.MetaResult, meta.MetaResponse,
 		](&hooks, &queryBuilder)
 		if err != nil {
 			log.S.Fatalw("Error in runner initialization", "error", err)
