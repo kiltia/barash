@@ -151,6 +151,7 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
     forceFlush := make(
         chan bool, 1,
     )
+    var startTime time.Time
 
 	nothingLeft := make(chan bool, 1)
 	qcResults := make(chan rd.QualityControlResult[S], 1)
@@ -174,7 +175,7 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 		)
 	}
 	for i := 0; i < config.C.Run.WriterWorkers; i++ {
-		go r.writer(workerCtx, i, fetcherResults, writtenBatches, forceFlush)
+		go r.writer(workerCtx, i, fetcherResults, writtenBatches, &startTime, forceFlush)
 	}
 	go r.qualityControl(
 		workerCtx,
@@ -230,6 +231,7 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 					task,
 				)
 			}
+            startTime = time.Now()
 			fetcherTasks <- nil
 
 		case res, ok := <-qcResults:

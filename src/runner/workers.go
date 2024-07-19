@@ -72,9 +72,9 @@ func (r *Runner[S, R, P, Q]) writer(
 	consumerNum int,
 	results chan rd.FetcherResult[S],
 	processedBatches chan rd.ProcessedBatch[S],
+    startTime *time.Time,
 	forceFlush chan bool,
 ) {
-	startTime := time.Now()
 	var batch []S
 	insertBatch := func(batch *[]S) {
 		err := r.clickHouseClient.AsyncInsertBatch(
@@ -101,7 +101,7 @@ func (r *Runner[S, R, P, Q]) writer(
 			"tag", log.TagClickHouseSuccess,
 		)
 
-		processedBatches <- rd.NewProcessedBatch(*batch, time.Since(startTime))
+		processedBatches <- rd.NewProcessedBatch(*batch, time.Since(*startTime))
 		*batch = []S{}
 	}
 
