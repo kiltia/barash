@@ -11,7 +11,9 @@ type CrawlerQueryBuilder struct {
     Mode config.RunnerMode
 }
 
-func (qb *CrawlerQueryBuilder) UpdateState(batch []CrawlerParams) {}
+func (qb *CrawlerQueryBuilder) UpdateState(batch []CrawlerParams) {
+    qb.Offset += qb.BatchSize
+}
 
 func (qb *CrawlerQueryBuilder) ResetState() {
 	qb.Offset = 0
@@ -19,9 +21,12 @@ func (qb *CrawlerQueryBuilder) ResetState() {
 
 func (qb *CrawlerQueryBuilder) GetTwoTableSelectQuery() string {
 	query := fmt.Sprintf(`
-        SELECT url from master LIMIT %d OFFSET %d
+            select url
+            from wv.master
+            where is_active = True
+            group by url
+            limit %d offset %d
     `, qb.BatchSize, qb.Offset)
-	qb.Offset += qb.BatchSize
 	return query
 }
 

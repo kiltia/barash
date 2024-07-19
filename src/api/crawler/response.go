@@ -2,6 +2,10 @@ package crawler
 
 import "time"
 
+type PartialErrorInfo struct {
+	Reason string `json:"reason"`
+}
+
 type CrawlerResponse struct {
 	OriginalUrl  string            `json:"original_url"`
 	FinalUrl     string            `json:"final_url"`
@@ -9,6 +13,7 @@ type CrawlerResponse struct {
 	ResponseSize int64             `json:"response_size"`
 	HeadlessUsed bool              `json:"headless_used"`
 	Parsed       PartialParsedData `json:"parsed"`
+	ErrorInfo    PartialErrorInfo  `json:"error"`
 }
 
 func (resp CrawlerResponse) IntoStored(
@@ -19,12 +24,12 @@ func (resp CrawlerResponse) IntoStored(
 	timeElapsed time.Duration,
 ) CrawlerResult {
 	return CrawlerResult{
-		AttemptsNumber:   n,
-		CrawlerParams:    params,
-		CrawlingResponse: &resp,
-		RequestLink:      url,
-		StatusCode:       status,
-		TimeElapsed:      timeElapsed,
+		AttemptsNumber:  n,
+		CrawlerParams:   params,
+		CrawlerResponse: &resp,
+		RequestLink:     url,
+		StatusCode:      status,
+		TimeElapsed:     timeElapsed,
 	}
 }
 

@@ -17,6 +17,7 @@ func main() {
 		queryBuilder := crawler.CrawlerQueryBuilder{
 			BatchSize: config.C.Run.BatchSize,
 			Mode:      config.C.Run.Mode,
+			Offset:    0,
 		}
 		queryBuilder.ResetState()
 		instance, err := runner.New[

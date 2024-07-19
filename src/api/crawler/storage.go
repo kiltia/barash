@@ -11,14 +11,14 @@ type CrawlerResult struct {
 	RequestLink      string
 	AttemptsNumber   int
 	TimeElapsed      time.Duration
-	CrawlingResponse *CrawlerResponse
+	CrawlerResponse *CrawlerResponse
 }
 
 // Implement the [rinterface.StoredValue] interface.
 func (r CrawlerResult) GetInsertQuery() string {
 	return `
         INSERT INTO crawler VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now()
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now()
         )
     `
 }
@@ -35,11 +35,12 @@ func (r CrawlerResult) GetCreateQuery() string {
         (
             url String,
             request_link String,
-            status Int16,
+            crawler_status_code Int16,
+            site_status_code Int16,
+            error String,
             attempts Int16,
             original_url String,
             final_url String,
-            status_code Int16,
             response_size Int128,
             headless_used Bool,
             urls Array(String),
@@ -55,7 +56,7 @@ func (r CrawlerResult) GetCreateQuery() string {
 // Implement the [rinterface.StoredValue] interface.
 func (r CrawlerResult) AsArray() []any {
 	crawlingParams := r.CrawlerParams
-	response := r.CrawlingResponse
+	response := r.CrawlerResponse
 
 	urls := []string{}
 
@@ -70,10 +71,11 @@ func (r CrawlerResult) AsArray() []any {
 		crawlingParams.Url,
 		r.RequestLink,
 		r.StatusCode,
+		response.Status,
+        r.CrawlerResponse.ErrorInfo.Reason,
 		r.AttemptsNumber,
 		response.OriginalUrl,
 		response.FinalUrl,
-		response.Status,
 		response.ResponseSize,
 		response.HeadlessUsed,
 		urls,
