@@ -13,11 +13,11 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 )
 
-type ClickHouseClient[S ri.StoredValue, P ri.StoredRequest, Q ri.QueryBuilder[P]] struct {
+type ClickHouseClient[S ri.StoredValue, P ri.StoredRequest, Q ri.QueryBuilder[S, P]] struct {
 	Connection driver.Conn
 }
 
-func NewClickHouseClient[S ri.StoredValue, P ri.StoredRequest, Q ri.QueryBuilder[P]](
+func NewClickHouseClient[S ri.StoredValue, P ri.StoredRequest, Q ri.QueryBuilder[S, P]](
 	config config.ClickHouseConfig,
 ) (
 	client *ClickHouseClient[S, P, Q],

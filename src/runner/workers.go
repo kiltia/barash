@@ -44,12 +44,11 @@ func (r *Runner[S, R, P, Q]) fetcher(
 			)
 			resultList, err := r.SendGetRequest(ctx, *task)
 			if err != nil {
-				log.S.Debugw(
+				log.S.Errorw(
 					"There was an error, while sending the request "+
 						"to the subject API",
 					"error", err,
 				)
-				break
 			}
 
 			log.S.Debugw("Sending fetching results")
@@ -62,21 +61,24 @@ func (r *Runner[S, R, P, Q]) fetcher(
 				"fetcher_num", fetcherNum,
 				"error", ctx.Err(),
 			)
-			return
 		}
 	}
 }
 
 func (r *Runner[S, R, P, Q]) writer(
 	ctx context.Context,
-	consumerNum int,
+	writerNum int,
 	results chan rd.FetcherResult[S],
 	processedBatches chan rd.ProcessedBatch[S],
 	startTime *time.Time,
-	forceFlush chan bool,
+	taskCount *int,
 ) {
 	var batch []S
 	insertBatch := func(batch *[]S) {
+		if len(*batch) == 0 {
+			log.S.Infow("Batch is empty, skipping", "writer_num", writerNum)
+			return
+		}
 		err := r.clickHouseClient.AsyncInsertBatch(
 			ctx,
 			*batch,
@@ -87,8 +89,8 @@ func (r *Runner[S, R, P, Q]) writer(
 				"Insertion to the ClickHouse database was unsuccessful!",
 				"error",
 				err,
-				"consumer_num",
-				consumerNum,
+				"writer_num",
+				writerNum,
 				"tag",
 				log.TagClickHouseError,
 			)
@@ -97,7 +99,7 @@ func (r *Runner[S, R, P, Q]) writer(
 		log.S.Infow(
 			"Insertion to the ClickHouse database was successful!",
 			"batch_len", len(*batch),
-			"consumer_num", consumerNum,
+			"writer_num", writerNum,
 			"tag", log.TagClickHouseSuccess,
 		)
 
@@ -107,8 +109,6 @@ func (r *Runner[S, R, P, Q]) writer(
 
 	for {
 		select {
-		case <-forceFlush:
-			insertBatch(&batch)
 		case result, ok := <-results:
 			if !ok {
 				return
@@ -116,14 +116,16 @@ func (r *Runner[S, R, P, Q]) writer(
 
 			batch = append(batch, result.Value)
 
-			if len(batch) >= config.C.Run.BatchSize {
+			if len(batch) >= *taskCount {
 				insertBatch(&batch)
+			} else {
+				log.S.Debug(len(batch), *taskCount)
 			}
 
 		case <-ctx.Done():
 			log.S.Debugw(
 				"Consumer's context is cancelled",
-				"consumer_num", consumerNum,
+				"consumer_num", writerNum,
 				"error", ctx.Err(),
 				"tag", log.TagRunnerDebug,
 			)

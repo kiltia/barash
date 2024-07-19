@@ -24,11 +24,11 @@ func (resp MetaResponse) IntoStored(
 	timeElapsed time.Duration,
 ) MetaResult {
 	return MetaResult{
-		AttemptsNumber:       n,
-		VerifyParams:         params,
-		VerificationResponse: &resp,
-		RequestLink:          url,
-		StatusCode:           status,
+		AttemptsNumber: n,
+		MetaRequest:    params,
+		MetaResponse:   resp,
+		RequestLink:    url,
+		StatusCode:     status,
 	}
 }
 

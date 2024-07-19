@@ -28,10 +28,6 @@ func (r CrawlingResult) GetStatusCode() int {
 	return r.StatusCode
 }
 
-func (p CrawlerRequest) GetUrl() string {
-	return p.Url
-}
-
 // Implement the [rinterface.StoredValue] interface.
 func (r CrawlingResult) GetCreateQuery() string {
 	return `

@@ -15,3 +15,7 @@ type CrawlerRequest struct {
 	HeadlessStrategy string    `json:"headless_browser"`
 	Fields           *[]string `json:"fields"`
 }
+
+func (p CrawlerRequest) GetUrl() string {
+	return p.Url
+}

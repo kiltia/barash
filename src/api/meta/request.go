@@ -21,3 +21,7 @@ type MetaRequest struct {
 	LocCountry   *string   `json:"loc_country"   ch:"loc_country"`
 	Timestamp    time.Time `                     ch:"ts"`
 }
+
+func (p MetaRequest) GetUrl() string {
+	return p.Url
+}

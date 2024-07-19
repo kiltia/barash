@@ -30,6 +30,10 @@ type (
 		GetStatusCode() int
 	}
 
+	StoredRequest interface {
+		GetUrl() string
+	}
+
 	Response[S StoredValue, P StoredRequest] interface {
 		IntoStored(
 			params P,
@@ -40,7 +44,7 @@ type (
 		) S
 	}
 
-	QueryBuilder[P StoredRequest] interface {
+	QueryBuilder[S StoredValue, P StoredRequest] interface {
 		// Return SELECT query for retrieving a row from the database
 		// in continious mode, which means that rows are retrieved
 		// based on last processed time
@@ -57,9 +61,5 @@ type (
 
 		// Refreshes inner state
 		ResetState()
-	}
-
-	StoredRequest interface {
-		GetUrl() string
 	}
 )

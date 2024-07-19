@@ -20,7 +20,7 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-type Runner[S ri.StoredValue, R ri.Response[S, P], P ri.StoredRequest, Q ri.QueryBuilder[P]] struct {
+type Runner[S ri.StoredValue, R ri.Response[S, P], P ri.StoredRequest, Q ri.QueryBuilder[S, P]] struct {
 	clickHouseClient dbclient.ClickHouseClient[S, P, Q]
 	httpClient       *resty.Client
 	workerTimeout    time.Duration
@@ -32,7 +32,7 @@ func New[
 	S ri.StoredValue,
 	R ri.Response[S, P],
 	P ri.StoredRequest,
-	Q ri.QueryBuilder[P],
+	Q ri.QueryBuilder[S, P],
 ](hs hooks.Hooks[S], qb Q) (*Runner[S, R, P, Q], error) {
 	clickHouseClient, version, err := dbclient.NewClickHouseClient[S, P, Q](
 		config.C.ClickHouse,
@@ -84,8 +84,7 @@ func (r *Runner[S, R, P, Q]) SendGetRequest(
 	)
 	lastResponse, err := r.httpClient.R().SetContext(ctx).Get(url)
 	if err != nil {
-		log.S.Error("Got an error while completing request", "error", err)
-		return nil, err
+		log.S.Errorw("Got an error while completing request", "error", err)
 	}
 
 	responses := lastResponse.
@@ -148,11 +147,9 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 		chan rd.ProcessedBatch[S],
 		config.C.Run.WriterWorkers,
 	)
-	forceFlush := make(
-		chan bool, 1,
-	)
 	startTime := time.Now()
 
+	var taskCount int
 	nothingLeft := make(chan bool, 1)
 	qcResults := make(chan rd.QualityControlResult[S], 1)
 	defer close(fetcherResults)
@@ -181,7 +178,7 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 			fetcherResults,
 			writtenBatches,
 			&startTime,
-			forceFlush,
+			&taskCount,
 		)
 	}
 	go r.qualityControl(
@@ -220,13 +217,13 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 				)
 				break
 			}
-			if len(selectedBatch) == 0 {
+			taskCount = len(selectedBatch)
+			if taskCount == 0 {
 				log.S.Infow(
 					"Runner has nothing to do, forcing data insert before standby",
 					"sleep_time",
 					config.C.Run.SleepTime,
 				)
-				forceFlush <- true
 				r.standby(ctx)
 			}
 			r.queryBuilder.UpdateState(selectedBatch)

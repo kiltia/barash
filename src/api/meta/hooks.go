@@ -27,7 +27,7 @@ func (srv *MetaApiHooks) AfterBatch(
 		successesWithScores := util.Reduce(
 			util.Map(batch.Values, func(res MetaResult) bool {
 				return res.GetStatusCode() == 200 &&
-					res.VerificationResponse.Score != nil
+					res.MetaResponse.Score != nil
 			}),
 			0,
 			func(acc int, v bool) int {

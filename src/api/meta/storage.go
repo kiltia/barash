@@ -1,11 +1,11 @@
 package meta
 
 type MetaResult struct {
-	StatusCode           int
-	VerifyParams         MetaRequest
-	RequestLink          string
-	AttemptsNumber       int
-	VerificationResponse *MetaResponse
+	StatusCode     int
+	MetaRequest    MetaRequest
+	RequestLink    string
+	AttemptsNumber int
+	MetaResponse   MetaResponse
 }
 
 // Implement the [rinterface.StoredValue] interface.
@@ -24,18 +24,6 @@ func (r MetaResult) GetStatusCode() int {
 	return r.StatusCode
 }
 
-func (r MetaResult) GetUrl() string {
-	return r.VerifyParams.Url
-}
-
-func (_ MetaRequest) GetTwoTableSelectQuery() string {
-	panic("Method is not implemented")
-}
-
-func (p MetaRequest) GetUrl() string {
-	return p.Url
-}
-
 // Implement the [rinterface.StoredValue] interface.
 func (r MetaResult) GetCreateQuery() string {
 	panic("Method is not implemented")
@@ -43,10 +31,10 @@ func (r MetaResult) GetCreateQuery() string {
 
 // Implement the [rinterface.StoredValue] interface.
 func (r MetaResult) AsArray() []any {
-	verifyParams := r.VerifyParams
-	response := r.VerificationResponse
-	debugInfo := r.VerificationResponse.DebugInfo
-	pageStats := r.VerificationResponse.DebugInfo.CrawlerDebug.PageStats
+	verifyParams := r.MetaRequest
+	response := r.MetaResponse
+	debugInfo := r.MetaResponse.DebugInfo
+	pageStats := r.MetaResponse.DebugInfo.CrawlerDebug.PageStats
 	crawlerDebug := debugInfo.CrawlerDebug
 	MatchMaskSummary := response.MatchMask.MatchMaskSummary
 
