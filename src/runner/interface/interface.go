@@ -2,7 +2,9 @@
 // in order to verify their API.
 package rinterface
 
-import "time"
+import (
+	"time"
+)
 
 type (
 	StoredValue interface {
@@ -30,11 +32,11 @@ type (
 		GetStatusCode() int
 	}
 
-	StoredRequest interface {
+	StoredParams interface {
 		GetUrl() string
 	}
 
-	Response[S StoredValue, P StoredRequest] interface {
+	Response[S StoredValue, P StoredParams] interface {
 		IntoStored(
 			params P,
 			attemptNumber int,
@@ -44,16 +46,9 @@ type (
 		) S
 	}
 
-	QueryBuilder[S StoredValue, P StoredRequest] interface {
-		// Return SELECT query for retrieving a row from the database
-		// in continious mode, which means that rows are retrieved
-		// based on last processed time
-		GetContiniousSelectQuery() string
+	QueryBuilder[S StoredValue, P StoredParams] interface {
 
-		// Return SELECT query for retrieving rows from the database
-		// in simple mode, which means that rows are retrieved
-		// based on offset
-		GetTwoTableSelectQuery() string
+		GetSelectQuery() string
 
 		// Updating QueryBuilder's inner state
 		// based on data that was selected from the database

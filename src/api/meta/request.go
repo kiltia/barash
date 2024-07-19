@@ -3,7 +3,7 @@ package meta
 import "time"
 
 // Request query parameters for the Meta API endpoint.
-type MetaRequest struct {
+type VerifyParams struct {
 	Duns         string    `json:"duns"          ch:"duns"`
 	Url          string    `json:"url"           ch:"url"`
 	Name         *string   `json:"name"          ch:"name"`
@@ -22,6 +22,6 @@ type MetaRequest struct {
 	Timestamp    time.Time `                     ch:"ts"`
 }
 
-func (p MetaRequest) GetUrl() string {
+func (p VerifyParams) GetUrl() string {
 	return p.Url
 }

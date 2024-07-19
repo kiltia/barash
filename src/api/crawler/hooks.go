@@ -9,12 +9,12 @@ import (
 
 type CrawlerApiHooks struct {
 	// NOTE(evgenymng): embed the dummy implementation just in case
-	hooks.DummyHooks[CrawlingResult]
+	hooks.DummyHooks[CrawlerResult]
 }
 
 func (srv *CrawlerApiHooks) AfterBatch(
 	ctx context.Context,
-	batch rdata.ProcessedBatch[CrawlingResult],
+	batch rdata.ProcessedBatch[CrawlerResult],
 	failCount *int,
 ) {
 }

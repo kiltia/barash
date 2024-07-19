@@ -13,11 +13,11 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 )
 
-type ClickHouseClient[S ri.StoredValue, P ri.StoredRequest, Q ri.QueryBuilder[S, P]] struct {
+type ClickHouseClient[S ri.StoredValue, P ri.StoredParams, Q ri.QueryBuilder[S, P]] struct {
 	Connection driver.Conn
 }
 
-func NewClickHouseClient[S ri.StoredValue, P ri.StoredRequest, Q ri.QueryBuilder[S, P]](
+func NewClickHouseClient[S ri.StoredValue, P ri.StoredParams, Q ri.QueryBuilder[S, P]](
 	config config.ClickHouseConfig,
 ) (
 	client *ClickHouseClient[S, P, Q],
@@ -68,15 +68,7 @@ func (client *ClickHouseClient[S, P, Q]) SelectNextBatch(
 	queryBuilder Q,
 ) (result []P, err error) {
 	log.S.Debugw("Trying to retrieve a new batch from database")
-	var query string
-	switch config.C.Run.Mode {
-	case config.ContiniousMode:
-		query = queryBuilder.GetContiniousSelectQuery()
-	case config.TwoTableMode:
-		query = queryBuilder.GetTwoTableSelectQuery()
-	default:
-		log.S.Panicw("Unexpected mode", "input_value", config.C.Api.Type)
-	}
+	query := queryBuilder.GetSelectQuery()
 	log.S.Debugw("Sending query to database", "query", query)
 	if err = client.Connection.Select(ctx, &result, query); err != nil {
 		log.S.Error(

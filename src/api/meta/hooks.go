@@ -9,15 +9,15 @@ import (
 	"orb/runner/src/runner/util"
 )
 
-type MetaApiHooks struct {
+type VerifyApiHooks struct {
 	// NOTE(evgenymng): embed the dummy implementation just in case
-	hooks.DummyHooks[MetaResult]
+	hooks.DummyHooks[VerifyResult]
 }
 
 // Implement the [hooks.Hooks] interface.
-func (srv *MetaApiHooks) AfterBatch(
+func (srv *VerifyApiHooks) AfterBatch(
 	ctx context.Context,
-	batch rdata.ProcessedBatch[MetaResult],
+	batch rdata.ProcessedBatch[VerifyResult],
 	failCount *int,
 ) {
 	select {
@@ -25,7 +25,7 @@ func (srv *MetaApiHooks) AfterBatch(
 		return
 	default:
 		successesWithScores := util.Reduce(
-			util.Map(batch.Values, func(res MetaResult) bool {
+			util.Map(batch.Values, func(res VerifyResult) bool {
 				return res.GetStatusCode() == 200 &&
 					res.MetaResponse.Score != nil
 			}),

@@ -20,7 +20,7 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-type Runner[S ri.StoredValue, R ri.Response[S, P], P ri.StoredRequest, Q ri.QueryBuilder[S, P]] struct {
+type Runner[S ri.StoredValue, R ri.Response[S, P], P ri.StoredParams, Q ri.QueryBuilder[S, P]] struct {
 	clickHouseClient dbclient.ClickHouseClient[S, P, Q]
 	httpClient       *resty.Client
 	workerTimeout    time.Duration
@@ -31,7 +31,7 @@ type Runner[S ri.StoredValue, R ri.Response[S, P], P ri.StoredRequest, Q ri.Quer
 func New[
 	S ri.StoredValue,
 	R ri.Response[S, P],
-	P ri.StoredRequest,
+	P ri.StoredParams,
 	Q ri.QueryBuilder[S, P],
 ](hs hooks.Hooks[S], qb Q) (*Runner[S, R, P, Q], error) {
 	clickHouseClient, version, err := dbclient.NewClickHouseClient[S, P, Q](
@@ -137,19 +137,16 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 	// + 1 for the [nil] task
 	fetcherTasks := make(
 		chan *rr.GetRequest[P],
-		config.C.Run.RequestBatchSize+1,
+		config.C.Run.BatchSize+1,
 	)
 	fetcherResults := make(
 		chan rd.FetcherResult[S],
-		config.C.Run.RequestBatchSize,
+		config.C.Run.BatchSize,
 	)
 	writtenBatches := make(
 		chan rd.ProcessedBatch[S],
 		config.C.Run.WriterWorkers,
 	)
-	startTime := time.Now()
-
-	var taskCount int
 	nothingLeft := make(chan bool, 1)
 	qcResults := make(chan rd.QualityControlResult[S], 1)
 	defer close(fetcherResults)
@@ -177,8 +174,7 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 			i,
 			fetcherResults,
 			writtenBatches,
-			&startTime,
-			&taskCount,
+            time.Now(),
 		)
 	}
 	go r.qualityControl(
@@ -217,10 +213,10 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 				)
 				break
 			}
-			taskCount = len(selectedBatch)
+            taskCount := len(selectedBatch)
 			if taskCount == 0 {
 				log.S.Infow(
-					"Runner has nothing to do, forcing data insert before standby",
+					"Runner has nothing to do, making attempt to insert data before standby",
 					"sleep_time",
 					config.C.Run.SleepTime,
 				)
@@ -240,7 +236,6 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 				)
 			}
 			fetcherTasks <- nil
-			startTime = time.Now()
 
 		case res, ok := <-qcResults:
 			if !ok {

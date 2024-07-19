@@ -10,12 +10,12 @@ const (
 )
 
 // The query parameters, which are sent to the Crawler.
-type CrawlerRequest struct {
+type CrawlerParams struct {
 	Url              string    `json:"url"              ch:"url"`
 	HeadlessStrategy string    `json:"headless_browser"`
 	Fields           *[]string `json:"fields"`
 }
 
-func (p CrawlerRequest) GetUrl() string {
+func (p CrawlerParams) GetUrl() string {
 	return p.Url
 }

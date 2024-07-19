@@ -16,8 +16,8 @@ type Config struct {
 }
 
 type QualityControlConfig struct {
-	Period    int     `yaml:"period"`
-	Threshold float64 `yaml:"threshold"`
+	BatchTimeLimit   int     `yaml:"batch_time_limit"`
+	SuccessThreshold float64 `yaml:"success_threshold"`
 }
 
 type ApiConfig struct {
@@ -46,20 +46,13 @@ type RetryConfig struct {
 	MaxWaitTime int `yaml:"max_wait_time"`
 }
 
-type TableData struct {
-	ColumnType string `yaml:"type"`
-	ColumnName string `yaml:"column"`
-	Freshness  int    `yaml:"freshness"`
-}
-
 type RunConfig struct {
 	FetcherWorkers   int               `yaml:"fetcher_workers"`
 	WriterWorkers    int               `yaml:"writer_workers"`
-	RequestBatchSize int               `yaml:"request_batch_size"`
 	BatchSize        int               `yaml:"batch_size"`
+	Freshness        int               `yaml:"freshness"`
 	SleepTime        int               `yaml:"sleep_time"`
 	Tag              string            `yaml:"tag"`
 	ExtraParams      map[string]string `yaml:"extra_params"`
 	Mode             RunnerMode        `yaml:"mode"`
-	TableData        TableData         `yaml:"table_data"`
 }

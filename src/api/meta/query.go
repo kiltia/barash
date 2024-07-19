@@ -4,16 +4,18 @@ import (
 	"fmt"
 	"time"
 
+	"orb/runner/src/config"
 	"orb/runner/src/log"
 )
 
-type MetaQueryBuilder struct {
+type VerifyQueryBuilder struct {
 	Offset        int
 	Limit         int
 	LastTimestamp time.Time
+	Mode          config.RunnerMode
 }
 
-func (qb *MetaQueryBuilder) UpdateState(batch []MetaRequest) {
+func (qb *VerifyQueryBuilder) UpdateState(batch []VerifyParams) {
 	for _, el := range batch {
 		if el.Timestamp.Sub(qb.LastTimestamp) > 0 {
 			qb.LastTimestamp = el.Timestamp
@@ -26,12 +28,12 @@ func (qb *MetaQueryBuilder) UpdateState(batch []MetaRequest) {
 	)
 }
 
-func (qb *MetaQueryBuilder) ResetState() {
+func (qb *VerifyQueryBuilder) ResetState() {
 	qb.LastTimestamp = time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
 }
 
 // Implement the [rinterface.StoredValue] interface.
-func (qb MetaQueryBuilder) GetContiniousSelectQuery() string {
+func (qb VerifyQueryBuilder) GetContiniousSelectQuery() string {
 	return fmt.Sprintf(`
         with last as (
             select duns, url, max(ts) as max_ts
@@ -43,6 +45,7 @@ func (qb MetaQueryBuilder) GetContiniousSelectQuery() string {
             select duns, url, max_ts
             from last
             where max_ts < (now() - toIntervalDay(%d)) and max_ts > %d
+            order by max_ts asc
             limit %d
         ),
         final as (
@@ -67,6 +70,11 @@ func (qb MetaQueryBuilder) GetContiniousSelectQuery() string {
     `, qb.Offset, qb.LastTimestamp.UnixNano(), qb.Limit)
 }
 
-func (qb MetaQueryBuilder) GetTwoTableSelectQuery() string {
-	panic("Not implemented")
+func (qb VerifyQueryBuilder) GetSelectQuery() string {
+	switch qb.Mode {
+	case config.ContiniousMode:
+		return qb.GetContiniousSelectQuery()
+	default:
+		panic("Not implemented")
+	}
 }

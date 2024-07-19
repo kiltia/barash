@@ -16,24 +16,26 @@ func main() {
 		hooks := crawler.CrawlerApiHooks{}
 		queryBuilder := crawler.CrawlerQueryBuilder{
 			BatchSize: config.C.Run.BatchSize,
+			Mode:      config.C.Run.Mode,
 		}
 		queryBuilder.ResetState()
 		instance, err := runner.New[
-			crawler.CrawlingResult, crawler.CrawlerResponse,
+			crawler.CrawlerResult, crawler.CrawlerResponse,
 		](&hooks, &queryBuilder)
 		if err != nil {
 			log.S.Fatalw("Error in runner initialization", "error", err)
 		}
 		instance.Run(context.Background())
 	case config.MetaApi:
-		hooks := meta.MetaApiHooks{}
-		queryBuilder := meta.MetaQueryBuilder{
-			Offset: config.C.Run.TableData.Freshness,
+		hooks := meta.VerifyApiHooks{}
+		queryBuilder := meta.VerifyQueryBuilder{
+			Offset: config.C.Run.Freshness,
 			Limit:  config.C.Run.BatchSize,
+			Mode:   config.C.Run.Mode,
 		}
 		queryBuilder.ResetState()
 		instance, err := runner.New[
-			meta.MetaResult, meta.MetaResponse,
+			meta.VerifyResult, meta.VerifyResponse,
 		](&hooks, &queryBuilder)
 		if err != nil {
 			log.S.Fatalw("Error in runner initialization", "error", err)

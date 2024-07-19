@@ -12,13 +12,13 @@ type CrawlerResponse struct {
 }
 
 func (resp CrawlerResponse) IntoStored(
-	params CrawlerRequest,
+	params CrawlerParams,
 	n int,
 	url string,
 	status int,
 	timeElapsed time.Duration,
-) CrawlingResult {
-	return CrawlingResult{
+) CrawlerResult {
+	return CrawlerResult{
 		AttemptsNumber:   n,
 		CrawlerParams:    params,
 		CrawlingResponse: &resp,

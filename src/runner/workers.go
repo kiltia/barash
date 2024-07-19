@@ -27,6 +27,9 @@ func (r *Runner[S, R, P, Q]) fetcher(
 				// TODO(nrydanov): What should we do when channels are closed?
 				return
 			}
+			// NOTE(nrydanov): If task is nil, then it was the last signal
+			// sent to channel from main thread. We need to ask for more
+			// tasks
 			if task == nil {
 				log.S.Infow(
 					"Fetcher has no work left, asking for a new batch",
@@ -48,10 +51,11 @@ func (r *Runner[S, R, P, Q]) fetcher(
 					"There was an error, while sending the request "+
 						"to the subject API",
 					"error", err,
+					"fetcher_num", fetcherNum,
 				)
 			}
 
-			log.S.Debugw("Sending fetching results")
+			log.S.Debugw("Sending fetching results", "fetcher_num", fetcherNum)
 			for _, result := range resultList {
 				results <- rd.NewFetcherResult(result, startTime)
 			}
@@ -70,18 +74,18 @@ func (r *Runner[S, R, P, Q]) writer(
 	writerNum int,
 	results chan rd.FetcherResult[S],
 	processedBatches chan rd.ProcessedBatch[S],
-	startTime *time.Time,
-	taskCount *int,
+	initialTime time.Time,
 ) {
 	var batch []S
-	insertBatch := func(batch *[]S) {
-		if len(*batch) == 0 {
-			log.S.Infow("Batch is empty, skipping", "writer_num", writerNum)
+	lastBatchTime := initialTime
+	insertBatch := func() {
+		if len(batch) == 0 {
+			log.S.Infow("Batch is empty, SQL insert query won't be executed", "writer_num", writerNum)
 			return
 		}
 		err := r.clickHouseClient.AsyncInsertBatch(
 			ctx,
-			*batch,
+			batch,
 			config.C.Run.Tag,
 		)
 		if err != nil {
@@ -98,34 +102,37 @@ func (r *Runner[S, R, P, Q]) writer(
 		}
 		log.S.Infow(
 			"Insertion to the ClickHouse database was successful!",
-			"batch_len", len(*batch),
+			"batch_len", len(batch),
 			"writer_num", writerNum,
 			"tag", log.TagClickHouseSuccess,
 		)
 
-		processedBatches <- rd.NewProcessedBatch(*batch, time.Since(*startTime))
-		*batch = []S{}
+		processedBatches <- rd.NewProcessedBatch(batch, time.Since(lastBatchTime))
+		batch = []S{}
+		lastBatchTime = time.Now()
 	}
 
 	for {
 		select {
 		case result, ok := <-results:
 			if !ok {
+				// TODO(nrydanov): What should we do if channel is closed?
 				return
 			}
 
 			batch = append(batch, result.Value)
 
-			if len(batch) >= *taskCount {
-				insertBatch(&batch)
-			} else {
-				log.S.Debug(len(batch), *taskCount)
+			// NOTE(nrydanov): Task count is determined at the moment
+			// of selecting next batch. We use this variable to determine
+			// whether all fetchers have done it's tasks or not
+			if len(batch) >= config.C.Run.BatchSize {
+				insertBatch()
 			}
 
 		case <-ctx.Done():
 			log.S.Debugw(
-				"Consumer's context is cancelled",
-				"consumer_num", writerNum,
+				"Writer's context is cancelled",
+				"writer_num", writerNum,
 				"error", ctx.Err(),
 				"tag", log.TagRunnerDebug,
 			)
@@ -163,7 +170,7 @@ func (r *Runner[S, R, P, Q]) qualityControl(
 
 			// NOTE(nrydanov): Case 1. Batch processing takes too much time
 			if batch.ProcessingTime > time.Duration(
-				config.C.QualityControl.Period,
+				config.C.QualityControl.BatchTimeLimit,
 			)*time.Second {
 				log.S.Infow(
 					"Batch processing takes longer than it should.",
@@ -176,7 +183,7 @@ func (r *Runner[S, R, P, Q]) qualityControl(
 
 			// NOTE(nrydanov): Case 2. Too many requests ends with errors
 			if numSuccesses < int(
-				float64(numRequests)*config.C.QualityControl.Threshold,
+				float64(numRequests)*config.C.QualityControl.SuccessThreshold,
 			) {
 				log.S.Infow(
 					"Too many 5xx errors from the API.",

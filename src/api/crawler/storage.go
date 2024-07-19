@@ -5,9 +5,9 @@ import (
 	"time"
 )
 
-type CrawlingResult struct {
+type CrawlerResult struct {
 	StatusCode       int
-	CrawlerParams    CrawlerRequest
+	CrawlerParams    CrawlerParams
 	RequestLink      string
 	AttemptsNumber   int
 	TimeElapsed      time.Duration
@@ -15,7 +15,7 @@ type CrawlingResult struct {
 }
 
 // Implement the [rinterface.StoredValue] interface.
-func (r CrawlingResult) GetInsertQuery() string {
+func (r CrawlerResult) GetInsertQuery() string {
 	return `
         INSERT INTO crawler VALUES (
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now()
@@ -24,12 +24,12 @@ func (r CrawlingResult) GetInsertQuery() string {
 }
 
 // Implement the [rinterface.StoredValue] interface.
-func (r CrawlingResult) GetStatusCode() int {
+func (r CrawlerResult) GetStatusCode() int {
 	return r.StatusCode
 }
 
 // Implement the [rinterface.StoredValue] interface.
-func (r CrawlingResult) GetCreateQuery() string {
+func (r CrawlerResult) GetCreateQuery() string {
 	return `
         CREATE TABLE wv.crawler
         (
@@ -53,7 +53,7 @@ func (r CrawlingResult) GetCreateQuery() string {
 }
 
 // Implement the [rinterface.StoredValue] interface.
-func (r CrawlingResult) AsArray() []any {
+func (r CrawlerResult) AsArray() []any {
 	crawlingParams := r.CrawlerParams
 	response := r.CrawlingResponse
 
