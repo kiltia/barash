@@ -220,7 +220,10 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 					"sleep_time",
 					config.C.Run.SleepTime,
 				)
-				r.standby(ctx)
+                err := r.standby(ctx)
+                if err != nil {
+                    log.S.Errorw("Got an error while entering standby mode", "error", err)
+                }
 			}
 			r.queryBuilder.UpdateState(selectedBatch)
 			log.S.Debugw(
