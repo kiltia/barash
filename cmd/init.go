@@ -22,5 +22,5 @@ func init() {
 
 	config.C = &cfg
 
-	log.S = zap.Must(config.C.Logger.Build()).Sugar()
+	log.S = zap.Must(config.C.ZapLogger.Build()).Sugar()
 }

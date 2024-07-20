@@ -10,9 +10,14 @@ import (
 	"orb/runner/pkg/runner"
 )
 
+const (
+	ApiNameCrawler string = "crawler"
+	ApiNameMeta    string = "meta"
+)
+
 func main() {
-	switch config.C.Api.Type {
-	case config.CrawlerApi:
+	switch config.C.Api.Name {
+	case ApiNameCrawler:
 		hooks := crawler.CrawlerApiHooks{}
 		queryBuilder := crawler.CrawlerQueryBuilder{
 			BatchSize: config.C.Run.BatchSize,
@@ -27,7 +32,7 @@ func main() {
 			log.S.Fatalw("Error in runner initialization", "error", err)
 		}
 		instance.Run(context.Background())
-	case config.MetaApi:
+	case ApiNameMeta:
 		hooks := meta.VerifyApiHooks{}
 		queryBuilder := meta.VerifyQueryBuilder{
 			Offset: config.C.Run.Freshness,
@@ -43,6 +48,6 @@ func main() {
 		}
 		instance.Run(context.Background())
 	default:
-		log.S.Panicw("Unexpected API type", "input_value", config.C.Api.Type)
+		log.S.Panicw("Unexpected API name", "input_value", config.C.Api.Name)
 	}
 }

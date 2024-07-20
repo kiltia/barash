@@ -10,7 +10,7 @@ type Config struct {
 	Timeouts       TimeoutConfig        `yaml:"timeouts"`
 	HttpRetries    RetryConfig          `yaml:"http_retries"`
 	SelectRetries  RetryConfig          `yaml:"select_retries"`
-	Logger         zap.Config           `yaml:"logger"`
+	ZapLogger      zap.Config           `yaml:"zap_logger"`
 	Run            RunConfig            `yaml:"run"`
 	QualityControl QualityControlConfig `yaml:"quality_control_config"`
 }
@@ -21,10 +21,10 @@ type QualityControlConfig struct {
 }
 
 type ApiConfig struct {
-	Type   ApiType `yaml:"type"`
-	Host   string  `yaml:"host"`
-	Port   string  `yaml:"port"`
-	Method string  `yaml:"method"`
+	Name   string `yaml:"name"`
+	Host   string `yaml:"host"`
+	Port   string `yaml:"port"`
+	Method string `yaml:"method"`
 }
 
 type ClickHouseConfig struct {

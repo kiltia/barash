@@ -284,7 +284,7 @@ func (r *Runner[S, R, P, Q]) standby(ctx context.Context) error {
 }
 
 func (r *Runner[S, R, P, Q]) initTable(ctx context.Context) {
-	if config.C.Run.Mode == config.ContiniousMode {
+	if config.C.Run.Mode == config.ContinuousMode {
 		log.S.Info("Running in continious mode, skipping table initialization")
 		return
 	}

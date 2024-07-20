@@ -8,18 +8,12 @@ import (
 )
 
 type (
-	ApiType    string
 	RunnerMode string
 )
 
 const (
-	CrawlerApi ApiType = "crawler"
-	MetaApi    ApiType = "meta"
-)
-
-const (
 	TwoTableMode   RunnerMode = "two-table"
-	ContiniousMode RunnerMode = "continious"
+	ContinuousMode RunnerMode = "continuous"
 )
 
 var C *Config
@@ -29,7 +23,7 @@ func Load() (
 	err error,
 ) {
 	var content []byte
-	filepath := fmt.Sprintf("configs/%s.yaml", getEnv("MOD", "dev"))
+	filepath := getEnv("CONFIG_FILE", "configs/meta.dev.yml")
 	content, err = os.ReadFile(filepath)
 	if err != nil {
 		fmt.Printf("Got error: %v", err)

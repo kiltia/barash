@@ -72,7 +72,7 @@ func (qb VerifyQueryBuilder) GetContiniousSelectQuery() string {
 
 func (qb VerifyQueryBuilder) GetSelectQuery() string {
 	switch qb.Mode {
-	case config.ContiniousMode:
+	case config.ContinuousMode:
 		return qb.GetContiniousSelectQuery()
 	default:
 		panic("Not implemented")
