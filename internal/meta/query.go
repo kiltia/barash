@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"orb/runner/src/config"
-	"orb/runner/src/log"
+	"orb/runner/pkg/config"
+	"orb/runner/pkg/log"
 )
 
 type VerifyQueryBuilder struct {

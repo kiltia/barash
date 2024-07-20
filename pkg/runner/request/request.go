@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/url"
 
-	"orb/runner/src/log"
-	ri "orb/runner/src/runner/interface"
-	"orb/runner/src/runner/util"
+	"orb/runner/pkg/log"
+	ri "orb/runner/pkg/runner/interface"
+	"orb/runner/pkg/runner/util"
 )
 
 type GetRequest[P ri.StoredParams] struct {

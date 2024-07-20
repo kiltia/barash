@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
-	"orb/runner/src/config"
-	"orb/runner/src/log"
-	rd "orb/runner/src/runner/data"
-	rr "orb/runner/src/runner/request"
-	"orb/runner/src/runner/util"
+	"orb/runner/pkg/config"
+	"orb/runner/pkg/log"
+	rd "orb/runner/pkg/runner/data"
+	rr "orb/runner/pkg/runner/request"
+	"orb/runner/pkg/runner/util"
 )
 
 func (r *Runner[S, R, P, Q]) fetcher(

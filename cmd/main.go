@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 
-	"orb/runner/src/api/crawler"
-	"orb/runner/src/api/meta"
-	"orb/runner/src/config"
-	"orb/runner/src/log"
-	"orb/runner/src/runner"
+	"orb/runner/internal/crawler"
+	"orb/runner/internal/meta"
+	"orb/runner/pkg/config"
+	"orb/runner/pkg/log"
+	"orb/runner/pkg/runner"
 )
 
 func main() {

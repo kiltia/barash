@@ -3,8 +3,8 @@ package hooks
 import (
 	"context"
 
-	rd "orb/runner/src/runner/data"
-	ri "orb/runner/src/runner/interface"
+	rd "orb/runner/pkg/runner/data"
+	ri "orb/runner/pkg/runner/interface"
 )
 
 type DummyHooks[S ri.StoredValue] struct{}

@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"orb/runner/src/config"
-	"orb/runner/src/log"
-	ri "orb/runner/src/runner/interface"
+	"orb/runner/pkg/config"
+	"orb/runner/pkg/log"
+	ri "orb/runner/pkg/runner/interface"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"

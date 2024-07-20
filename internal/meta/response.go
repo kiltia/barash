@@ -3,7 +3,7 @@ package meta
 import (
 	"time"
 
-	"orb/runner/src/api/common"
+	"orb/runner/internal/common"
 )
 
 // Response from the Meta API endpoint.

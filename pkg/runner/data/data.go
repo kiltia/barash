@@ -4,7 +4,7 @@ package rdata
 import (
 	"time"
 
-	ri "orb/runner/src/runner/interface"
+	ri "orb/runner/pkg/runner/interface"
 )
 
 type FetcherResult[S ri.StoredValue] struct {

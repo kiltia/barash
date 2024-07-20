@@ -7,14 +7,14 @@ import (
 	"net/http"
 	"time"
 
-	"orb/runner/src/config"
-	dbclient "orb/runner/src/db/clients"
-	"orb/runner/src/log"
-	rd "orb/runner/src/runner/data"
-	re "orb/runner/src/runner/enum"
-	"orb/runner/src/runner/hooks"
-	ri "orb/runner/src/runner/interface"
-	rr "orb/runner/src/runner/request"
+	"orb/runner/pkg/config"
+	dbclient "orb/runner/pkg/db/clients"
+	"orb/runner/pkg/log"
+	rd "orb/runner/pkg/runner/data"
+	re "orb/runner/pkg/runner/enum"
+	"orb/runner/pkg/runner/hooks"
+	ri "orb/runner/pkg/runner/interface"
+	rr "orb/runner/pkg/runner/request"
 
 	"github.com/avast/retry-go/v4"
 	"github.com/go-resty/resty/v2"
@@ -220,10 +220,14 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 					"sleep_time",
 					config.C.Run.SleepTime,
 				)
-                err := r.standby(ctx)
-                if err != nil {
-                    log.S.Errorw("Got an error while entering standby mode", "error", err)
-                }
+				err := r.standby(ctx)
+				if err != nil {
+					log.S.Errorw(
+						"Got an error while entering standby mode",
+						"error",
+						err,
+					)
+				}
 			}
 			r.queryBuilder.UpdateState(selectedBatch)
 			log.S.Debugw(

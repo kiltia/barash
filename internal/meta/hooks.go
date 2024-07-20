@@ -3,10 +3,10 @@ package meta
 import (
 	"context"
 
-	"orb/runner/src/log"
-	rdata "orb/runner/src/runner/data"
-	"orb/runner/src/runner/hooks"
-	"orb/runner/src/runner/util"
+	"orb/runner/pkg/log"
+	rdata "orb/runner/pkg/runner/data"
+	"orb/runner/pkg/runner/hooks"
+	"orb/runner/pkg/runner/util"
 )
 
 type VerifyApiHooks struct {

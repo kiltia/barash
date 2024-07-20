@@ -3,7 +3,7 @@ package crawler
 import (
 	"fmt"
 
-	"orb/runner/src/config"
+	"orb/runner/pkg/config"
 )
 
 type CrawlerQueryBuilder struct {

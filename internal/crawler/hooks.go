@@ -3,8 +3,8 @@ package crawler
 import (
 	"context"
 
-	rdata "orb/runner/src/runner/data"
-	"orb/runner/src/runner/hooks"
+	rdata "orb/runner/pkg/runner/data"
+	"orb/runner/pkg/runner/hooks"
 )
 
 type CrawlerApiHooks struct {

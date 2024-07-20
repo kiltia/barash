@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"orb/runner/src/config"
-	"orb/runner/src/log"
+	"orb/runner/pkg/config"
+	"orb/runner/pkg/log"
 
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"

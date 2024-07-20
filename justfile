@@ -1,15 +1,15 @@
 format:
-    @goimports -l -w src
-    @gofumpt -l -w src
-    @golines -w -m 80 src
+    @goimports -l -w ./cmd ./pkg ./internal
+    @gofumpt -l -w ./cmd ./pkg ./internal
+    @golines -w -m 80 ./cmd ./pkg ./internal
 
 check-format:
-    @goimports -d src
-    @gofumpt -d src
-    @golines --dry-run -m 80 src
+    @goimports -d ./cmd ./pkg ./internal
+    @gofumpt -d ./cmd ./pkg ./internal
+    @golines --dry-run -m 80 ./cmd ./pkg ./internal
 
 lint:
-    @golangci-lint run ./src/...
+    @golangci-lint run ./cmd/... ./pkg/... ./internal/...
 
 test:
-    @go test ./src/... -v
+    @go test ./cmd/... ./pkg/... ./internal/... -v
