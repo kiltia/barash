@@ -9,5 +9,5 @@ import (
 
 // NOTE(evgenymng): this interface's API is a subject to change
 type Hooks[S ri.StoredValue] interface {
-	AfterBatch(ctx context.Context, batch rd.ProcessedBatch[S], qcFails *int)
+	AfterBatch(ctx context.Context, results []S, report *rd.QcReport)
 }

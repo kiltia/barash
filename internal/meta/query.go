@@ -33,7 +33,7 @@ func (qb *VerifyQueryBuilder) ResetState() {
 }
 
 // Implement the [rinterface.StoredValue] interface.
-func (qb VerifyQueryBuilder) GetContiniousSelectQuery() string {
+func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
 	return fmt.Sprintf(`
         with last as (
             select duns, url, max(ts) as max_ts
@@ -73,7 +73,7 @@ func (qb VerifyQueryBuilder) GetContiniousSelectQuery() string {
 func (qb VerifyQueryBuilder) GetSelectQuery() string {
 	switch qb.Mode {
 	case config.ContinuousMode:
-		return qb.GetContiniousSelectQuery()
+		return qb.GetContinuousSelectQuery()
 	default:
 		panic("Not implemented")
 	}

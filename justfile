@@ -13,3 +13,12 @@ lint:
 
 test:
     @go test ./cmd/... ./pkg/... ./internal/... -v
+
+run-meta $CONFIG_FILE="configs/meta.dev.yml":
+    @go run ./cmd
+
+run-crawler $CONFIG_FILE="configs/crawler.dev.yml":
+    @go run ./cmd
+
+run-prod $config_file="configs/prod.yml":
+    @go run ./cmd

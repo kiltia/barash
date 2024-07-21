@@ -12,8 +12,8 @@ type DummyHooks[S ri.StoredValue] struct{}
 // Implement the [Hooks] interface.
 func (dh *DummyHooks[S]) AfterBatch(
 	ctx context.Context,
-	batch rd.ProcessedBatch[S],
-	qcFails *int,
+	results []S,
+	report *rd.QcReport,
 ) {
 	// do nothing
 }

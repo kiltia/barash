@@ -2,16 +2,12 @@ package runner
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"time"
 
 	"orb/runner/pkg/config"
 	dbclient "orb/runner/pkg/db/clients"
 	"orb/runner/pkg/log"
-	rd "orb/runner/pkg/runner/data"
-	re "orb/runner/pkg/runner/enum"
 	"orb/runner/pkg/runner/hooks"
 	ri "orb/runner/pkg/runner/interface"
 	rr "orb/runner/pkg/runner/request"
@@ -67,270 +63,152 @@ func New[
 	return &runner, nil
 }
 
-func (r *Runner[S, R, P, Q]) SendGetRequest(
-	ctx context.Context,
-	req rr.GetRequest[P],
-) ([]S, error) {
-	url, err := req.CreateGetRequestLink(config.C.Run.ExtraParams)
-	if err != nil {
-		log.S.Error("Got an error while creating a link", "error", err)
-		return nil, err
-	}
-
-	ctx = context.WithValue(
-		ctx,
-		re.RequestContextKeyUnsuccessfulResponses,
-		[]*resty.Response{},
-	)
-	lastResponse, err := r.httpClient.R().SetContext(ctx).Get(url)
-	if err != nil {
-		log.S.Errorw("Got an error while completing request", "error", err)
-	}
-
-	responses := lastResponse.
-		Request.
-		Context().
-		Value(re.RequestContextKeyUnsuccessfulResponses).([]*resty.Response)
-	if lastResponse.IsSuccess() || config.C.HttpRetries.NumRetries == 0 ||
-		lastResponse.StatusCode() == 0 {
-		responses = append(responses, lastResponse)
-	}
-
-	results := []S{}
-	for i, response := range responses {
-		var result R
-		statusCode := response.StatusCode()
-		if statusCode == 0 {
-			result = *new(R)
-			statusCode = 599
-			log.S.Debugw(
-				"Timeout was reached while waiting for a request",
-				"url", url,
-				"error", "TIMEOUT REACHED",
-				"tag", log.TagResponseTimeout,
-			)
-		} else {
-			err = json.Unmarshal(response.Body(), &result)
-			if err != nil {
-				log.S.Error("Got an error while unmarshalling response", "error", err)
-				return nil, err
-			}
-		}
-		storedValue := result.IntoStored(
-			req.Params,
-			i+1,
-			url,
-			statusCode,
-			response.Time(),
-		)
-
-		results = append(
-			results,
-			storedValue,
-		)
-	}
-	return results, nil
-}
-
 // Run the runner's job within a given context.
 func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
-	// + 1 for the [nil] task
-	fetcherTasks := make(
-		chan *rr.GetRequest[P],
-		config.C.Run.BatchSize+1,
-	)
-	fetcherResults := make(
-		chan rd.FetcherResult[S],
-		config.C.Run.BatchSize,
-	)
-	writtenBatches := make(
-		chan rd.ProcessedBatch[S],
-		config.C.Run.WriterWorkers,
-	)
-	nothingLeft := make(chan bool, 1)
-	qcResults := make(chan rd.QualityControlResult[S], 1)
-	defer close(fetcherResults)
-	defer close(fetcherTasks)
-	defer close(writtenBatches)
-	defer close(nothingLeft)
-
-	workerCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
+	// initialize storage in two-table mode
 	r.initTable(ctx)
+	defer log.S.Info("The Runner's main routine is completed")
 
-	for i := 0; i < config.C.Run.FetcherWorkers; i++ {
-		go r.fetcher(
-			workerCtx,
-			i,
-			fetcherTasks,
-			fetcherResults,
-			nothingLeft,
-		)
-	}
-	for i := 0; i < config.C.Run.WriterWorkers; i++ {
-		go r.writer(
-			workerCtx,
-			i,
-			fetcherResults,
-			writtenBatches,
-			time.Now(),
-		)
-	}
-	go r.qualityControl(
-		workerCtx,
-		writtenBatches,
-		qcResults,
-	)
+	var remainder []S
+	writerTasks := make(chan []S, 1)
+	defer close(writerTasks)
 
-	nothingLeft <- true
-
-	for {
-		select {
-		case _, ok := <-nothingLeft:
-			log.S.Debug(`Got "nothing left" signal from one of fetchers`)
-			if !ok {
+	go func() {
+		for task := range writerTasks {
+			select {
+			case <-ctx.Done():
 				return
-			}
-
-			var selectedBatch []P
-			err := retry.Do(
-				func() (err error) {
-					selectedBatch, err = r.clickHouseClient.SelectNextBatch(
-						ctx,
-						r.queryBuilder,
-					)
-
-					return err
-				},
-				retry.Attempts(uint(config.C.SelectRetries.NumRetries)+1),
-			)
-			if err != nil {
-				log.S.Errorw(
-					"Failed to fetch URL parameters from the ClickHouse!",
-					"error", err,
-					"tag", log.TagClickHouseError,
-				)
-				break
-			}
-			taskCount := len(selectedBatch)
-			if taskCount == 0 {
-				log.S.Infow(
-					"Runner has nothing to do, making attempt to insert data before standby",
-					"sleep_time",
-					config.C.Run.SleepTime,
-				)
-				err := r.standby(ctx)
+			default:
+				// save results to the database
+				err := r.write(ctx, task)
 				if err != nil {
 					log.S.Errorw(
-						"Got an error while entering standby mode",
-						"error",
-						err,
+						"Failed to save processed batch to the database",
+						"error", err,
+						"tag", log.TagClickHouseError,
 					)
 				}
-			}
-			r.queryBuilder.UpdateState(selectedBatch)
-			log.S.Debugw(
-				"Creating tasks for the fetchers",
-				"tag", log.TagRunnerDebug,
-			)
-			for _, task := range selectedBatch {
-				fetcherTasks <- rr.NewGetRequest(
-					config.C.Api.Host,
-					config.C.Api.Port,
-					config.C.Api.Method,
-					task,
-				)
-			}
-			fetcherTasks <- nil
-
-		case res, ok := <-qcResults:
-			if !ok {
-				return
-			}
-
-			r.hooks.AfterBatch(ctx, res.Batch, &res.FailCount)
-
-			if res.FailCount > 0 {
-				log.S.Warnw(
-					"Batch quality control was not passed",
-					"tag", log.TagQualityControl,
-					"fail_count", res.FailCount,
-				)
-				err := r.standby(ctx)
-				if err != nil {
-					return
-				}
-			} else {
-				log.S.Infow(
-					"Batch quality control has successfully been passed",
-					"tag", log.TagQualityControl,
-				)
 			}
 		}
-	}
-}
+	}()
 
-func (r *Runner[S, R, P, Q]) standby(ctx context.Context) error {
-	log.S.Infow("The runner is entering standby mode")
-	waitTime := time.Duration(config.C.Run.SleepTime) * time.Second
-	defer log.S.Infow("The runner has left standby mode")
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(waitTime):
-		return nil
-	}
-}
+	// main runner's loop
+	for {
+		// batch processing start time
+		timestamp := time.Now()
 
-func (r *Runner[S, R, P, Q]) initTable(ctx context.Context) {
-	if config.C.Run.Mode == config.ContinuousMode {
-		log.S.Info("Running in continious mode, skipping table initialization")
-		return
-	}
-	var nilInstance S
-	err := r.clickHouseClient.Connection.Exec(ctx, nilInstance.GetCreateQuery())
+		// fetch request parameters from the database
+		params, err := r.fetchParams(ctx)
+		if err != nil {
+			log.S.Errorw(
+				"Failed to fetch request parameters from the database!",
+				"error", err,
+				"tag", log.TagClickHouseError,
+			)
+			continue
+		}
 
-	if err != nil {
-		log.S.Warnw("Table creation script has failed", "reason", err)
-	} else {
-		log.S.Info("Successfully initialized table for Runner results")
-	}
-}
+		// check that the set is not empty
+		if len(params) == 0 {
+			log.S.Infow(
+				"Runner has nothing to do, writing whatever have right now "+
+					"and going into standby",
+				"sleep_time", config.C.Run.SleepTime,
+			)
+			writerTasks <- remainder
+			remainder = []S{}
+			err = r.standby(ctx)
+			if err != nil {
+				return // context is cancelled
+			}
+			continue // try again
+		}
 
-func initHttpClient() *resty.Client {
-	return resty.New().SetRetryCount(config.C.HttpRetries.NumRetries).
-		SetTimeout(time.Duration(time.Duration(config.C.Timeouts.ApiTimeout) * time.Second)).
-		SetRetryWaitTime(time.Duration(config.C.HttpRetries.MinWaitTime) * time.Second).
-		SetRetryMaxWaitTime(time.Duration(config.C.HttpRetries.MaxWaitTime) * time.Second).
-		AddRetryCondition(
-			func(r *resty.Response, err error) bool {
-				if r.StatusCode() >= http.StatusInternalServerError {
-					log.S.Debugw(
-						"Retrying request",
-						"request_status_code", r.StatusCode(),
-						"verify_url", r.Request.URL,
-						"tag", log.TagErrorResponse,
-					)
-					return true
-				}
-				return false
-			},
-		).
-		// TODO(nrydanov): Find other way to handle list of unsucessful responses
-		// as using WithValue for these purposes seems like anti-pattern
-		AddRetryHook(
-			func(r *resty.Response, err error) {
-				ctx := r.Request.Context()
-				responses := ctx.Value(re.RequestContextKeyUnsuccessfulResponses).([]*resty.Response)
-				responses = append(responses, r)
-				newCtx := context.WithValue(
-					ctx,
-					re.RequestContextKeyUnsuccessfulResponses,
-					responses,
+		// stride over records in the database
+		r.queryBuilder.UpdateState(params)
+
+		// create requests using runner's configuration
+		// and parameters from the database
+		requests := r.formRequests(params)
+
+		// perform requests, gather results
+		var processed [][]S
+		remainder, processed = r.fetch(ctx, requests, remainder, writerTasks)
+
+		// perform quality control checks
+		totalFails := 0
+		for _, batch := range processed {
+			report := r.qualityControl(batch, time.Since(timestamp))
+
+			// call user-defined logic (if any)
+			r.hooks.AfterBatch(ctx, batch, &report)
+
+			fails := report.TotalFails()
+			if fails > 0 {
+				log.S.Warnw(
+					"Quality control for the current batch was not passed",
+					"tag", log.TagQualityControl,
+					"fails", fails,
+					"details", report,
 				)
-				r.Request.SetContext(newCtx)
-			},
-		).
-		SetLogger(log.S)
+			}
+			totalFails += fails
+		}
+
+		if totalFails > 0 {
+			log.S.Warnw(
+				"Quality control was not passed",
+				"tag", log.TagQualityControl,
+				"total_fails", totalFails,
+			)
+			err := r.standby(ctx)
+			if err != nil {
+				return // context is cancelled
+			}
+			continue // try again
+		}
+
+		log.S.Infow(
+			"Quality control has successfully been passed",
+			"tag", log.TagQualityControl,
+		)
+	}
+}
+
+// Fetch a new set of request parameters from the database.
+func (r *Runner[S, R, P, Q]) fetchParams(
+	ctx context.Context,
+) (params []P, err error) {
+	log.S.Debug("Fetching a new set of request parameters from the database")
+	err = retry.Do(
+		func() (err error) {
+			params, err = r.clickHouseClient.SelectNextBatch(
+				ctx,
+				r.queryBuilder,
+			)
+			return err
+		},
+		retry.Attempts(uint(config.C.SelectRetries.NumRetries)+1),
+	)
+	return params, err
+}
+
+// Forms requests using runner's configuration ([api] section in the config
+// file) and a set of request parameters fetched from the database.
+func (r *Runner[S, R, P, Q]) formRequests(params []P) (
+	requests []rr.GetRequest[P],
+) {
+	log.S.Debugw(
+		"Creating requests for the fetching process",
+		"tag", log.TagRunnerDebug,
+	)
+	for _, params := range params {
+		requests = append(requests, rr.GetRequest[P]{
+			Host:   config.C.Api.Host,
+			Port:   config.C.Api.Port,
+			Method: config.C.Api.Method,
+			Params: params,
+		})
+	}
+	return requests
 }

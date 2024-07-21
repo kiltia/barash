@@ -1,53 +1,33 @@
-// Package containing runner's data structures.
 package rdata
 
-import (
-	"time"
+import "orb/runner/pkg/util"
 
-	ri "orb/runner/pkg/runner/interface"
-)
-
-type FetcherResult[S ri.StoredValue] struct {
-	Value               S
-	ProcessingStartTime time.Time
+type QcReport struct {
+	// It took way too long to process this batch.
+	TimeLimitExceeded bool `json:"time_limit_exeeded"`
+	// Too many errors from the API.
+	TooManyErrors bool `json:"too_many_errors"`
+	// User-defined criteria.
+	Extra map[string]bool `json:"extra"`
 }
 
-func NewFetcherResult[S ri.StoredValue](
-	value S,
-	processingStartTime time.Time,
-) FetcherResult[S] {
-	return FetcherResult[S]{
-		Value:               value,
-		ProcessingStartTime: processingStartTime,
+func (r *QcReport) TotalFails() (total int) {
+	if r.TimeLimitExceeded {
+		total += 1
 	}
-}
-
-type ProcessedBatch[S ri.StoredValue] struct {
-	Values         []S
-	ProcessingTime time.Duration
-}
-
-func NewProcessedBatch[S ri.StoredValue](
-	elements []S,
-	processingTime time.Duration,
-) ProcessedBatch[S] {
-	return ProcessedBatch[S]{
-		Values:         elements,
-		ProcessingTime: processingTime,
+	if r.TooManyErrors {
+		total += 1
 	}
-}
 
-type QualityControlResult[S ri.StoredValue] struct {
-	FailCount int
-	Batch     ProcessedBatch[S]
-}
-
-func NewQualityControlResult[S ri.StoredValue](
-	failCount int,
-	batch ProcessedBatch[S],
-) QualityControlResult[S] {
-	return QualityControlResult[S]{
-		FailCount: failCount,
-		Batch:     batch,
-	}
+	// NOTE(evgenymng): Go'ing functional
+	return util.Reduce(
+		util.Values(r.Extra),
+		total,
+		func(acc int, f bool) int {
+			if f {
+				return acc + 1
+			}
+			return acc
+		},
+	)
 }

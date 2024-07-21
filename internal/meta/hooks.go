@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"orb/runner/pkg/log"
-	rdata "orb/runner/pkg/runner/data"
+	rd "orb/runner/pkg/runner/data"
 	"orb/runner/pkg/runner/hooks"
-	"orb/runner/pkg/runner/util"
+	"orb/runner/pkg/util"
 )
 
 type VerifyApiHooks struct {
@@ -17,15 +17,15 @@ type VerifyApiHooks struct {
 // Implement the [hooks.Hooks] interface.
 func (srv *VerifyApiHooks) AfterBatch(
 	ctx context.Context,
-	batch rdata.ProcessedBatch[VerifyResult],
-	failCount *int,
+	results []VerifyResult,
+	report *rd.QcReport,
 ) {
 	select {
 	case <-ctx.Done():
 		return
 	default:
 		successesWithScores := util.Reduce(
-			util.Map(batch.Values, func(res VerifyResult) bool {
+			util.Map(results, func(res VerifyResult) bool {
 				return res.GetStatusCode() == 200 &&
 					res.MetaResponse.Score != nil
 			}),

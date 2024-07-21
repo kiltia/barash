@@ -2,11 +2,8 @@ package util
 
 import (
 	"encoding/json"
-	"math"
 	"reflect"
 )
-
-var NAN = math.NaN()
 
 func ObjectToMap[T any](data T) (map[string]*string, error) {
 	dataBytes, err := json.Marshal(data)

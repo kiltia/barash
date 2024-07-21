@@ -6,7 +6,7 @@ import (
 
 	"orb/runner/pkg/log"
 	ri "orb/runner/pkg/runner/interface"
-	"orb/runner/pkg/runner/util"
+	"orb/runner/pkg/util"
 )
 
 type GetRequest[P ri.StoredParams] struct {
@@ -41,13 +41,4 @@ func (req GetRequest[P]) CreateGetRequestLink(
 	urlString := baseURL.String()
 	log.S.Debugw("Formed request URL", "url", urlString)
 	return urlString, nil
-}
-
-func NewGetRequest[P ri.StoredParams](
-	host string,
-	port string,
-	method string,
-	params P,
-) *GetRequest[P] {
-	return &GetRequest[P]{host, port, method, params}
 }

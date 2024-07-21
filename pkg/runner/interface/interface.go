@@ -49,8 +49,8 @@ type (
 	QueryBuilder[S StoredValue, P StoredParams] interface {
 		GetSelectQuery() string
 
-		// Updating QueryBuilder's inner state
-		// based on data that was selected from the database
+		// Updating [QueryBuilder]'s inner state
+		// based on data that was selected from the database.
 		UpdateState(batch []P)
 
 		// Refreshes inner state
