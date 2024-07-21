@@ -111,11 +111,13 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 		// check that the set is not empty
 		if len(params) == 0 {
 			log.S.Infow(
-				"Runner has nothing to do, writing whatever have right now "+
-					"and going into standby",
+				"Runner has nothing to do, soon going into standby",
 				"sleep_time", config.C.Run.SleepTime,
 			)
-			writerTasks <- remainder
+			if len(remainder) > 0 {
+				log.S.Debug("Writing whatever have right now to the database")
+				writerTasks <- remainder
+			}
 			remainder = []S{}
 			err = r.standby(ctx)
 			if err != nil {
