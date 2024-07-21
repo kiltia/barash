@@ -67,11 +67,11 @@ func (client *ClickHouseClient[S, P, Q]) SelectNextBatch(
 	ctx context.Context,
 	queryBuilder Q,
 ) (result []P, err error) {
-	log.S.Debugw("Trying to retrieve a new batch from database")
+	log.S.Debug("Trying to retrieve a new batch from database")
 	query := queryBuilder.GetSelectQuery()
 	log.S.Debugw("Sending query to database", "query", query)
 	if err = client.Connection.Select(ctx, &result, query); err != nil {
-		log.S.Error(
+		log.S.Errorw(
 			"Got an error while retrieving records from database",
 			"error",
 			err,

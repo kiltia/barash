@@ -67,7 +67,7 @@ func New[
 func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 	// initialize storage in two-table mode
 	r.initTable(ctx)
-	defer log.S.Info("The Runner's main routine is completed")
+	defer log.S.Debug("The Runner's main routine is completed")
 
 	var remainder []S
 	writerTasks := make(chan []S, 1)
@@ -94,86 +94,96 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 
 	// main runner's loop
 	for {
-		// batch processing start time
-		timestamp := time.Now()
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			// batch processing start time
+			timestamp := time.Now()
 
-		// fetch request parameters from the database
-		params, err := r.fetchParams(ctx)
-		if err != nil {
-			log.S.Errorw(
-				"Failed to fetch request parameters from the database!",
-				"error", err,
-				"tag", log.TagClickHouseError,
-			)
-			continue
-		}
-
-		// check that the set is not empty
-		if len(params) == 0 {
-			log.S.Infow(
-				"Runner has nothing to do, soon going into standby",
-				"sleep_time", config.C.Run.SleepTime,
-			)
-			if len(remainder) > 0 {
-				log.S.Debug("Writing whatever have right now to the database")
-				writerTasks <- remainder
-			}
-			remainder = []S{}
-			err = r.standby(ctx)
+			// fetch request parameters from the database
+			params, err := r.fetchParams(ctx)
 			if err != nil {
-				return // context is cancelled
-			}
-			continue // try again
-		}
-
-		// stride over records in the database
-		r.queryBuilder.UpdateState(params)
-
-		// create requests using runner's configuration
-		// and parameters from the database
-		requests := r.formRequests(params)
-
-		// perform requests, gather results
-		var processed [][]S
-		remainder, processed = r.fetch(ctx, requests, remainder, writerTasks)
-
-		// perform quality control checks
-		totalFails := 0
-		for _, batch := range processed {
-			report := r.qualityControl(batch, time.Since(timestamp))
-
-			// call user-defined logic (if any)
-			r.hooks.AfterBatch(ctx, batch, &report)
-
-			fails := report.TotalFails()
-			if fails > 0 {
-				log.S.Warnw(
-					"Quality control for the current batch was not passed",
-					"tag", log.TagQualityControl,
-					"fails", fails,
-					"details", report,
+				log.S.Errorw(
+					"Failed to fetch request parameters from the database!",
+					"error", err,
+					"tag", log.TagClickHouseError,
 				)
+				continue
 			}
-			totalFails += fails
-		}
 
-		if totalFails > 0 {
-			log.S.Warnw(
-				"Quality control was not passed",
-				"tag", log.TagQualityControl,
-				"total_fails", totalFails,
+			// check that the set is not empty
+			if len(params) == 0 {
+				log.S.Infow(
+					"Runner has nothing to do, soon entering standby mode",
+					"sleep_time", config.C.Run.SleepTime,
+				)
+				if len(remainder) > 0 {
+					log.S.Debug("Writing results to the database")
+					writerTasks <- remainder
+				}
+				remainder = []S{}
+				err = r.standby(ctx)
+				if err != nil {
+					return // context is cancelled
+				}
+				continue // try again
+			}
+
+			// stride over records in the database
+			r.queryBuilder.UpdateState(params)
+
+			// create requests using runner's configuration
+			// and parameters from the database
+			requests := r.formRequests(params)
+
+			// perform requests, gather results
+			var processed [][]S
+			remainder, processed = r.fetch(
+				ctx,
+				requests,
+				remainder,
+				writerTasks,
 			)
-			err := r.standby(ctx)
-			if err != nil {
-				return // context is cancelled
-			}
-			continue // try again
-		}
 
-		log.S.Infow(
-			"Quality control has successfully been passed",
-			"tag", log.TagQualityControl,
-		)
+			// perform quality control checks
+			totalFails := 0
+			for _, batch := range processed {
+				report := r.qualityControl(batch, time.Since(timestamp))
+
+				// call user-defined logic (if any)
+				r.hooks.AfterBatch(ctx, batch, &report)
+
+				fails := report.TotalFails()
+				if fails > 0 {
+					log.S.Warnw(
+						"Quality control for the current batch was not passed",
+						"tag", log.TagQualityControl,
+						"fails", fails,
+						"details", report,
+					)
+				}
+				totalFails += fails
+			}
+
+			if totalFails > 0 {
+				log.S.Warnw(
+					"Quality control was not passed",
+					"tag", log.TagQualityControl,
+					"total_fails", totalFails,
+				)
+				err := r.standby(ctx)
+				if err != nil {
+					return // context is cancelled
+				}
+				continue // try again
+			}
+
+			log.S.Infow(
+				"Quality control has successfully been passed",
+				"tag", log.TagQualityControl,
+			)
+		}
 	}
 }
 
@@ -184,10 +194,15 @@ func (r *Runner[S, R, P, Q]) fetchParams(
 	log.S.Debug("Fetching a new set of request parameters from the database")
 	err = retry.Do(
 		func() (err error) {
-			params, err = r.clickHouseClient.SelectNextBatch(
-				ctx,
-				r.queryBuilder,
-			)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				params, err = r.clickHouseClient.SelectNextBatch(
+					ctx,
+					r.queryBuilder,
+				)
+			}
 			return err
 		},
 		retry.Attempts(uint(config.C.SelectRetries.NumRetries)+1),
