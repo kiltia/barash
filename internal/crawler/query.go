@@ -17,7 +17,9 @@ func (qb *CrawlerQueryBuilder) UpdateState(batch []CrawlerParams) {
 }
 
 func (qb *CrawlerQueryBuilder) ResetState() {
-	qb.Offset = 0
+    // NOTE(nrydanov): I guess that this should be here, but currently
+    // it will lead to completely new run in Crawler API mode.
+	// qb.Offset = 0
 }
 
 func (qb *CrawlerQueryBuilder) GetTwoTableSelectQuery() string {

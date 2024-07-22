@@ -133,6 +133,7 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 				if err != nil {
 					return // context is cancelled
 				}
+                r.queryBuilder.ResetState()
 				continue // try again
 			}
 
