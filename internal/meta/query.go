@@ -9,27 +9,25 @@ import (
 )
 
 type VerifyQueryBuilder struct {
-	Offset        int
-	Limit         int
-	LastTimestamp time.Time
-	Mode          config.RunnerMode
+	Offset         int
+	DayInterval    int
+	Limit          int
+	StartTimestamp time.Time
+	CurrentTag     string
+	Mode           config.RunnerMode
 }
 
 func (qb *VerifyQueryBuilder) UpdateState(batch []VerifyParams) {
-	for _, el := range batch {
-		if el.Timestamp.Sub(qb.LastTimestamp) > 0 {
-			qb.LastTimestamp = el.Timestamp
-		}
-	}
+	qb.Offset += qb.Limit
 	log.S.Debug(
 		"Updating the inner state of the query builder",
 		log.L().Tag(log.LogTagApiImpl).
-			Add("timestamp", qb.LastTimestamp),
+			Add("offset", qb.Offset),
 	)
 }
 
 func (qb *VerifyQueryBuilder) ResetState() {
-	qb.LastTimestamp = time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
+	qb.StartTimestamp = time.Now()
 }
 
 // Implement the [rinterface.StoredValue] interface.
@@ -38,15 +36,15 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
         with last as (
             select duns, url, max(ts) as max_ts
             from wv.master
-            where is_active = True
+            where is_active = True and tag != '%s'
             group by duns, url
         ),
         batch as (
             select duns, url, max_ts
             from last
-            where max_ts < (now() - toIntervalDay(%d)) and max_ts > %d
-            order by max_ts asc
-            limit %d
+            where max_ts < toDateTime(%d) - toIntervalDay(%d)
+            order by (max_ts, duns) asc
+            limit %d offset %d
         ),
         final as (
             select
@@ -67,7 +65,7 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
             order by cityHash64(batch.duns, batch.url)
         )
         select * from final
-    `, qb.Offset, qb.LastTimestamp.UnixNano(), qb.Limit)
+    `, qb.CurrentTag, qb.StartTimestamp.Unix(), qb.DayInterval, qb.Limit, qb.Offset)
 }
 
 func (qb VerifyQueryBuilder) GetSelectQuery() string {

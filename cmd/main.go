@@ -55,9 +55,11 @@ func main() {
 		case ApiNameMeta:
 			hooks := meta.VerifyApiHooks{}
 			queryBuilder := meta.VerifyQueryBuilder{
-				Offset: config.C.Run.Freshness,
-				Limit:  config.C.Run.BatchSize,
-				Mode:   config.C.Run.Mode,
+				DayInterval:    config.C.Run.Freshness,
+				Limit:          config.C.Run.BatchSize,
+				Mode:           config.C.Run.Mode,
+				StartTimestamp: time.Now(),
+				CurrentTag:     config.C.Run.Tag,
 			}
 			queryBuilder.ResetState()
 			instance, err := runner.New[
