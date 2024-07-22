@@ -21,10 +21,10 @@ func (qb *VerifyQueryBuilder) UpdateState(batch []VerifyParams) {
 			qb.LastTimestamp = el.Timestamp
 		}
 	}
-	log.S.Debugw(
-		"Updating inner state of query builder",
-		"timestamp",
-		qb.LastTimestamp,
+	log.S.Debug(
+		"Updating the inner state of the query builder",
+		log.L().Tag(log.LogTagApiImpl).
+			Add("timestamp", qb.LastTimestamp),
 	)
 }
 

@@ -5,4 +5,5 @@ type RequestContextKey int
 
 const (
 	RequestContextKeyUnsuccessfulResponses RequestContextKey = iota
+	RequestContextKeyFetcherNum
 )

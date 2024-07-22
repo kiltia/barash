@@ -13,17 +13,27 @@ import (
 )
 
 func (r *Runner[S, R, P, Q]) initTable(ctx context.Context) {
+	logObject := log.L().Tag(log.LogTagRunner)
 	if config.C.Run.Mode == config.ContinuousMode {
-		log.S.Info("Running in continuous mode, skipping table initialization")
+		log.S.Info(
+			"Running in continuous mode, skipping table initialization",
+			logObject,
+		)
 		return
 	}
 	var nilInstance S
 	err := r.clickHouseClient.Connection.Exec(ctx, nilInstance.GetCreateQuery())
 
 	if err != nil {
-		log.S.Warnw("Table creation script has failed", "reason", err)
+		log.S.Warn(
+			"Table creation script has failed",
+			logObject.Error(err),
+		)
 	} else {
-		log.S.Info("Successfully initialized table for the Runner results")
+		log.S.Info(
+			"Successfully initialized table for the Runner results",
+			logObject,
+		)
 	}
 }
 
@@ -34,20 +44,21 @@ func initHttpClient() *resty.Client {
 		SetRetryMaxWaitTime(time.Duration(config.C.HttpRetries.MaxWaitTime) * time.Second).
 		AddRetryCondition(
 			func(r *resty.Response, err error) bool {
+				ctx := r.Request.Context()
+				fetcherNum := ctx.Value(re.RequestContextKeyFetcherNum).(int)
 				if r.StatusCode() >= http.StatusInternalServerError {
-					log.S.Debugw(
+					log.S.Debug(
 						"Retrying request",
-						"request_status_code", r.StatusCode(),
-						"verify_url", r.Request.URL,
-						"tag", log.TagErrorResponse,
+						log.L().Tag(log.LogTagFetching).
+							Add("fetcher_num", fetcherNum).
+							Add("request_status_code", r.StatusCode()).
+							Add("url", r.Request.URL),
 					)
 					return true
 				}
 				return false
 			},
 		).
-		// TODO(nrydanov): Find other way to handle list of unsucessful responses
-		// as using WithValue for these purposes seems like anti-pattern
 		AddRetryHook(
 			func(r *resty.Response, err error) {
 				ctx := r.Request.Context()
@@ -61,5 +72,5 @@ func initHttpClient() *resty.Client {
 				r.Request.SetContext(newCtx)
 			},
 		).
-		SetLogger(log.S)
+		SetLogger(log.S.GetInternal())
 }

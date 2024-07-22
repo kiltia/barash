@@ -7,7 +7,6 @@ import (
 	"orb/runner/pkg/log"
 
 	"github.com/joho/godotenv"
-	"go.uber.org/zap"
 )
 
 func init() {
@@ -21,6 +20,5 @@ func init() {
 	}
 
 	config.C = &cfg
-
-	log.S = zap.Must(config.C.ZapLogger.Build()).Sugar()
+	log.Init()
 }

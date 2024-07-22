@@ -14,6 +14,11 @@ lint:
 test:
     @go test ./cmd/... ./pkg/... ./internal/... -v
 
+vet:
+    @go vet ./cmd/... ./pkg/... ./internal/...
+
+pre-commit: format lint vet test
+
 run-meta $CONFIG_FILE="configs/meta.dev.yml":
     @go run ./cmd
 

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"orb/runner/pkg/log"
 	ri "orb/runner/pkg/runner/interface"
 	"orb/runner/pkg/util"
 )
@@ -39,6 +38,5 @@ func (req GetRequest[P]) CreateGetRequestLink(
 	}
 	baseURL.RawQuery = params.Encode()
 	urlString := baseURL.String()
-	log.S.Debugw("Formed request URL", "url", urlString)
 	return urlString, nil
 }

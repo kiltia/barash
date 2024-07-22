@@ -46,7 +46,10 @@ func main() {
 				crawler.CrawlerResult, crawler.CrawlerResponse,
 			](&hooks, &queryBuilder)
 			if err != nil {
-				log.S.Fatalw("Error in runner initialization", "error", err)
+				log.S.Fatal(
+					"Error in runner initialization",
+					log.L().Tag(log.LogTagRunner).Error(err),
+				)
 			}
 			instance.Run(ctx)
 		case ApiNameMeta:
@@ -61,25 +64,35 @@ func main() {
 				meta.VerifyResult, meta.VerifyResponse,
 			](&hooks, &queryBuilder)
 			if err != nil {
-				log.S.Fatalw("Error in runner initialization", "error", err)
+				log.S.Fatal(
+					"Error in runner initialization",
+					log.L().Tag(log.LogTagRunner).Error(err),
+				)
 			}
 			instance.Run(ctx)
 		default:
-			log.S.Panicw(
+			log.S.Panic(
 				"Unexpected API name",
-				"input_value",
-				config.C.Api.Name,
+				log.L().Tag(log.LogTagRunner).
+					Add("input_value", config.C.Api.Name),
 			)
 		}
 	}()
 
 	<-ctx.Done() // wait for the termination signal
-	log.S.Infow("Shutting down gracefully, Ctrl+C to force.", "timeout", 10)
+	log.S.Info(
+		"Shutting down gracefully, Ctrl+C to force.",
+		log.L().Tag(log.LogTagRunner).
+			Add("timeout", 10),
+	)
 	cancel() // restore normal signal behavior
 
 	select {
 	case <-done:
 	case <-time.After(10 * time.Second):
-		log.S.Debug("Timeout reached, forcing shutdown.")
+		log.S.Debug(
+			"Timeout reached, forcing shutdown.",
+			log.L().Tag(log.LogTagRunner),
+		)
 	}
 }

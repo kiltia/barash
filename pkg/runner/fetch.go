@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 
 	"orb/runner/pkg/config"
@@ -20,6 +21,7 @@ func (r *Runner[S, R, P, Q]) fetch(
 	remainder []S,
 	writerTasks chan []S,
 ) ([]S, [][]S) {
+	logObject := log.L().Tag(log.LogTagFetching)
 	input := make(chan rr.GetRequest[P], len(requests))
 	output := make(chan S, config.C.Run.FetcherWorkers)
 
@@ -45,6 +47,7 @@ func (r *Runner[S, R, P, Q]) fetch(
 				}
 			}
 		}(i)
+		log.S.Debug("Launched a new fetcher worker", logObject)
 	}
 
 	var processed [][]S
@@ -55,8 +58,13 @@ func (r *Runner[S, R, P, Q]) fetch(
 		for res := range output {
 			remainder = append(remainder, res)
 			if len(remainder) >= config.C.Run.BatchSize {
+				log.S.Debug(
+					"Collected enough records to write to the database",
+					logObject,
+				)
 				processed = append(processed, remainder)
 				writerTasks <- remainder
+				log.S.Debug("Sent results to the writer", logObject)
 				remainder = []S{}
 			}
 		}
@@ -74,17 +82,14 @@ func (r *Runner[S, R, P, Q]) handleFetcherTask(
 	task rr.GetRequest[P],
 	fetcherNum int,
 ) []S {
-	log.S.Debugw(
-		"Sending request to get page contents",
-		"fetcher_num", fetcherNum,
-	)
-	resultList, err := r.sendGetRequest(ctx, task)
+	logObject := log.L().Tag(log.LogTagFetching).Add("fetcher_num", fetcherNum)
+
+	log.S.Debug("Sending request to the subject API", logObject)
+	resultList, err := r.sendGetRequest(ctx, task, fetcherNum)
 	if err != nil {
-		log.S.Errorw(
-			"There was an error, while sending the request "+
-				"to the subject API",
-			"error", err,
-			"fetcher_num", fetcherNum,
+		log.S.Error(
+			"There was an error while sending request to the subject API",
+			logObject.Error(err),
 		)
 	}
 	return resultList
@@ -93,22 +98,34 @@ func (r *Runner[S, R, P, Q]) handleFetcherTask(
 func (r *Runner[S, R, P, Q]) sendGetRequest(
 	ctx context.Context,
 	req rr.GetRequest[P],
+	fetcherNum int,
 ) ([]S, error) {
+	logObject := log.L().Tag(log.LogTagFetching).Add("fetcher_num", fetcherNum)
+
+	log.S.Debug("Creating request link", logObject)
 	url, err := req.CreateGetRequestLink(config.C.Run.ExtraParams)
 	if err != nil {
-		log.S.Error("Got an error while creating a link", "error", err)
+		log.S.Error("Failed to create request link", logObject.Error(err))
 		return nil, err
 	}
+	log.S.Debug("Request link successfully created", logObject.Add("url", url))
 
+	log.S.Debug("Performing request to the subject API", logObject)
 	ctx = context.WithValue(
 		ctx,
 		re.RequestContextKeyUnsuccessfulResponses,
 		[]*resty.Response{},
 	)
+	ctx = context.WithValue(
+		ctx,
+		re.RequestContextKeyFetcherNum,
+		fetcherNum,
+	)
 	lastResponse, err := r.httpClient.R().SetContext(ctx).Get(url)
 	if err != nil {
-		log.S.Errorw("Got an error while completing request", "error", err)
+		log.S.Error("Failed to perform the request", logObject.Error(err))
 	}
+	log.S.Debug("Finished request to the subject API", logObject)
 
 	responses := lastResponse.
 		Request.
@@ -126,16 +143,19 @@ func (r *Runner[S, R, P, Q]) sendGetRequest(
 		if statusCode == 0 {
 			result = *new(R)
 			statusCode = 599
-			log.S.Debugw(
-				"Timeout was reached while waiting for a request",
-				"url", url,
-				"error", "TIMEOUT REACHED",
-				"tag", log.TagResponseTimeout,
+			log.S.Debug(
+				"Timeout was reached while waiting for a response",
+				logObject.
+					Error(fmt.Errorf("timeout reached")).
+					Add("url", url),
 			)
 		} else {
 			err = json.Unmarshal(response.Body(), &result)
 			if err != nil {
-				log.S.Error("Got an error while unmarshalling response", "error", err)
+				log.S.Error(
+					"Failed to unmarshal the response",
+					logObject.Error(err),
+				)
 				return nil, err
 			}
 		}

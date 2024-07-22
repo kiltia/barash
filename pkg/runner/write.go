@@ -12,24 +12,25 @@ func (r *Runner[S, R, P, Q]) write(
 	ctx context.Context,
 	batch []S,
 ) (err error) {
+	logObject := log.L().Tag(log.LogTagWriting)
+
+	log.S.Debug("Saving processed batch to the database", logObject)
 	err = r.clickHouseClient.AsyncInsertBatch(
 		ctx,
 		batch,
 		config.C.Run.Tag,
 	)
 	if err != nil {
-		log.S.Errorw(
-			"Insertion to the ClickHouse database was unsuccessful!",
-			"error", err,
-			"tag", log.TagClickHouseError,
+		log.S.Error(
+			"Failed to save processed batch to the database",
+			logObject.Error(err),
 		)
 		return err
 	}
 
-	log.S.Infow(
-		"Insertion to the ClickHouse database was successful!",
-		"batch_len", len(batch),
-		"tag", log.TagClickHouseSuccess,
+	log.S.Info(
+		"Saved processed batch to the database",
+		logObject.Add("batch_len", len(batch)),
 	)
 	return err
 }

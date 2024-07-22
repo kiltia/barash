@@ -30,26 +30,27 @@ func New[
 	P ri.StoredParams,
 	Q ri.QueryBuilder[S, P],
 ](hs hooks.Hooks[S], qb Q) (*Runner[S, R, P, Q], error) {
+	logObject := log.L().Tag(log.LogTagRunner)
+
 	clickHouseClient, version, err := dbclient.NewClickHouseClient[S, P, Q](
-		config.C.ClickHouse,
+		config.C.ClickHouse.Host,
+		config.C.ClickHouse.Port,
+		config.C.ClickHouse.Database,
+		config.C.ClickHouse.Username,
+		config.C.ClickHouse.Password,
 	)
 	if err != nil {
-		log.S.Errorw(
-			"Connection to the ClickHouse database was unsuccessful!",
-			"error", err,
-			"tag", log.TagClickHouseError,
+		log.S.Error(
+			"Failed to create a new ClickHouse cilent",
+			logObject.Error(err),
 		)
 		return nil, err
-	} else {
-		log.S.Infow(
-			"Connection to the ClickHouse database was successful!",
-			"tag", log.TagClickHouseSuccess,
-		)
-		log.S.Infow(
-			fmt.Sprintf("%v", version),
-			"tag", log.TagClickHouseSuccess,
-		)
 	}
+
+	log.S.Info(
+		"Created a new ClickHouse client",
+		logObject.Add("version", fmt.Sprintf("%v", version)),
+	)
 
 	runner := Runner[S, R, P, Q]{
 		clickHouseClient: *clickHouseClient,
@@ -65,9 +66,11 @@ func New[
 
 // Run the runner's job within a given context.
 func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
+	logObject := log.L().Tag(log.LogTagRunner)
+
 	// initialize storage in two-table mode
 	r.initTable(ctx)
-	defer log.S.Debug("The Runner's main routine is completed")
+	defer log.S.Debug("The runner's main routine is completed", logObject)
 
 	var remainder []S
 	writerTasks := make(chan []S, 1)
@@ -82,10 +85,9 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 				// save results to the database
 				err := r.write(ctx, task)
 				if err != nil {
-					log.S.Errorw(
+					log.S.Error(
 						"Failed to save processed batch to the database",
-						"error", err,
-						"tag", log.TagClickHouseError,
+						logObject.Error(err),
 					)
 				}
 			}
@@ -104,22 +106,26 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 			// fetch request parameters from the database
 			params, err := r.fetchParams(ctx)
 			if err != nil {
-				log.S.Errorw(
-					"Failed to fetch request parameters from the database!",
-					"error", err,
-					"tag", log.TagClickHouseError,
+				log.S.Error(
+					"Failed to fetch request parameters from the database",
+					logObject.Error(err),
 				)
 				continue
 			}
 
 			// check that the set is not empty
 			if len(params) == 0 {
-				log.S.Infow(
+				log.S.Info(
 					"Runner has nothing to do, soon entering standby mode",
-					"sleep_time", config.C.Run.SleepTime,
+					log.L().
+						Tag(log.LogTagRunner).
+						Add("sleep_time", config.C.Run.SleepTime),
 				)
 				if len(remainder) > 0 {
-					log.S.Debug("Writing results to the database")
+					log.S.Debug(
+						"Sending results to the writer",
+						logObject,
+					)
 					writerTasks <- remainder
 				}
 				remainder = []S{}
@@ -147,42 +153,10 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 			)
 
 			// perform quality control checks
-			totalFails := 0
-			for _, batch := range processed {
-				report := r.qualityControl(batch, time.Since(timestamp))
-
-				// call user-defined logic (if any)
-				r.hooks.AfterBatch(ctx, batch, &report)
-
-				fails := report.TotalFails()
-				if fails > 0 {
-					log.S.Warnw(
-						"Quality control for the current batch was not passed",
-						"tag", log.TagQualityControl,
-						"fails", fails,
-						"details", report,
-					)
-				}
-				totalFails += fails
+			err = r.qualityControl(ctx, processed, timestamp)
+			if err != nil {
+				return // context is cancelled
 			}
-
-			if totalFails > 0 {
-				log.S.Warnw(
-					"Quality control was not passed",
-					"tag", log.TagQualityControl,
-					"total_fails", totalFails,
-				)
-				err := r.standby(ctx)
-				if err != nil {
-					return // context is cancelled
-				}
-				continue // try again
-			}
-
-			log.S.Infow(
-				"Quality control has successfully been passed",
-				"tag", log.TagQualityControl,
-			)
 		}
 	}
 }
@@ -191,7 +165,12 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 func (r *Runner[S, R, P, Q]) fetchParams(
 	ctx context.Context,
 ) (params []P, err error) {
-	log.S.Debug("Fetching a new set of request parameters from the database")
+	logObject := log.L().Tag(log.LogTagRunner)
+
+	log.S.Debug(
+		"Fetching a new set of request parameters from the database",
+		logObject,
+	)
 	err = retry.Do(
 		func() (err error) {
 			select {
@@ -202,6 +181,12 @@ func (r *Runner[S, R, P, Q]) fetchParams(
 					ctx,
 					r.queryBuilder,
 				)
+				if err != nil {
+					log.S.Error(
+						"Failed to select the next batch from the database",
+						logObject.Error(err),
+					)
+				}
 			}
 			return err
 		},
@@ -215,9 +200,11 @@ func (r *Runner[S, R, P, Q]) fetchParams(
 func (r *Runner[S, R, P, Q]) formRequests(params []P) (
 	requests []rr.GetRequest[P],
 ) {
-	log.S.Debugw(
+	logObject := log.L().Tag(log.LogTagRunner)
+
+	log.S.Debug(
 		"Creating requests for the fetching process",
-		"tag", log.TagRunnerDebug,
+		logObject,
 	)
 	for _, params := range params {
 		requests = append(requests, rr.GetRequest[P]{

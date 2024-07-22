@@ -26,7 +26,7 @@ func Load() (
 	filepath := getEnv("CONFIG_FILE", "configs/meta.dev.yml")
 	content, err = os.ReadFile(filepath)
 	if err != nil {
-		fmt.Printf("Got error: %v", err)
+		fmt.Printf("Failed to read the config file: %v", err)
 		return cfg, err
 	}
 	err = yaml.Unmarshal(content, &cfg)
