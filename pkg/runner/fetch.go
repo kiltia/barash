@@ -127,19 +127,34 @@ func (r *Runner[S, R, P, Q]) sendGetRequest(
 	}
 	log.S.Debug("Finished request to the subject API", logObject)
 
-	responses := lastResponse.
-		Request.
-		Context().
-		Value(re.RequestContextKeyUnsuccessfulResponses).([]*resty.Response)
+	var responses []*resty.Response
+	lastStatus := lastResponse.StatusCode()
+	if lastStatus >= 400 && lastStatus < 500 {
+		err := fmt.Errorf("client error from the subject API")
+		log.S.Error(
+			"The subject API responded with 4xx. "+
+				"You should probably check your configuration.",
+			logObject.Add("status_code", lastStatus).
+				Error(err),
+		)
+		return nil, err
+	}
+
 	if lastResponse.IsSuccess() || config.C.HttpRetries.NumRetries == 0 ||
 		lastResponse.StatusCode() == 0 {
 		responses = append(responses, lastResponse)
 	}
 
-	results := []S{}
-	for i, response := range responses {
+	failed := lastResponse.
+		Request.
+		Context().
+		Value(re.RequestContextKeyUnsuccessfulResponses).([]*resty.Response)
+	responses = append(responses, failed...)
+
+	var results []S
+	for i, resp := range responses {
 		var result R
-		statusCode := response.StatusCode()
+		statusCode := resp.StatusCode()
 		if statusCode == 0 {
 			result = *new(R)
 			statusCode = 599
@@ -150,7 +165,7 @@ func (r *Runner[S, R, P, Q]) sendGetRequest(
 					Add("url", url),
 			)
 		} else {
-			err = json.Unmarshal(response.Body(), &result)
+			err = json.Unmarshal(resp.Body(), &result)
 			if err != nil {
 				log.S.Error(
 					"Failed to unmarshal the response",
@@ -164,13 +179,10 @@ func (r *Runner[S, R, P, Q]) sendGetRequest(
 			i+1,
 			url,
 			statusCode,
-			response.Time(),
+			resp.Time(),
 		)
 
-		results = append(
-			results,
-			storedValue,
-		)
+		results = append(results, storedValue)
 	}
 	return results, nil
 }

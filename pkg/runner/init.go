@@ -2,7 +2,6 @@ package runner
 
 import (
 	"context"
-	"net/http"
 	"time"
 
 	"orb/runner/pkg/config"
@@ -46,7 +45,7 @@ func initHttpClient() *resty.Client {
 			func(r *resty.Response, err error) bool {
 				ctx := r.Request.Context()
 				fetcherNum := ctx.Value(re.RequestContextKeyFetcherNum).(int)
-				if r.StatusCode() >= http.StatusInternalServerError {
+				if r.StatusCode() >= 500 {
 					log.S.Debug(
 						"Retrying request",
 						log.L().Tag(log.LogTagFetching).
