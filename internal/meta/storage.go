@@ -2,7 +2,7 @@ package meta
 
 type VerifyResult struct {
 	StatusCode     int
-	MetaRequest    VerifyParams
+	VerifyParams   VerifyParams
 	RequestLink    string
 	AttemptsNumber int
 	MetaResponse   VerifyResponse
@@ -31,7 +31,7 @@ func (r VerifyResult) GetCreateQuery() string {
 
 // Implement the [rinterface.StoredValue] interface.
 func (r VerifyResult) AsArray() []any {
-	verifyParams := r.MetaRequest
+	verifyParams := r.VerifyParams
 	response := r.MetaResponse
 	debugInfo := r.MetaResponse.DebugInfo
 	pageStats := r.MetaResponse.DebugInfo.CrawlerDebug.PageStats
