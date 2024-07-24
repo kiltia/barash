@@ -19,7 +19,6 @@ import (
 type Runner[S ri.StoredValue, R ri.Response[S, P], P ri.StoredParams, Q ri.QueryBuilder[S, P]] struct {
 	clickHouseClient dbclient.ClickHouseClient[S, P, Q]
 	httpClient       *resty.Client
-	workerTimeout    time.Duration
 	hooks            hooks.Hooks[S]
 	queryBuilder     Q
 }
@@ -55,9 +54,6 @@ func New[
 	runner := Runner[S, R, P, Q]{
 		clickHouseClient: *clickHouseClient,
 		httpClient:       initHttpClient(),
-		workerTimeout: time.Duration(
-			config.C.Timeouts.GoroutineTimeout,
-		) * time.Second,
 		hooks:        hs,
 		queryBuilder: qb,
 	}

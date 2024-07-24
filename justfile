@@ -19,10 +19,10 @@ vet:
 
 pre-commit: format lint vet test
 
-run-meta $CONFIG_FILE="configs/meta.dev.yml":
+run-meta $CONFIG_FILE="configs/meta.prod.yml":
     @go run ./cmd
 
-run-crawler $CONFIG_FILE="configs/crawler.dev.yml":
+run-crawler $CONFIG_FILE="configs/crawler.prod.yml":
     @go run ./cmd
 
 run-prod $config_file="configs/prod.yml":
