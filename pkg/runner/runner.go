@@ -54,8 +54,8 @@ func New[
 	runner := Runner[S, R, P, Q]{
 		clickHouseClient: *clickHouseClient,
 		httpClient:       initHttpClient(),
-		hooks:        hs,
-		queryBuilder: qb,
+		hooks:            hs,
+		queryBuilder:     qb,
 	}
 	return &runner, nil
 }
@@ -68,46 +68,21 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 	r.initTable(ctx)
 	defer log.S.Debug("The runner's main routine is completed", logObject)
 
-	fetchTasks := make(chan rr.GetRequest[P], config.C.Run.BatchSize)
-	writerTasks := make(chan S, config.C.Run.BatchSize)
+	fetcherCh := make(chan rr.GetRequest[P], 2*config.C.Run.BatchSize)
+	writerCh := make(chan S, config.C.Run.BatchSize)
+	qcChannel := make(chan []S, 1)
 	nothingLeft := make(chan bool)
-	go r.dataProvider(ctx, fetchTasks, nothingLeft)
+	standbyChannels := make([]chan bool, config.C.Run.FetcherWorkers)
+	go r.dataProvider(ctx, fetcherCh, nothingLeft)
 
 	for i := range config.C.Run.FetcherWorkers {
-		go r.fetcher(ctx, fetchTasks, writerTasks, i)
+		standbyChannels[i] = make(chan bool)
+		go r.fetcher(ctx, fetcherCh, writerCh, standbyChannels[i], i)
 	}
 
-	go r.writer(ctx, writerTasks, nothingLeft)
+	go r.writer(ctx, writerCh, qcChannel, nothingLeft)
 
-	// main runner's loop
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			time.Sleep(30 * time.Second)
-			// // batch processing start time
-			// timestamp := time.Now()
-
-			// // fetch request parameters from the database
-
-			// // perform requests, gather results
-			// var processed [][]S
-			// 	input := make(chan rr.GetRequest[P])
-			// 	remainder, processed = r.fetch(
-			// 		input,
-			// 		ctx,
-			// 		remainder,
-			// 		writerTasks,
-			// 	)
-
-			// // perform quality control checks
-			// err = r.qualityControl(ctx, processed, timestamp)
-			// // if err != nil {
-			// // 	return // context is cancelled
-			// // }
-		}
-	}
+	go r.qualityControl(ctx, qcChannel, time.Now(), &standbyChannels)
 }
 
 // Fetch a new set of request parameters from the database.

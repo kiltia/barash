@@ -17,8 +17,8 @@ func (qb *CrawlerQueryBuilder) UpdateState(batch []CrawlerParams) {
 }
 
 func (qb *CrawlerQueryBuilder) ResetState() {
-    // NOTE(nrydanov): I guess that this should be here, but currently
-    // it will lead to completely new run in Crawler API mode.
+	// NOTE(nrydanov): I guess that this should be here, but currently
+	// it will lead to completely new run in Crawler API mode.
 	// qb.Offset = 0
 }
 

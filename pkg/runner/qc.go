@@ -14,38 +14,44 @@ import (
 // there were any fails.
 func (r *Runner[S, R, P, Q]) qualityControl(
 	ctx context.Context,
-	processed [][]S,
+	qcCh chan []S,
 	timestamp time.Time,
-) error {
+	standbyChannels *[]chan bool,
+) {
 	logObject := log.L().Tag(log.LogTagQualityControl)
-	totalFails := 0
-	for _, batch := range processed {
-		report := r.qcReport(batch, time.Since(timestamp))
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case batch := <-qcCh:
+			report := r.qcReport(batch, time.Since(timestamp))
 
-		// call user-defined logic (if any)
-		r.hooks.AfterBatch(ctx, batch, &report)
+			r.hooks.AfterBatch(ctx, batch, &report)
 
-		fails := report.TotalFails()
-		if fails > 0 {
-			log.S.Warn(
-				"Quality control for the batch was not passed",
-				logObject.Add("fails", fails).
-					Add("details", report),
+			fails := report.TotalFails()
+			timestamp = time.Now()
+			if fails > 0 {
+				log.S.Warn(
+					"Quality control for the batch was not passed",
+					logObject.Add("fails", fails).
+						Add("details", report),
+				)
+				for _, ch := range *standbyChannels {
+					if len(ch) == 0 {
+						ch <- true
+					} else {
+						log.S.Debug("Fetcher already has standby signal, skipping...", logObject)
+					}
+				}
+				continue
+			}
+
+			log.S.Info(
+				"Quality control has successfully been passed",
+				logObject.Tag(log.LogTagQualityControl),
 			)
 		}
-		totalFails += fails
 	}
-
-	if totalFails > 0 {
-		log.S.Warn(
-			"Quality control was not passed",
-			logObject.Add("total_fails", totalFails),
-		)
-		return r.standby(ctx)
-	}
-
-	log.S.Info("Quality control has successfully been passed", logObject)
-	return nil
 }
 
 // Generates QC report for the given batch.
@@ -85,7 +91,7 @@ func (r *Runner[S, R, P, Q]) qcReport(
 		float64(numRequests)*config.C.QualityControl.SuccessThreshold,
 	) {
 		log.S.Info(
-			"There were too many 5xx errors from the API.",
+			"There were too many errors from the API.",
 			logObject.Add("num_successes", numSuccesses).
 				Add("num_requests", numRequests),
 		)

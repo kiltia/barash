@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"orb/runner/pkg/config"
 	"orb/runner/pkg/log"
@@ -123,4 +124,40 @@ func (r *Runner[S, R, P, Q]) sendGetRequest(
 		results = append(results, storedValue)
 	}
 	return results, nil
+}
+
+func (r *Runner[S, R, P, Q]) fetcher(
+	ctx context.Context,
+	input chan rr.GetRequest[P],
+	output chan S,
+	standbyChannel chan bool,
+	fetcherNum int,
+) {
+	logObject := log.L().Tag(log.LogTagFetching).Add("fetcher_num", fetcherNum)
+	for {
+		select {
+		case <-standbyChannel:
+			log.S.Debug("Fetcher got standby signal, sleeping...", logObject)
+			err := r.standby(ctx)
+			log.S.Debug("Fetcher left the standby mode", logObject)
+			if err != nil {
+				return
+			}
+		default:
+			log.S.Debug("Executing common fetcher logic", logObject)
+			select {
+			case task := <-input:
+				storedValues := r.handleFetcherTask(ctx, task, fetcherNum)
+				for _, value := range storedValues {
+					output <- value
+				}
+			case <-ctx.Done():
+				return
+			default:
+				log.S.Info("Got nothing to fetch, time to sleep", logObject)
+				// TODO(nrydanov): Replace with config value
+				time.Sleep(5 * time.Second)
+			}
+		}
+	}
 }

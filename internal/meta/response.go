@@ -25,7 +25,7 @@ func (resp VerifyResponse) IntoStored(
 ) VerifyResult {
 	return VerifyResult{
 		AttemptsNumber: n,
-		VerifyParams:    params,
+		VerifyParams:   params,
 		MetaResponse:   resp,
 		RequestLink:    url,
 		StatusCode:     status,
