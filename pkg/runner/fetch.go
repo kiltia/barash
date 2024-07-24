@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
 
 	"orb/runner/pkg/config"
 	"orb/runner/pkg/log"
@@ -15,67 +14,6 @@ import (
 )
 
 // Performs requests to the target API and returns results.
-func (r *Runner[S, R, P, Q]) fetch(
-	ctx context.Context,
-	requests []rr.GetRequest[P],
-	remainder []S,
-	writerTasks chan []S,
-) ([]S, [][]S) {
-	logObject := log.L().Tag(log.LogTagFetching)
-	input := make(chan rr.GetRequest[P], len(requests))
-	output := make(chan S, config.C.Run.FetcherWorkers)
-
-	for _, req := range requests {
-		input <- req
-	}
-	close(input)
-
-	workerWg := sync.WaitGroup{}
-	for i := range config.C.Run.FetcherWorkers {
-		workerWg.Add(1)
-		go func(fetcherNum int) {
-			defer workerWg.Done()
-			for task := range input {
-				select {
-				case <-ctx.Done():
-					return
-				default:
-					storedValues := r.handleFetcherTask(ctx, task, fetcherNum)
-					for _, value := range storedValues {
-						output <- value
-					}
-				}
-			}
-		}(i)
-		log.S.Debug("Launched a new fetcher worker", logObject)
-	}
-
-	var processed [][]S
-	var collectorWg sync.WaitGroup
-	collectorWg.Add(1)
-	go func() {
-		defer collectorWg.Done()
-		for res := range output {
-			remainder = append(remainder, res)
-			if len(remainder) >= config.C.Run.BatchSize {
-				log.S.Debug(
-					"Collected enough records to write to the database",
-					logObject,
-				)
-				processed = append(processed, remainder)
-				writerTasks <- remainder
-				log.S.Debug("Sent results to the writer", logObject)
-				remainder = []S{}
-			}
-		}
-	}()
-
-	workerWg.Wait()
-	close(output)
-	collectorWg.Wait()
-
-	return remainder, processed
-}
 
 func (r *Runner[S, R, P, Q]) handleFetcherTask(
 	ctx context.Context,

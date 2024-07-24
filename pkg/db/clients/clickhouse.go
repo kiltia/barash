@@ -90,11 +90,11 @@ func (client *ClickHouseClient[S, P, Q]) AsyncInsertBatch(
 			)
 			return err
 		}
-		log.S.Debug(
-			"Successfully saved batch to the database",
-			log.L().Tag(log.LogTagClickHouse),
-		)
 	}
+	log.S.Debug(
+		"Successfully saved batch to the database",
+		log.L().Tag(log.LogTagClickHouse),
+	)
 	return nil
 }
 
