@@ -32,7 +32,7 @@ func main() {
 		case ApiNameCrawler:
 			hooks := crawler.CrawlerApiHooks{}
 			queryBuilder := crawler.CrawlerQueryBuilder{
-				BatchSize: config.C.Run.BatchSize,
+				BatchSize: config.C.Run.SelectionBatchSize,
 				Mode:      config.C.Run.Mode,
 				Offset:    0,
 			}
@@ -51,7 +51,7 @@ func main() {
 			hooks := meta.VerifyApiHooks{}
 			queryBuilder := meta.VerifyQueryBuilder{
 				DayInterval:    config.C.Run.Freshness,
-				Limit:          config.C.Run.BatchSize,
+				Limit:          config.C.Run.SelectionBatchSize,
 				Mode:           config.C.Run.Mode,
 				StartTimestamp: time.Now(),
 				CurrentTag:     config.C.Run.Tag,

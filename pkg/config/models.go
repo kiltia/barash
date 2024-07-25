@@ -48,15 +48,16 @@ type retryConfig struct {
 }
 
 type runConfig struct {
-	MaxFetcherWorkers int               `yaml:"max_fetcher_workers"`
-	MinFetcherWorkers int               `yaml:"min_fetcher_workers"`
-	BatchSize         int               `yaml:"batch_size"`
-	Freshness         int               `yaml:"freshness"`
-	SleepTime         int               `yaml:"sleep_time"`
-	WarmupTime        int               `yaml:"warmup_time"`
-	Tag               string            `yaml:"tag"`
-	ExtraParams       map[string]string `yaml:"extra_params"`
-	Mode              RunnerMode        `yaml:"mode"`
+	MaxFetcherWorkers  int               `yaml:"max_fetcher_workers"`
+	MinFetcherWorkers  int               `yaml:"min_fetcher_workers"`
+	SelectionBatchSize int               `yaml:"selection_batch_size"`
+	InsertionBatchSize int               `yaml:"insertion_batch_size"`
+	Freshness          int               `yaml:"freshness"`
+	SleepTime          int               `yaml:"sleep_time"`
+	WarmupTime         int               `yaml:"warmup_time"`
+	Tag                string            `yaml:"tag"`
+	ExtraParams        map[string]string `yaml:"extra_params"`
+	Mode               RunnerMode        `yaml:"mode"`
 }
 
 type logConfig struct {

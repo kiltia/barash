@@ -66,7 +66,7 @@ func (r *Runner[S, R, P, Q]) writer(
 				log.S.Info("Channel is closed", logObject)
 			}
 			batch = append(batch, result)
-			if len(batch) >= config.C.Run.BatchSize {
+			if len(batch) >= config.C.Run.InsertionBatchSize {
 				log.S.Info(
 					"Have enough results, saving to the database", logObject,
 				)

@@ -18,7 +18,7 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 
 	sleepTime := 0 * time.Second
 
-	lastTaskCount := config.C.Run.BatchSize
+	lastTaskCount := config.C.Run.SelectionBatchSize
 	lastTime := time.Now()
 
 	totalTasks := int64(1)
@@ -32,7 +32,7 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 			totalTime += timeElapsed
 			totalTasks += int64(diff)
 			tpr := totalTime / time.Duration(totalTasks)
-			sleepTime = tpr * time.Duration(config.C.Run.BatchSize)
+			sleepTime = tpr * time.Duration(config.C.Run.SelectionBatchSize)
 		}
 	}
 
@@ -43,7 +43,7 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 				logObject.
 					Add(
 						"time_per_request",
-						(sleepTime/time.Duration(config.C.Run.BatchSize)).String(),
+						(sleepTime/time.Duration(config.C.Run.SelectionBatchSize)).String(),
 					).
 					Add("current_sleep_time", sleepTime.String()).
 					Add("time_elapsed", totalTime.String()).
@@ -59,7 +59,7 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 
 			updateSleepState(tasksCount)
 
-			if tasksCount < config.C.Run.BatchSize {
+			if tasksCount < config.C.Run.SelectionBatchSize {
 				log.S.Debug(
 					"Trying to get more tasks for fetchers",
 					logObject,
