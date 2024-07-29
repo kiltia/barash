@@ -53,7 +53,7 @@ type runConfig struct {
 	BatchSize         int               `yaml:"batch_size"`
 	Freshness         int               `yaml:"freshness"`
 	SleepTime         int               `yaml:"sleep_time"`
-	HeatTime          int               `yaml:"heat_time"`
+	WarmupTime        int               `yaml:"warmup_time"`
 	Tag               string            `yaml:"tag"`
 	ExtraParams       map[string]string `yaml:"extra_params"`
 	Mode              RunnerMode        `yaml:"mode"`

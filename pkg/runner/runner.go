@@ -80,14 +80,14 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 		if i < config.C.Run.MinFetcherWorkers {
 			rnd = 0 * time.Second
 		} else {
-			rnd = time.Duration(rand.IntN(config.C.Run.HeatTime+1)) * time.Second
+			rnd = time.Duration(rand.IntN(config.C.Run.WarmupTime+1)) * time.Second
 		}
 		go r.fetcher(ctx, fetcherCh, writerCh, standbyChannels[i], i, rnd)
 	}
 
 	go func() {
 		select {
-		case <-time.After(time.Duration(config.C.Run.HeatTime) * time.Second):
+		case <-time.After(time.Duration(config.C.Run.WarmupTime) * time.Second):
 			log.S.Info("Warm up is ended", logObject)
 		}
 	}()
