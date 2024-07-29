@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
 	"time"
 
 	"orb/runner/pkg/config"
@@ -62,26 +63,36 @@ func New[
 
 // Run the runner's job within a given context.
 func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
-	logObject := log.L().Tag(log.LogTagRunner)
-
 	// initialize storage in two-table mode
 	r.initTable(ctx)
-	defer log.S.Debug("The runner's main routine is completed", logObject)
+	logObject := log.L().Tag(log.LogTagRunner)
 
 	fetcherCh := make(chan rr.GetRequest[P], 2*config.C.Run.BatchSize)
 	writerCh := make(chan S, config.C.Run.BatchSize)
 	qcChannel := make(chan []S, 1)
 	nothingLeft := make(chan bool)
-	standbyChannels := make([]chan bool, config.C.Run.FetcherWorkers)
+	standbyChannels := make([]chan bool, config.C.Run.MaxFetcherWorkers)
 	go r.dataProvider(ctx, fetcherCh, nothingLeft)
 
-	for i := range config.C.Run.FetcherWorkers {
+	for i := range config.C.Run.MaxFetcherWorkers {
 		standbyChannels[i] = make(chan bool)
-		go r.fetcher(ctx, fetcherCh, writerCh, standbyChannels[i], i)
+		var rnd time.Duration
+		if i < config.C.Run.MinFetcherWorkers {
+			rnd = 0 * time.Second
+		} else {
+			rnd = time.Duration(rand.IntN(config.C.Run.HeatTime+1)) * time.Second
+		}
+		go r.fetcher(ctx, fetcherCh, writerCh, standbyChannels[i], i, rnd)
 	}
 
-	go r.writer(ctx, writerCh, qcChannel, nothingLeft)
+	go func() {
+		select {
+		case <-time.After(time.Duration(config.C.Run.HeatTime) * time.Second):
+			log.S.Info("Warm up is ended", logObject)
+		}
+	}()
 
+	go r.writer(ctx, writerCh, qcChannel, nothingLeft)
 	go r.qualityControl(ctx, qcChannel, time.Now(), &standbyChannels)
 }
 

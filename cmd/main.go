@@ -27,12 +27,7 @@ func main() {
 	)
 	defer cancel()
 
-	// channel to signal when the application has fully stopped
-	done := make(chan bool)
-
 	go func() {
-		defer close(done)
-
 		switch config.C.Api.Name {
 		case ApiNameCrawler:
 			hooks := crawler.CrawlerApiHooks{}
@@ -90,7 +85,6 @@ func main() {
 	cancel() // restore normal signal behavior
 
 	select {
-	case <-done:
 	case <-time.After(10 * time.Second):
 		log.S.Debug(
 			"Timeout reached, forcing shutdown.",

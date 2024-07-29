@@ -132,8 +132,11 @@ func (r *Runner[S, R, P, Q]) fetcher(
 	output chan S,
 	standbyChannel chan bool,
 	fetcherNum int,
+	startupTime time.Duration,
 ) {
 	logObject := log.L().Tag(log.LogTagFetching).Add("fetcher_num", fetcherNum)
+	time.Sleep(startupTime)
+	log.S.Info("A new fetcher instance is starting up", logObject)
 	for {
 		select {
 		case <-standbyChannel:
@@ -156,10 +159,6 @@ func (r *Runner[S, R, P, Q]) fetcher(
 				}
 			case <-ctx.Done():
 				return
-			default:
-				log.S.Info("Got nothing to fetch, time to sleep", logObject)
-				// TODO(nrydanov): Replace with config value if needed
-				time.Sleep(5 * time.Second)
 			}
 		}
 	}

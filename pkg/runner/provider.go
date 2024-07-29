@@ -23,6 +23,7 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 
 	totalTasks := int64(1)
 	totalTime := 0 * time.Second
+	lastSleepTime := sleepTime
 
 	updateSleepState := func(tasksCount int) {
 		diff := lastTaskCount - tasksCount
@@ -36,17 +37,20 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 	}
 
 	for {
-		log.S.Info(
-			"Data provider started a new iteration",
-			logObject.
-				Add(
-					"time_per_request",
-					(sleepTime/time.Duration(config.C.Run.BatchSize)).Seconds(),
-				).
-				Add("current_sleep_time", sleepTime.Seconds()).
-				Add("time_elapsed", totalTime.Seconds()).
-				Add("task_count", len(fetchTasks)),
-		)
+		if lastSleepTime != sleepTime {
+			log.S.Info(
+				"Data provider started a new iteration",
+				logObject.
+					Add(
+						"time_per_request",
+						(sleepTime/time.Duration(config.C.Run.BatchSize)).String(),
+					).
+					Add("current_sleep_time", sleepTime.String()).
+					Add("time_elapsed", totalTime.String()).
+					Add("task_count", len(fetchTasks)),
+			)
+		}
+		lastSleepTime = sleepTime
 		select {
 		case <-ctx.Done():
 			return
@@ -78,7 +82,6 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 					nothingLeft <- true
 					r.queryBuilder.ResetState()
 					sleepTime = 60 * time.Second
-					continue
 				} else {
 					r.queryBuilder.UpdateState(params)
 
