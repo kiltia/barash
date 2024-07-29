@@ -86,10 +86,8 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 	}
 
 	go func() {
-		select {
-		case <-time.After(time.Duration(config.C.Run.WarmupTime) * time.Second):
-			log.S.Info("Warm up is ended", logObject)
-		}
+		time.Sleep(time.Duration(config.C.Run.WarmupTime) * time.Second)
+		log.S.Info("Warm up is ended", logObject)
 	}()
 
 	go r.writer(ctx, writerCh, qcChannel, nothingLeft)

@@ -83,12 +83,4 @@ func main() {
 			Add("timeout", 10),
 	)
 	cancel() // restore normal signal behavior
-
-	select {
-	case <-time.After(10 * time.Second):
-		log.S.Debug(
-			"Timeout reached, forcing shutdown.",
-			log.L().Tag(log.LogTagRunner),
-		)
-	}
 }
