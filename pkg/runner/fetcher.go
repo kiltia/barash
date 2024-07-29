@@ -155,7 +155,7 @@ func (r *Runner[S, R, P, Q]) fetcher(
 				return
 			default:
 				log.S.Info("Got nothing to fetch, time to sleep", logObject)
-				// TODO(nrydanov): Replace with config value
+				// TODO(nrydanov): Replace with config value if needed
 				time.Sleep(5 * time.Second)
 			}
 		}

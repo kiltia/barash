@@ -24,7 +24,7 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 		log.S.Info(
 			"Data provider started a new iteration",
 			logObject.
-				Add("time_per_request", sleepTime/time.Duration(config.C.Run.BatchSize)).
+				Add("time_per_request", (sleepTime/time.Duration(config.C.Run.BatchSize)).Seconds()).
 				Add("current_sleep_time", sleepTime.Seconds()).
 				Add("time_elapsed", timeElapsed.Seconds()).
 				Add("task_count", len(fetchTasks)),
