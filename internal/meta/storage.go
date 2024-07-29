@@ -1,7 +1,10 @@
 package meta
 
+import "time"
+
 type VerifyResult struct {
 	StatusCode     int
+	TimeElapsed    time.Duration
 	VerifyParams   VerifyParams
 	RequestLink    string
 	AttemptsNumber int

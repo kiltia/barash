@@ -29,6 +29,7 @@ func (resp VerifyResponse) IntoStored(
 		MetaResponse:   resp,
 		RequestLink:    url,
 		StatusCode:     status,
+		TimeElapsed:    timeElapsed,
 	}
 }
 

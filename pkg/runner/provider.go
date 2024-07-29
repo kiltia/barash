@@ -15,18 +15,36 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 	nothingLeft chan bool,
 ) {
 	logObject := log.L().Tag(log.LogTagRunner)
+
 	sleepTime := 0 * time.Second
-	startTime := time.Now()
+
 	lastTaskCount := config.C.Run.BatchSize
-	timeElapsed := 0 * time.Second
+	lastTime := time.Now()
+
 	totalTasks := int64(1)
+	totalTime := 0 * time.Second
+
+	updateSleepState := func(tasksCount int) {
+		diff := lastTaskCount - tasksCount
+		if diff > 0 {
+			timeElapsed := time.Since(lastTime)
+			totalTime += timeElapsed
+			totalTasks += int64(diff)
+			tpr := totalTime / time.Duration(totalTasks)
+			sleepTime = tpr * time.Duration(config.C.Run.BatchSize)
+		}
+	}
+
 	for {
 		log.S.Info(
 			"Data provider started a new iteration",
 			logObject.
-				Add("time_per_request", (sleepTime/time.Duration(config.C.Run.BatchSize)).Seconds()).
+				Add(
+					"time_per_request",
+					(sleepTime/time.Duration(config.C.Run.BatchSize)).Seconds(),
+				).
 				Add("current_sleep_time", sleepTime.Seconds()).
-				Add("time_elapsed", timeElapsed.Seconds()).
+				Add("time_elapsed", totalTime.Seconds()).
 				Add("task_count", len(fetchTasks)),
 		)
 		select {
@@ -34,14 +52,8 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 			return
 		case <-time.After(sleepTime):
 			tasksCount := len(fetchTasks)
-			log.S.Debug(
-				"Tasks available",
-				logObject.Add("tasks", tasksCount),
-			)
-			timeElapsed = time.Since(startTime)
-			totalTasks += int64(lastTaskCount - tasksCount)
-			tpr := timeElapsed / time.Duration(totalTasks)
-			sleepTime = tpr * time.Duration(config.C.Run.BatchSize)
+
+			updateSleepState(tasksCount)
 
 			if tasksCount < config.C.Run.BatchSize {
 				log.S.Debug(
@@ -65,23 +77,22 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 					)
 					nothingLeft <- true
 					r.queryBuilder.ResetState()
-					err := r.standby(ctx)
-					if err != nil {
-						return
+					sleepTime = 60 * time.Second
+					continue
+				} else {
+					r.queryBuilder.UpdateState(params)
+
+					// create requests using runner's configuration
+					// and parameters from the database
+					requests := r.formRequests(params)
+					for _, r := range requests {
+						fetchTasks <- r
 					}
 				}
-
-				// stride over records in the database
-				r.queryBuilder.UpdateState(params)
-
-				// create requests using runner's configuration
-				// and parameters from the database
-				requests := r.formRequests(params)
-				for _, r := range requests {
-					fetchTasks <- r
-				}
 			}
+
 			lastTaskCount = len(fetchTasks)
+			lastTime = time.Now()
 		}
 	}
 }

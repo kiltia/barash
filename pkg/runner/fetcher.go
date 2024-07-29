@@ -146,7 +146,10 @@ func (r *Runner[S, R, P, Q]) fetcher(
 		default:
 			select {
 			case task := <-input:
-                log.S.Debug("Pulling a new task", logObject.Add("task_count", len(input)))
+				log.S.Debug(
+					"Pulling a new task",
+					logObject.Add("task_count", len(input)),
+				)
 				storedValues := r.handleFetcherTask(ctx, task, fetcherNum)
 				for _, value := range storedValues {
 					output <- value
