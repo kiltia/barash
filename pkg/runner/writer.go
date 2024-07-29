@@ -67,7 +67,8 @@ func (r *Runner[S, R, P, Q]) writer(
 			}
 			qcCh <- batch
 			batch = []S{}
-		default:
+			// TODO(nrydanov): Replace with config value
+		case <-time.After(30 * time.Second):
 			if len(batch) > config.C.Run.BatchSize {
 				log.S.Info(
 					"Have enough results, saving to the database", logObject,
@@ -82,9 +83,6 @@ func (r *Runner[S, R, P, Q]) writer(
 				qcCh <- batch
 				batch = []S{}
 			}
-			// TODO(nrydanov): Replace with config value
-			time.Sleep(30 * time.Second)
-
 		}
 	}
 }
