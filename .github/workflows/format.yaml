@@ -47,3 +47,16 @@ jobs:
         run: go install github.com/segmentio/golines@latest
       - name: Run checks
         run: golines --dry-run -m 80 cmd pkg internal
+  gocyclo:
+    name: Cyclomatic complexity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Golang
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.2'
+      - name: Setup gocyclo
+        run: go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+      - name: Run checks
+        run: gocyclo -over 5 .
