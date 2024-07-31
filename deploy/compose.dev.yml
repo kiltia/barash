@@ -1,6 +1,7 @@
 version: "3"
 services:
-  clickhouse:
+  clickhouse-runner:
+    container_name: clickhouse-runner
     build:
       context: ..
     image: clickhouse/clickhouse-server:24.6
