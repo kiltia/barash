@@ -6,27 +6,27 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-type logObject struct {
+type LogObject struct {
 	tag   LogTag
 	error error
 	data  []any
 }
 
-func L() logObject {
-	return logObject{}
+func L() LogObject {
+	return LogObject{}
 }
 
-func (l logObject) Tag(t LogTag) logObject {
+func (l LogObject) Tag(t LogTag) LogObject {
 	l.tag = t
 	return l
 }
 
-func (l logObject) Error(e error) logObject {
+func (l LogObject) Error(e error) LogObject {
 	l.error = e
 	return l
 }
 
-func (l logObject) Add(k string, v any) logObject {
+func (l LogObject) Add(k string, v any) LogObject {
 	// NOTE(evgenymng): no actual array copying is supposed to happen
 	// when you call this method. Remember that slices are simply
 	// views into the underlying data storage, so they may share it.
@@ -34,7 +34,7 @@ func (l logObject) Add(k string, v any) logObject {
 	return l
 }
 
-func (l logObject) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+func (l LogObject) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	enc.AddString("tag", l.tag.String())
 
 	if l.error != nil {

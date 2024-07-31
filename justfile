@@ -10,6 +10,7 @@ check-format:
 
 lint:
     @golangci-lint run ./cmd/... ./pkg/... ./internal/...
+    @gocyclo -over 10 .
 
 test:
     @go test ./cmd/... ./pkg/... ./internal/... -v

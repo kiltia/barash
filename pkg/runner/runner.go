@@ -67,7 +67,7 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 	r.initTable(ctx)
 	logObject := log.L().Tag(log.LogTagRunner)
 
-	fetcherCh := make(chan rr.GetRequest[P], 2 * config.C.Run.SelectionBatchSize)
+	fetcherCh := make(chan rr.GetRequest[P], 2*config.C.Run.SelectionBatchSize)
 	writerCh := make(chan S, config.C.Run.InsertionBatchSize)
 	qcChannel := make(chan []S, 1)
 	nothingLeft := make(chan bool)

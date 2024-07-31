@@ -10,6 +10,7 @@ import (
 	"orb/runner/pkg/log"
 	re "orb/runner/pkg/runner/enum"
 	rr "orb/runner/pkg/runner/request"
+	"orb/runner/pkg/util"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -18,13 +19,11 @@ import (
 
 func (r *Runner[S, R, P, Q]) handleFetcherTask(
 	ctx context.Context,
+	logObject log.LogObject,
 	task rr.GetRequest[P],
-	fetcherNum int,
 ) []S {
-	logObject := log.L().Tag(log.LogTagFetching).Add("fetcher_num", fetcherNum)
-
 	log.S.Debug("Sending request to the subject API", logObject)
-	resultList, err := r.sendGetRequest(ctx, task, fetcherNum)
+	resultList, err := r.sendGetRequest(ctx, logObject, task)
 	if err != nil {
 		log.S.Error(
 			"There was an error while sending request to the subject API",
@@ -34,13 +33,70 @@ func (r *Runner[S, R, P, Q]) handleFetcherTask(
 	return resultList
 }
 
+func (r *Runner[S, R, P, Q]) performRequest(
+	ctx context.Context,
+	logObject log.LogObject,
+	url string,
+) *resty.Response {
+	log.S.Debug("Performing request to the subject API", logObject)
+	ctx = context.WithValue(
+		ctx,
+		re.RequestContextKeyUnsuccessfulResponses,
+		[]*resty.Response{},
+	)
+	lastResponse, err := r.httpClient.R().SetContext(ctx).Get(url)
+	if err != nil {
+		log.S.Error("Failed to perform the request", logObject.Error(err))
+	}
+	log.S.Debug("Finished request to the subject API", logObject)
+
+	return lastResponse
+}
+
+func (r *Runner[S, R, P, Q]) processResponse(
+	logObject log.LogObject,
+	req rr.GetRequest[P],
+	resp *resty.Response,
+	attemptNumber int,
+) (S, error) {
+	var result R
+	statusCode := resp.StatusCode()
+	url := req.Params.GetUrl()
+	if statusCode == 0 {
+		result = *new(R)
+		statusCode = 599
+		log.S.Debug(
+			"Timeout was reached while waiting for a response",
+			logObject.
+				Error(fmt.Errorf("timeout reached")).
+				Add("url", url),
+		)
+	} else {
+		err := json.Unmarshal(resp.Body(), &result)
+		if err != nil {
+			log.S.Error(
+				"Failed to unmarshal the response",
+				logObject.Error(err),
+			)
+			return *new(S), err
+		}
+	}
+	storedValue := result.IntoStored(
+		req.Params,
+		attemptNumber+1,
+		url,
+		statusCode,
+		resp.Time(),
+	)
+
+	return storedValue, nil
+}
+
 func (r *Runner[S, R, P, Q]) sendGetRequest(
 	ctx context.Context,
+	logObject log.LogObject,
 	req rr.GetRequest[P],
-	fetcherNum int,
 ) ([]S, error) {
-	logObject := log.L().Tag(log.LogTagFetching).Add("fetcher_num", fetcherNum)
-
 	log.S.Debug("Creating request link", logObject)
 	url, err := req.CreateGetRequestLink(config.C.Run.ExtraParams)
 	if err != nil {
@@ -49,22 +105,7 @@ func (r *Runner[S, R, P, Q]) sendGetRequest(
 	}
 	log.S.Debug("Request link successfully created", logObject.Add("url", url))
 
-	log.S.Debug("Performing request to the subject API", logObject)
-	ctx = context.WithValue(
-		ctx,
-		re.RequestContextKeyUnsuccessfulResponses,
-		[]*resty.Response{},
-	)
-	ctx = context.WithValue(
-		ctx,
-		re.RequestContextKeyFetcherNum,
-		fetcherNum,
-	)
-	lastResponse, err := r.httpClient.R().SetContext(ctx).Get(url)
-	if err != nil {
-		log.S.Error("Failed to perform the request", logObject.Error(err))
-	}
-	log.S.Debug("Finished request to the subject API", logObject)
+	lastResponse := r.performRequest(ctx, logObject, url)
 
 	var responses []*resty.Response
 	lastStatus := lastResponse.StatusCode()
@@ -91,36 +132,12 @@ func (r *Runner[S, R, P, Q]) sendGetRequest(
 	responses = append(responses, failed...)
 
 	var results []S
-	for i, resp := range responses {
-		var result R
-		statusCode := resp.StatusCode()
-		if statusCode == 0 {
-			result = *new(R)
-			statusCode = 599
-			log.S.Debug(
-				"Timeout was reached while waiting for a response",
-				logObject.
-					Error(fmt.Errorf("timeout reached")).
-					Add("url", url),
-			)
-		} else {
-			err = json.Unmarshal(resp.Body(), &result)
-			if err != nil {
-				log.S.Error(
-					"Failed to unmarshal the response",
-					logObject.Error(err),
-				)
-				return nil, err
-			}
-		}
-		storedValue := result.IntoStored(
-			req.Params,
-			i+1,
-			url,
-			statusCode,
-			resp.Time(),
-		)
 
+	for i, resp := range responses {
+		storedValue, err := r.processResponse(logObject, req, resp, i)
+		if err != nil {
+			return nil, err
+		}
 		results = append(results, storedValue)
 	}
 	return results, nil
@@ -137,6 +154,7 @@ func (r *Runner[S, R, P, Q]) fetcher(
 	logObject := log.L().Tag(log.LogTagFetching).Add("fetcher_num", fetcherNum)
 	time.Sleep(startupTime)
 	log.S.Info("A new fetcher instance is starting up", logObject)
+	ctx = context.WithValue(ctx, util.WorkerId, fetcherNum)
 	for {
 		select {
 		case <-standbyChannel:
@@ -153,7 +171,7 @@ func (r *Runner[S, R, P, Q]) fetcher(
 					"Pulling a new task",
 					logObject.Add("task_count", len(input)),
 				)
-				storedValues := r.handleFetcherTask(ctx, task, fetcherNum)
+				storedValues := r.handleFetcherTask(ctx, logObject, task)
 				for _, value := range storedValues {
 					output <- value
 				}

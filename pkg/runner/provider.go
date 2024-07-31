@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+
 	"orb/runner/pkg/config"
 	"orb/runner/pkg/log"
 	rr "orb/runner/pkg/runner/request"
@@ -50,7 +51,7 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 					fetchTasks <- r
 				}
 			}
-            log.S.Debug("A batch was completely sent to fetchers", logObject)
+			log.S.Debug("A batch was completely sent to fetchers", logObject)
 		}
 	}
 }
