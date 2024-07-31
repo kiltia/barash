@@ -20,6 +20,10 @@ vet:
 
 pre-commit: format lint vet test
 
+hook-setup:
+    echo "just pre-commit" > .git/hooks/pre-commit
+    chmod +x .git/hooks/pre-commit
+
 run-meta $CONFIG_FILE="configs/meta.prod.yml":
     @go run ./cmd
 

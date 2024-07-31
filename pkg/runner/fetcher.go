@@ -10,7 +10,6 @@ import (
 	"orb/runner/pkg/log"
 	re "orb/runner/pkg/runner/enum"
 	rr "orb/runner/pkg/runner/request"
-	"orb/runner/pkg/util"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -23,7 +22,7 @@ func (r *Runner[S, R, P, Q]) handleFetcherTask(
 	task rr.GetRequest[P],
 ) []S {
 	log.S.Debug("Sending request to the subject API", logObject)
-	resultList, err := r.sendGetRequest(ctx, logObject, task)
+	resultList, err := r.performRequest(ctx, logObject, task)
 	if err != nil {
 		log.S.Error(
 			"There was an error while sending request to the subject API",
@@ -33,7 +32,7 @@ func (r *Runner[S, R, P, Q]) handleFetcherTask(
 	return resultList
 }
 
-func (r *Runner[S, R, P, Q]) performRequest(
+func (r *Runner[S, R, P, Q]) sendGetRequest(
 	ctx context.Context,
 	logObject log.LogObject,
 	url string,
@@ -92,7 +91,7 @@ func (r *Runner[S, R, P, Q]) processResponse(
 	return storedValue, nil
 }
 
-func (r *Runner[S, R, P, Q]) sendGetRequest(
+func (r *Runner[S, R, P, Q]) performRequest(
 	ctx context.Context,
 	logObject log.LogObject,
 	req rr.GetRequest[P],
@@ -105,7 +104,7 @@ func (r *Runner[S, R, P, Q]) sendGetRequest(
 	}
 	log.S.Debug("Request link successfully created", logObject.Add("url", url))
 
-	lastResponse := r.performRequest(ctx, logObject, url)
+	lastResponse := r.sendGetRequest(ctx, logObject, url)
 
 	var responses []*resty.Response
 	lastStatus := lastResponse.StatusCode()
@@ -154,7 +153,7 @@ func (r *Runner[S, R, P, Q]) fetcher(
 	logObject := log.L().Tag(log.LogTagFetching).Add("fetcher_num", fetcherNum)
 	time.Sleep(startupTime)
 	log.S.Info("A new fetcher instance is starting up", logObject)
-	ctx = context.WithValue(ctx, util.WorkerId, fetcherNum)
+	ctx = context.WithValue(ctx, re.RequestContextKeyFetcherNum, fetcherNum)
 	for {
 		select {
 		case <-standbyChannel:
