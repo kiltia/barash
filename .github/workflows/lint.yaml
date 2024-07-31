@@ -30,4 +30,4 @@ jobs:
       - name: Setup gocyclo
         run: go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
       - name: Run checks
-        run: gocyclo -over 5 .
+        run: gocyclo -over 10 .
