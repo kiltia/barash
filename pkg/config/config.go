@@ -23,17 +23,16 @@ func Load() (
 	err error,
 ) {
 	var content []byte
-    api := os.Args[1]
-    mode := os.Args[2]
-    fmt.Printf("CLI Arguments: %s, %s", api, mode)
-    var filepath string
-    if api != "" && mode != "" {
-        fmt.Printf("Using CLI settings to retrieve config path\n")
-        filepath = fmt.Sprintf("config/%s.%s.yml", api, mode)
-    } else {
-        fmt.Printf("Using environment settings to retrieve config path\n")
-	    filepath = getEnv("CONFIG_FILE", "config/meta.dev.yml")
-    }
+	var filepath string
+	if len(os.Args) > 3 {
+		api := os.Args[1]
+		mode := os.Args[2]
+		fmt.Printf("Using CLI settings to retrieve config path\n")
+		filepath = fmt.Sprintf("config/%s.%s.yml", api, mode)
+	} else {
+		fmt.Printf("Using environment settings to retrieve config path\n")
+		filepath = getEnv("CONFIG_FILE", "config/meta.dev.yml")
+	}
 	content, err = os.ReadFile(filepath)
 	if err != nil {
 		fmt.Printf("Failed to read the config file: %v", err)
