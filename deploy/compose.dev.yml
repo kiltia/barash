@@ -37,3 +37,6 @@ services:
       dockerfile: deploy/Dockerfile.runner
     environment:
       - CONFIG_FILE=${CONFIG_FILE:-config/crawler.dev.yml}
+    depends_on:
+      clickhouse-runner:
+        condition: service_healthy

@@ -24,7 +24,7 @@ func Load() (
 ) {
 	var content []byte
 	var filepath string
-	if len(os.Args) > 3 {
+	if len(os.Args) > 2 {
 		api := os.Args[1]
 		mode := os.Args[2]
 		fmt.Printf("Using CLI settings to retrieve config path\n")
