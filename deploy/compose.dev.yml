@@ -1,6 +1,8 @@
 version: "3"
 services:
   clickhouse:
+    build:
+      context: ..
     image: clickhouse/clickhouse-server:24.6
     environment:
       - CLICKHOUSE_DB=${CLICKHOUSE_DB:-wv}
@@ -10,10 +12,10 @@ services:
       - "8124:8123"
       - "9001:9000"
     volumes:
-      - ./db/data:/var/lib/clickhouse
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - ./db/master.csv:/var/lib/clickhouse/master.csv
-      - ./db/gdmi_compact.csv:/var/lib/clickhouse/gdmi_compact.csv
+      - ../db/data:/var/lib/clickhouse
+      - ../db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ../db/master.csv:/var/lib/clickhouse/master.csv
+      - ../db/gdmi_compact.csv:/var/lib/clickhouse/gdmi_compact.csv
     healthcheck:
       test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
       interval: 5s
@@ -24,3 +26,13 @@ services:
       nofile:
         soft: 262144
         hard: 262144
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  runner:
+    container_name: runner
+    image: orb-runner
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.runner
+    environment:
+      - CONFIG_FILE=${CONFIG_FILE:-config/crawler.dev.yml}
