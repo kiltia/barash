@@ -29,7 +29,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
   runner:
-    image: orb-runner
+    image: runner
     build:
       context: ..
       dockerfile: deploy/Dockerfile.runner
