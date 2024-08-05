@@ -1,7 +1,6 @@
-version: "3"
+name: wr
 services:
-  clickhouse-runner:
-    container_name: clickhouse-runner
+  clickhouse:
     build:
       context: ..
     image: clickhouse/clickhouse-server:24.6
@@ -30,7 +29,6 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
   runner:
-    container_name: runner
     image: orb-runner
     build:
       context: ..
@@ -38,5 +36,5 @@ services:
     environment:
       - CONFIG_FILE=${CONFIG_FILE:-config/crawler.dev.yml}
     depends_on:
-      clickhouse-runner:
+      clickhouse:
         condition: service_healthy
