@@ -34,7 +34,7 @@ func main() {
 			queryBuilder := crawler.CrawlerQueryBuilder{
 				BatchSize: config.C.Run.SelectionBatchSize,
 				Mode:      config.C.Run.Mode,
-				Offset:    0,
+				LastId:    0,
 			}
 			queryBuilder.ResetState()
 			instance, err := runner.New[
@@ -54,7 +54,6 @@ func main() {
 				Limit:          config.C.Run.SelectionBatchSize,
 				Mode:           config.C.Run.Mode,
 				StartTimestamp: time.Now(),
-				CurrentTag:     config.C.Run.Tag,
 			}
 			queryBuilder.ResetState()
 			instance, err := runner.New[

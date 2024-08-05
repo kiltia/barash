@@ -7,29 +7,29 @@ import (
 )
 
 type CrawlerQueryBuilder struct {
-	Offset    int
+	LastId    int64
 	BatchSize int
 	Mode      config.RunnerMode
 }
 
 func (qb *CrawlerQueryBuilder) UpdateState(batch []CrawlerParams) {
-	qb.Offset += qb.BatchSize
+	for _, e := range batch {
+		if e.Id > qb.LastId {
+			qb.LastId = e.Id
+		}
+	}
 }
 
-func (qb *CrawlerQueryBuilder) ResetState() {
-	// NOTE(nrydanov): I guess that this should be here, but currently
-	// it will lead to completely new run in Crawler API mode.
-	// qb.Offset = 0
-}
+func (qb *CrawlerQueryBuilder) ResetState() {}
 
 func (qb *CrawlerQueryBuilder) GetTwoTableSelectQuery() string {
 	query := fmt.Sprintf(`
             select url
-            from wv.master
-            where is_active = True
-            group by url
-            limit %d offset %d
-    `, qb.BatchSize, qb.Offset)
+            from wv.crawler_urls
+            where wv.crawler_urls.id > %d
+            order by wv.crawler_urls.id
+            limit %d
+    `, qb.LastId, qb.BatchSize)
 	return query
 }
 
