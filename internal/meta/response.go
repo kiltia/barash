@@ -30,6 +30,7 @@ func (resp VerifyResponse) IntoStored(
 		RequestLink:    url,
 		StatusCode:     status,
 		TimeElapsed:    timeElapsed,
+		Timestamp:      time.Now(),
 	}
 }
 

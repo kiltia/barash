@@ -1,6 +1,10 @@
 package meta
 
-import "time"
+import (
+	"time"
+
+	"orb/runner/pkg/config"
+)
 
 type VerifyResult struct {
 	StatusCode     int
@@ -8,6 +12,7 @@ type VerifyResult struct {
 	VerifyParams   VerifyParams
 	RequestLink    string
 	AttemptsNumber int
+	Timestamp      time.Time
 	MetaResponse   VerifyResponse
 }
 
@@ -17,7 +22,7 @@ func (r VerifyResult) GetInsertQuery() string {
         INSERT INTO master VALUES (
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?, now()
+            ?, ?, ?, ?, ?, ?, fromUnixTimestamp64Micro(?)
         )
     `
 }
@@ -67,5 +72,7 @@ func (r VerifyResult) AsArray() []any {
 		MatchMaskSummary.DomainNameSimilarity,
 		response.FinalUrl,
 		response.Score,
+        config.C.Run.Tag,
+		r.Timestamp.UnixMicro(),
 	}
 }
