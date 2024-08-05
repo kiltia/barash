@@ -72,7 +72,7 @@ func (r VerifyResult) AsArray() []any {
 		MatchMaskSummary.DomainNameSimilarity,
 		response.FinalUrl,
 		response.Score,
-        config.C.Run.Tag,
+		config.C.Run.Tag,
 		r.Timestamp.UnixMicro(),
 	}
 }

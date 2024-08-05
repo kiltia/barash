@@ -79,9 +79,8 @@ func (client *ClickHouseClient[S, P, Q]) AsyncInsertBatch(
 	)
 	for i := 0; i < len(batch); i++ {
 		innerRepr := batch[i].AsArray()
-		innerRepr = append(innerRepr, tag)
 		err := client.Connection.AsyncInsert(
-			ctx, query, false, innerRepr...,
+			ctx, query, true, innerRepr...,
 		)
 		if err != nil {
 			log.S.Error(

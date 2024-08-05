@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"orb/runner/pkg/config"
 )
 
 type CrawlerResult struct {
@@ -20,7 +22,7 @@ func (r CrawlerResult) GetInsertQuery() string {
 	ts := time.Now()
 	return fmt.Sprintf(`
         INSERT INTO crawler VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, fromUnixTimestamp64Micro(%d)
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, fromUnixTimestamp64Micro(%d)
 
         )
     `, ts.UnixMicro())
@@ -82,6 +84,7 @@ func (r CrawlerResult) AsArray() []any {
 		response.ResponseSize,
 		response.HeadlessUsed,
 		urls,
+		config.C.Run.Tag,
 		r.TimeElapsed.Abs().Milliseconds(),
 	}
 }
