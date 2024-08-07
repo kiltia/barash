@@ -15,6 +15,7 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 ) {
 	logObject := log.L().Tag(log.LogTagRunner)
 
+	extraParams := config.C.Run.ExtraParams
 	for {
 		select {
 		case <-ctx.Done():
@@ -46,7 +47,7 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 
 				// create requests using runner's configuration
 				// and parameters from the database
-				requests := r.formRequests(params)
+				requests := r.formRequests(params, extraParams)
 				for _, r := range requests {
 					fetchTasks <- r
 				}

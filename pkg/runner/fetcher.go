@@ -80,10 +80,16 @@ func (r *Runner[S, R, P, Q]) processResponse(
 			return *new(S), err
 		}
 	}
+
+	requestLink, err := req.GetRequestLink()
+	if err != nil {
+		return *new(S), err
+	}
+
 	storedValue := result.IntoStored(
 		req.Params,
 		attemptNumber+1,
-		url,
+		requestLink,
 		statusCode,
 		resp.Time(),
 	)
@@ -97,14 +103,17 @@ func (r *Runner[S, R, P, Q]) performRequest(
 	req rr.GetRequest[P],
 ) ([]S, error) {
 	log.S.Debug("Creating request link", logObject)
-	url, err := req.CreateGetRequestLink(config.C.Run.ExtraParams)
+	requestUrl, err := req.GetRequestLink()
 	if err != nil {
 		log.S.Error("Failed to create request link", logObject.Error(err))
 		return nil, err
 	}
-	log.S.Debug("Request link successfully created", logObject.Add("url", url))
+	log.S.Debug(
+		"Request link successfully created",
+		logObject.Add("url", requestUrl),
+	)
 
-	lastResponse := r.sendGetRequest(ctx, logObject, url)
+	lastResponse := r.sendGetRequest(ctx, logObject, requestUrl)
 
 	var responses []*resty.Response
 	lastStatus := lastResponse.StatusCode()

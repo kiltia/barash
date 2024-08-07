@@ -130,7 +130,10 @@ func (r *Runner[S, R, P, Q]) fetchParams(
 
 // Forms requests using runner's configuration ([api] section in the config
 // file) and a set of request parameters fetched from the database.
-func (r *Runner[S, R, P, Q]) formRequests(params []P) (
+func (r *Runner[S, R, P, Q]) formRequests(
+	params []P,
+	extraParams map[string]string,
+) (
 	requests []rr.GetRequest[P],
 ) {
 	logObject := log.L().Tag(log.LogTagRunner)
@@ -141,10 +144,11 @@ func (r *Runner[S, R, P, Q]) formRequests(params []P) (
 	)
 	for _, params := range params {
 		requests = append(requests, rr.GetRequest[P]{
-			Host:   config.C.Api.Host,
-			Port:   config.C.Api.Port,
-			Method: config.C.Api.Method,
-			Params: params,
+			Host:        config.C.Api.Host,
+			Port:        config.C.Api.Port,
+			Method:      config.C.Api.Method,
+			Params:      params,
+			ExtraParams: extraParams,
 		})
 	}
 	return requests

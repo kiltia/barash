@@ -9,15 +9,20 @@ import (
 )
 
 type GetRequest[P ri.StoredParams] struct {
-	Host   string
-	Port   string
-	Method string
-	Params P
+	Host        string
+	Port        string
+	Method      string
+	Params      P
+	ExtraParams map[string]string
+
+	cachedRequestLink *string
 }
 
-func (req GetRequest[P]) CreateGetRequestLink(
-	extraParams map[string]string,
-) (string, error) {
+func (req *GetRequest[P]) GetRequestLink() (string, error) {
+	if req.cachedRequestLink != nil {
+		return *req.cachedRequestLink, nil
+	}
+
 	baseURL := &url.URL{
 		Scheme: "http",
 		Host:   fmt.Sprintf("%s:%s", req.Host, req.Port),
@@ -26,17 +31,19 @@ func (req GetRequest[P]) CreateGetRequestLink(
 	params := url.Values{}
 	paramsMap, err := util.ObjectToMap(req.Params)
 	if err != nil {
-		return "", fmt.Errorf("Unable to create request link. Reason: %v", err)
+		return "", fmt.Errorf("unable to create request link, reason: %v", err)
 	}
 	for field, value := range paramsMap {
 		if value != nil && *value != "" {
 			params.Add(field, *value)
 		}
 	}
-	for field, value := range extraParams {
+	for field, value := range req.ExtraParams {
 		params.Add(field, value)
 	}
 	baseURL.RawQuery = params.Encode()
 	urlString := baseURL.String()
+
+	req.cachedRequestLink = &urlString
 	return urlString, nil
 }
