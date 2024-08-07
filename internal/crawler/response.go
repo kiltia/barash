@@ -30,6 +30,7 @@ func (resp CrawlerResponse) IntoStored(
 		RequestLink:     url,
 		StatusCode:      status,
 		TimeElapsed:     timeElapsed,
+		Timestamp:       time.Now(),
 	}
 }
 

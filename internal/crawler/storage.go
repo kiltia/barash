@@ -1,7 +1,6 @@
 package crawler
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -15,17 +14,17 @@ type CrawlerResult struct {
 	AttemptsNumber  int
 	TimeElapsed     time.Duration
 	CrawlerResponse *CrawlerResponse
+	Timestamp       time.Time
 }
 
 // Implement the [rinterface.StoredValue] interface.
 func (r CrawlerResult) GetInsertQuery() string {
-	ts := time.Now()
-	return fmt.Sprintf(`
+	return `
         INSERT INTO crawler VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, fromUnixTimestamp64Micro(%d)
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, fromUnixTimestamp64Micro(?)
 
         )
-    `, ts.UnixMicro())
+    `
 }
 
 // Implement the [rinterface.StoredValue] interface.
@@ -84,7 +83,8 @@ func (r CrawlerResult) AsArray() []any {
 		response.ResponseSize,
 		response.HeadlessUsed,
 		urls,
-		config.C.Run.Tag,
 		r.TimeElapsed.Abs().Milliseconds(),
+		config.C.Run.Tag,
+		r.Timestamp.UnixMicro(),
 	}
 }
