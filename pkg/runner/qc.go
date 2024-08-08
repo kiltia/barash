@@ -19,12 +19,24 @@ func (r *Runner[S, R, P, Q]) qualityControl(
 	standbyChannels *[]chan bool,
 ) {
 	logObject := log.L().Tag(log.LogTagQualityControl)
+	afterStandby := false
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case batch := <-qcCh:
-			report := r.qcReport(batch, time.Since(timestamp))
+			var sinceTime time.Duration
+			if afterStandby {
+				sinceTime = time.Since(
+					timestamp.Add(
+						time.Duration(config.C.Run.SleepTime) * time.Second,
+					),
+				)
+			} else {
+				sinceTime = time.Since(timestamp)
+			}
+
+			report := r.qcReport(batch, sinceTime)
 
 			r.hooks.AfterBatch(ctx, batch, &report)
 
