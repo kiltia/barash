@@ -25,6 +25,7 @@ func (qb *VerifyQueryBuilder) UpdateState(batch []VerifyParams) {
 
 func (qb *VerifyQueryBuilder) ResetState() {
 	qb.StartTimestamp = time.Now()
+	qb.LastTimestamp = time.Unix(0, 1)
 }
 
 // Implement the [rinterface.StoredValue] interface.
