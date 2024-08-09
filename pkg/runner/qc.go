@@ -48,14 +48,16 @@ func (r *Runner[S, R, P, Q]) qualityControl(
 					logObject.Add("fails", fails).
 						Add("details", report),
 				)
+				log.S.Debug("Sending standby signal to fetchers", logObject)
 				for _, ch := range *standbyChannels {
 					if len(ch) == 0 {
-						// ch <- true
+						ch <- true
 						afterStandby = true
 					} else {
 						log.S.Debug("Fetcher already has standby signal, skipping...", logObject)
 					}
 				}
+				log.S.Debug("Finished sending standby signals", logObject)
 				continue
 			} else {
 				afterStandby = false

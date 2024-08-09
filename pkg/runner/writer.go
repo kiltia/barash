@@ -52,8 +52,10 @@ func (r *Runner[S, R, P, Q]) writer(
 				logObject.Error(err),
 			)
 		}
+		log.S.Debug("Sending result batch to QC", logObject)
 		qcCh <- batch
-		batch = []S{}
+		batch = *new([]S)
+		log.S.Debug("Sent result batch to QC", logObject)
 	}
 
 	for {

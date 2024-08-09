@@ -68,14 +68,14 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 	logObject := log.L().Tag(log.LogTagRunner)
 
 	fetcherCh := make(chan rr.GetRequest[P], 2*config.C.Run.SelectionBatchSize)
-	writerCh := make(chan S, config.C.Run.InsertionBatchSize)
-	qcChannel := make(chan []S, 1)
+	writerCh := make(chan S, config.C.Run.InsertionBatchSize+1)
+	qcChannel := make(chan []S, 2)
 	nothingLeft := make(chan bool)
 	standbyChannels := make([]chan bool, config.C.Run.MaxFetcherWorkers)
 	go r.dataProvider(ctx, fetcherCh, nothingLeft)
 
 	for i := range config.C.Run.MaxFetcherWorkers {
-		standbyChannels[i] = make(chan bool)
+		standbyChannels[i] = make(chan bool, 1)
 		var rnd time.Duration
 		if i < config.C.Run.MinFetcherWorkers {
 			rnd = 0 * time.Second

@@ -29,6 +29,7 @@ func (r *Runner[S, R, P, Q]) handleFetcherTask(
 			logObject.Error(err),
 		)
 	}
+	log.S.Debug("Finished request handling", logObject)
 	return resultList
 }
 
@@ -142,11 +143,13 @@ func (r *Runner[S, R, P, Q]) performRequest(
 	var results []S
 
 	for i, resp := range responses {
+		log.S.Debug("Processing response...", logObject)
 		storedValue, err := r.processResponse(logObject, req, resp, i)
 		if err != nil {
 			return nil, err
 		}
 		results = append(results, storedValue)
+		log.S.Debug("Response processed", logObject)
 	}
 	return results, nil
 }
@@ -181,8 +184,11 @@ func (r *Runner[S, R, P, Q]) fetcher(
 				)
 				storedValues := r.handleFetcherTask(ctx, logObject, task)
 				for _, value := range storedValues {
+					log.S.Debug("Sending fetch result to writer", logObject)
 					output <- value
+					log.S.Debug("Result to writer was sent", logObject)
 				}
+				log.S.Debug("Finished sending results to writer", logObject)
 			case <-ctx.Done():
 				return
 			}
