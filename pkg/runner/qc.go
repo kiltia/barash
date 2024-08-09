@@ -51,11 +51,14 @@ func (r *Runner[S, R, P, Q]) qualityControl(
 				for _, ch := range *standbyChannels {
 					if len(ch) == 0 {
 						ch <- true
+						afterStandby = true
 					} else {
 						log.S.Debug("Fetcher already has standby signal, skipping...", logObject)
 					}
 				}
 				continue
+			} else {
+				afterStandby = false
 			}
 
 			log.S.Info(
