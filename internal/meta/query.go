@@ -33,7 +33,7 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
 	return fmt.Sprintf(`
         with last as (
             select duns, url, max(ts64) as max_ts
-            from wv.master
+            from %s
             where is_active = True
             group by duns, url
         ),
@@ -63,7 +63,7 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
             order by cityHash64(batch.duns, batch.url)
         )
         select * from final
-    `, qb.StartTimestamp.UnixMicro(), qb.DayInterval, qb.LastTimestamp.UnixMicro(), qb.Limit)
+    `, config.C.Run.SelectionTableName, qb.StartTimestamp.UnixMicro(), qb.DayInterval, qb.LastTimestamp.UnixMicro(), qb.Limit)
 }
 
 func (qb VerifyQueryBuilder) GetSelectQuery() string {

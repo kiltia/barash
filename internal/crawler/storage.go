@@ -1,6 +1,7 @@
 package crawler
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -19,12 +20,13 @@ type CrawlerResult struct {
 
 // Implement the [rinterface.StoredValue] interface.
 func (r CrawlerResult) GetInsertQuery() string {
-	return `
-        INSERT INTO crawler VALUES (
+	query := fmt.Sprintf(
+		`
+        INSERT INTO %s VALUES (
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, fromUnixTimestamp64Micro(?)
-
         )
-    `
+    `, config.C.Run.InsertionTableName)
+	return query
 }
 
 // Implement the [rinterface.StoredValue] interface.
@@ -34,8 +36,9 @@ func (r CrawlerResult) GetStatusCode() int {
 
 // Implement the [rinterface.StoredValue] interface.
 func (r CrawlerResult) GetCreateQuery() string {
-	return `
-        CREATE TABLE wv.crawler
+	query := fmt.Sprintf(
+		`
+        CREATE TABLE %s
         (
             url String,
             request_link String,
@@ -54,7 +57,8 @@ func (r CrawlerResult) GetCreateQuery() string {
         )
         ENGINE = MergeTree
         ORDER BY ts
-    `
+    `, config.C.Run.InsertionTableName)
+	return query
 }
 
 // Implement the [rinterface.StoredValue] interface.

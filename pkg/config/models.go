@@ -52,6 +52,8 @@ type runConfig struct {
 	MinFetcherWorkers  int               `yaml:"min_fetcher_workers"`
 	SelectionBatchSize int               `yaml:"selection_batch_size"`
 	InsertionBatchSize int               `yaml:"insertion_batch_size"`
+	SelectionTableName string            `yaml:"selection_table_name"`
+	InsertionTableName string            `yaml:"insertion_table_name"`
 	Freshness          int               `yaml:"freshness"`
 	SleepTime          int               `yaml:"sleep_time"`
 	WarmupTime         int               `yaml:"warmup_time"`

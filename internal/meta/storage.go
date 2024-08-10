@@ -1,6 +1,7 @@
 package meta
 
 import (
+	"fmt"
 	"time"
 
 	"orb/runner/pkg/config"
@@ -18,13 +19,14 @@ type VerifyResult struct {
 
 // Implement the [rinterface.StoredValue] interface.
 func (r VerifyResult) GetInsertQuery() string {
-	return `
-        INSERT INTO master VALUES (
+	query := fmt.Sprintf(`
+        INSERT INTO %s VALUES (
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, now(), fromUnixTimestamp64Micro(?)
         )
-    `
+    `, config.C.Run.SelectionTableName)
+	return query
 }
 
 // Implement the [rinterface.StoredValue] interface.

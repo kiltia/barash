@@ -25,11 +25,11 @@ func (qb *CrawlerQueryBuilder) ResetState() {}
 func (qb *CrawlerQueryBuilder) GetTwoTableSelectQuery() string {
 	query := fmt.Sprintf(`
             select id, url
-            from crawler_urls
+            from %s
             where id > %d
             order by id
             limit %d
-    `, qb.LastId, qb.BatchSize)
+    `, config.C.Run.SelectionTableName, qb.LastId, qb.BatchSize)
 	return query
 }
 
