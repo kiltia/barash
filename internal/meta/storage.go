@@ -36,7 +36,47 @@ func (r VerifyResult) GetStatusCode() int {
 
 // Implement the [rinterface.StoredValue] interface.
 func (r VerifyResult) GetCreateQuery() string {
-	panic("Method is not implemented")
+	query := fmt.Sprintf(
+		`
+        CREATE TABLE %s
+        (
+            duns String,
+			is_active Bool,
+			url String,
+			verification_url String,
+			status_code Int32,
+			error String,
+			fail String,
+			attempts_number Int32,
+			crawler_errors Array(String),
+			crawl_fails Array(String),
+			crawled_pages Array(String),
+			num_errors Int32,
+			num_fails Int32,
+			num_successes Int32,
+			features String,
+			match_mask_details String,
+			mm_name String,
+			mm_address1 String,
+			mm_address2 String,
+			mm_city String,
+			mm_state String,
+			mm_country String,
+			mm_domain_name_similarity Float32,
+			final_url String,
+			score Float32,
+			tag String,
+			ts DateTime,
+			ts64 DateTime64(6,
+			'UTC') DEFAULT fromUnixTimestamp64Micro(toUnixTimestamp64Micro(toDateTime64(ts,
+			6,
+			'UTC')) + toInt64(randUniform(1,
+			1000000.)))
+        )
+        ENGINE = MergeTree
+        ORDER BY (duns, url)
+    `, config.C.Run.InsertionTableName)
+	return query
 }
 
 // Implement the [rinterface.StoredValue] interface.
