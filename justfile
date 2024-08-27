@@ -24,7 +24,7 @@ hook-setup:
     echo "just pre-commit" > .git/hooks/pre-commit
     chmod u+x .git/hooks/pre-commit
 
-run-meta $CONFIG_FILE="configs/meta.prod.yml":
+run-meta $CONFIG_FILE="config/meta.dev.yml":
     @go run ./cmd
 
 run-crawler $CONFIG_FILE="config/crawler.dev.yml":

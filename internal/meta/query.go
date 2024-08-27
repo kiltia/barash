@@ -60,6 +60,7 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
                 gdmi.mail_address1, gdmi.mail_address2,
                 gdmi.mail_city, gdmi.mail_state,
                 gdmi.mail_zip, gdmi.mail_country,
+                gdmi.dba
             from wv.gdmi_compact gdmi
             inner join batch using (duns)
             where gdmi.duns != '' and batch.url != ''
@@ -73,15 +74,13 @@ func (qb VerifyQueryBuilder) GetTwoTableSelectQuery() string {
 	query := fmt.Sprintf(
 		`
         SELECT 
-            duns,
-            url,
-            name,
+            duns,url, name,
             loc_address1, loc_address2,
             loc_city, loc_state,
             loc_zip, loc_country,
             mail_address1, mail_address2,
             mail_city, mail_state,
-            mail_zip, mail_country FROM %s
+            mail_zip, mail_country, dba FROM %s
         WHERE ('%s', '%s') < (duns, url)
         ORDER BY (duns, url)
         LIMIT %d

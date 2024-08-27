@@ -6,6 +6,7 @@ import "time"
 type VerifyParams struct {
 	Duns         string    `json:"duns"          ch:"duns"`
 	Url          string    `json:"url"           ch:"url"`
+	Dba          *string   `json:"dba"           ch:"dba"`
 	Name         *string   `json:"name"          ch:"name"`
 	LocAddress1  *string   `json:"loc_address1"  ch:"loc_address1"`
 	LocAddress2  *string   `json:"loc_address2"  ch:"loc_address2"`
