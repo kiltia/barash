@@ -25,7 +25,7 @@ func (r VerifyResult) GetInsertQuery() string {
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, now(), fromUnixTimestamp64Micro(?)
         )
-    `, config.C.Run.SelectionTableName)
+    `, config.C.Run.InsertionTableName)
 	return query
 }
 

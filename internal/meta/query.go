@@ -12,6 +12,8 @@ type VerifyQueryBuilder struct {
 	Limit          int
 	StartTimestamp time.Time
 	LastTimestamp  time.Time
+	LastUrl        string
+	LastDuns       string
 	Mode           config.RunnerMode
 }
 
@@ -20,6 +22,8 @@ func (qb *VerifyQueryBuilder) UpdateState(batch []VerifyParams) {
 		if p.Timestamp.After(qb.LastTimestamp) {
 			qb.LastTimestamp = p.Timestamp
 		}
+		qb.LastUrl = p.Url
+		qb.LastDuns = p.Duns
 	}
 }
 
@@ -66,10 +70,25 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
     `, config.C.Run.SelectionTableName, qb.StartTimestamp.UnixMicro(), qb.DayInterval, qb.LastTimestamp.UnixMicro(), qb.Limit)
 }
 
+func (qb VerifyQueryBuilder) GetTwoTableSelectQuery() string {
+	query := fmt.Sprintf("SELECT * FROM %s ", config.C.Run.SelectionTableName)
+	if qb.LastDuns != "" && qb.LastUrl != "" {
+		query += fmt.Sprintf(
+			"WHERE cityHash64(%s, %s) < cityHash64(duns, url) ",
+			qb.LastDuns,
+			qb.LastUrl,
+		)
+	}
+	query += fmt.Sprintf("LIMIT %d", qb.Limit)
+	return query
+}
+
 func (qb VerifyQueryBuilder) GetSelectQuery() string {
 	switch qb.Mode {
 	case config.ContinuousMode:
 		return qb.GetContinuousSelectQuery()
+	case config.TwoTableMode:
+		return qb.GetTwoTableSelectQuery()
 	default:
 		panic("Not implemented")
 	}
