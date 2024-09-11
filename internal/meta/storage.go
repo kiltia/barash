@@ -2,6 +2,7 @@ package meta
 
 import (
 	"fmt"
+	"math"
 	"time"
 
 	"orb/runner/pkg/config"
@@ -88,6 +89,13 @@ func (r VerifyResult) AsArray() []any {
 	crawlerDebug := debugInfo.CrawlerDebug
 	MatchMaskSummary := response.MatchMask.MatchMaskSummary
 
+	var score float64
+	if response.Score == nil {
+		score = math.NaN()
+	} else {
+		score = *response.Score
+	}
+
 	return []any{
 		verifyParams.Duns,
 		true,
@@ -113,7 +121,7 @@ func (r VerifyResult) AsArray() []any {
 		MatchMaskSummary.Country,
 		MatchMaskSummary.DomainNameSimilarity,
 		response.FinalUrl,
-		response.Score,
+		score,
 		config.C.Run.Tag,
 		r.Timestamp.UnixMicro(),
 	}
