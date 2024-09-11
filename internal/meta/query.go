@@ -38,7 +38,7 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
         with last as (
             select duns, url, max(ts64) as max_ts
             from %s
-            where is_active = True and tag != 'new_url_2024_08'
+            where is_active = True
             group by duns, url
         ),
         batch as (
