@@ -118,15 +118,17 @@ func (r *Runner[S, R, P, Q]) performRequest(
 
 	var responses []*resty.Response
 	lastStatus := lastResponse.StatusCode()
+
 	if lastStatus >= 400 && lastStatus < 500 {
 		err := fmt.Errorf("client error from the subject API")
-		log.S.Error(
+		if lastStatus == 429 {
+			err = fmt.Errorf("subject API is overloaded")
+		}
+		log.S.Warn(
 			"The subject API responded with 4xx. "+
 				"You should probably check your configuration.",
-			logObject.Add("status_code", lastStatus).
-				Error(err),
+			logObject.Add("status_code", lastStatus).Error(err),
 		)
-		return nil, err
 	}
 
 	if lastResponse.IsSuccess() || config.C.HttpRetries.NumRetries == 0 ||
