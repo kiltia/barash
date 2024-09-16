@@ -71,6 +71,15 @@ func (r *Runner[S, R, P, Q]) processResponse(
 				Error(fmt.Errorf("timeout reached")).
 				Add("url", url),
 		)
+	} else if statusCode == 429 {
+		result = *new(R)
+		statusCode = 429
+		log.S.Debug(
+			`Subject API responded with "Too Many Requests"`,
+			logObject.
+				Error(fmt.Errorf("too many requests")).
+				Add("url", url),
+		)
 	} else {
 		err := json.Unmarshal(resp.Body(), &result)
 		if err != nil {
@@ -115,14 +124,14 @@ func (r *Runner[S, R, P, Q]) performRequest(
 	)
 
 	lastResponse := r.sendGetRequest(ctx, logObject, requestUrl)
-
-	var responses []*resty.Response
 	lastStatus := lastResponse.StatusCode()
 
 	if lastStatus >= 400 && lastStatus < 500 {
-		err := fmt.Errorf("client error from the subject API")
+		var err error
 		if lastStatus == 429 {
 			err = fmt.Errorf("subject API is overloaded")
+		} else {
+			err = fmt.Errorf("client error from the subject API")
 		}
 		log.S.Warn(
 			"The subject API responded with 4xx. "+
@@ -131,8 +140,10 @@ func (r *Runner[S, R, P, Q]) performRequest(
 		)
 	}
 
+	var responses []*resty.Response
+	// NOTE(evgenymng): sorry, I know this is garbage
 	if lastResponse.IsSuccess() || config.C.HttpRetries.NumRetries == 0 ||
-		lastResponse.StatusCode() == 0 {
+		lastResponse.StatusCode() == 0 || lastResponse.StatusCode() == 429 {
 		responses = append(responses, lastResponse)
 	}
 
