@@ -83,11 +83,13 @@ func (r *Runner[S, R, P, Q]) processResponse(
 	} else {
 		err := json.Unmarshal(resp.Body(), &result)
 		if err != nil {
-			log.S.Error(
-				"Failed to unmarshal the response",
+			log.S.Warn(
+				"Failed to unmarshal response into a response object. "+
+					"Only saving the status code.",
 				logObject.Error(err),
 			)
-			return *new(S), err
+			result = *new(R)
+			statusCode = resp.StatusCode()
 		}
 	}
 
