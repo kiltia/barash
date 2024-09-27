@@ -173,7 +173,6 @@ func (r *Runner[S, R, P, Q]) fetcher(
 	ctx context.Context,
 	input chan rr.GetRequest[P],
 	output chan S,
-	standbyChannel chan bool,
 	fetcherNum int,
 	startupTime time.Duration,
 ) {
@@ -183,30 +182,20 @@ func (r *Runner[S, R, P, Q]) fetcher(
 	ctx = context.WithValue(ctx, re.RequestContextKeyFetcherNum, fetcherNum)
 	for {
 		select {
-		case <-standbyChannel:
-			log.S.Debug("Fetcher got standby signal, sleeping...", logObject)
-			err := r.standby(ctx)
-			log.S.Debug("Fetcher left the standby mode", logObject)
-			if err != nil {
-				return
+		case task := <-input:
+			log.S.Debug(
+				"Pulling a new task",
+				logObject.Add("task_count", len(input)),
+			)
+			storedValues := r.handleFetcherTask(ctx, logObject, task)
+			for _, value := range storedValues {
+				log.S.Debug("Sending fetch result to writer", logObject)
+				output <- value
+				log.S.Debug("Result to writer was sent", logObject)
 			}
-		default:
-			select {
-			case task := <-input:
-				log.S.Debug(
-					"Pulling a new task",
-					logObject.Add("task_count", len(input)),
-				)
-				storedValues := r.handleFetcherTask(ctx, logObject, task)
-				for _, value := range storedValues {
-					log.S.Debug("Sending fetch result to writer", logObject)
-					output <- value
-					log.S.Debug("Result to writer was sent", logObject)
-				}
-				log.S.Debug("Finished sending results to writer", logObject)
-			case <-ctx.Done():
-				return
-			}
+			log.S.Debug("Finished sending results to writer", logObject)
+		case <-ctx.Done():
+			return
 		}
 	}
 }

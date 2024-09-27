@@ -27,6 +27,9 @@ hook-setup:
 run-meta $CONFIG_FILE="config/meta.prod.yml":
     @go run ./cmd
 
+run-dev $CONFIG_FILE="config/meta.dev.yml":
+    @go run ./cmd
+
 run-crawler $CONFIG_FILE="config/crawler.dev.yml":
     @go run ./cmd
 

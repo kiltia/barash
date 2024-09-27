@@ -68,21 +68,18 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 	logObject := log.L().Tag(log.LogTagRunner)
 
 	fetcherCh := make(chan rr.GetRequest[P], 2*config.C.Run.SelectionBatchSize)
-	writerCh := make(chan S, config.C.Run.InsertionBatchSize+1)
-	qcChannel := make(chan []S, 2)
+	writerCh := make(chan S, 2*config.C.Run.InsertionBatchSize+1)
 	nothingLeft := make(chan bool)
-	standbyChannels := make([]chan bool, config.C.Run.MaxFetcherWorkers)
 	go r.dataProvider(ctx, fetcherCh, nothingLeft)
 
 	for i := range config.C.Run.MaxFetcherWorkers {
-		standbyChannels[i] = make(chan bool, 1)
 		var rnd time.Duration
 		if i < config.C.Run.MinFetcherWorkers {
 			rnd = 0 * time.Second
 		} else {
 			rnd = time.Duration(rand.IntN(config.C.Run.WarmupTime+1)) * time.Second
 		}
-		go r.fetcher(ctx, fetcherCh, writerCh, standbyChannels[i], i, rnd)
+		go r.fetcher(ctx, fetcherCh, writerCh, i, rnd)
 	}
 
 	go func() {
@@ -90,8 +87,7 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 		log.S.Info("Warm up has ended", logObject)
 	}()
 
-	go r.writer(ctx, writerCh, qcChannel, nothingLeft)
-	go r.qualityControl(ctx, qcChannel, time.Now(), &standbyChannels)
+	go r.writer(ctx, writerCh, nothingLeft)
 }
 
 // Fetch a new set of request parameters from the database.

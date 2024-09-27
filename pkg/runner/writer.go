@@ -38,7 +38,6 @@ func (r *Runner[S, R, P, Q]) write(
 func (r *Runner[S, R, P, Q]) writer(
 	ctx context.Context,
 	writerCh chan S,
-	qcCh chan []S,
 	nothingLeft chan bool,
 ) {
 	logObject := log.L().Tag(log.LogTagWriting)
@@ -52,10 +51,7 @@ func (r *Runner[S, R, P, Q]) writer(
 				logObject.Error(err),
 			)
 		}
-		log.S.Debug("Sending result batch to QC", logObject)
-		qcCh <- batch
 		batch = *new([]S)
-		log.S.Debug("Sent result batch to QC", logObject)
 	}
 
 	for {

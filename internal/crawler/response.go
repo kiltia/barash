@@ -3,7 +3,9 @@ package crawler
 import "time"
 
 type PartialErrorInfo struct {
-	Reason string `json:"reason"`
+	Reason    string `json:"reason"`
+	Code      string `json:"code"`
+	ErrorType string `json:"error_type"`
 }
 
 type CrawlerResponse struct {

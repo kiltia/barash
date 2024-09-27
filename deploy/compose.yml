@@ -16,6 +16,7 @@ services:
       - ../db/init.sql:/docker-entrypoint-initdb.d/init.sql
       - ../db/master.csv:/var/lib/clickhouse/master.csv
       - ../db/gdmi_compact.csv:/var/lib/clickhouse/gdmi_compact.csv
+      - ../db/test_batch.csv:/var/lib/clickhouse/test_batch.csv
     healthcheck:
       test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
       interval: 5s

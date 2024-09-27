@@ -23,7 +23,7 @@ func (r VerifyResult) GetInsertQuery() string {
 	query := fmt.Sprintf(`
         INSERT INTO %s VALUES (
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, now(), fromUnixTimestamp64Micro(?)
         )
     `, config.C.Run.InsertionTableName)
@@ -46,8 +46,10 @@ func (r VerifyResult) GetCreateQuery() string {
 			url String,
 			verification_url String,
 			status_code Int32,
-			error String,
-			fail String,
+            error String,
+            error_code String,
+            error_type String,
+            error_repr String,
 			attempts_number Int32,
 			crawler_errors Array(String),
 			crawl_fails Array(String),
@@ -102,8 +104,10 @@ func (r VerifyResult) AsArray() []any {
 		verifyParams.Url,
 		r.RequestLink,
 		r.StatusCode,
-		response.Error,
-		crawlerDebug.FailStatus,
+		response.Error.Reason,
+		response.Error.Code,
+		response.Error.ErrorType,
+		response.Error.ErrorRepr,
 		r.AttemptsNumber,
 		crawlerDebug.CrawlerErrors,
 		crawlerDebug.CrawlFails,
@@ -111,7 +115,7 @@ func (r VerifyResult) AsArray() []any {
 		pageStats.Errors,
 		pageStats.Fails,
 		pageStats.Successes,
-		debugInfo.Features,
+		debugInfo.FeatureExtractorDebug.Features,
 		response.MatchMask.MatchMaskDetails,
 		MatchMaskSummary.Name,
 		MatchMaskSummary.Address1,

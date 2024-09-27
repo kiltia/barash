@@ -23,7 +23,7 @@ func (r CrawlerResult) GetInsertQuery() string {
 	query := fmt.Sprintf(
 		`
         INSERT INTO %s VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, fromUnixTimestamp64Micro(?)
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, fromUnixTimestamp64Micro(?)
         )
     `, config.C.Run.InsertionTableName)
 	return query
@@ -45,6 +45,8 @@ func (r CrawlerResult) GetCreateQuery() string {
             crawler_status_code Int16,
             site_status_code Int16,
             error String,
+            error_type String,
+            error_code String,
             attempts Int16,
             original_url String,
             final_url String,
@@ -81,6 +83,8 @@ func (r CrawlerResult) AsArray() []any {
 		r.StatusCode,
 		response.Status,
 		r.CrawlerResponse.ErrorInfo.Reason,
+		r.CrawlerResponse.ErrorInfo.ErrorType,
+		r.CrawlerResponse.ErrorInfo.Code,
 		r.AttemptsNumber,
 		response.OriginalUrl,
 		response.FinalUrl,

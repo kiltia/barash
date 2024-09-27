@@ -73,8 +73,8 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
 func (qb VerifyQueryBuilder) GetTwoTableSelectQuery() string {
 	query := fmt.Sprintf(
 		`
-        SELECT 
-            duns,url, name,
+        SELECT
+            duns, url, name,
             loc_address1, loc_address2,
             loc_city, loc_state,
             loc_zip, loc_country,
