@@ -41,7 +41,6 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 						Add("sleep_time", config.C.Run.SleepTime),
 				)
 
-
 				nothingLeft <- true
 				r.queryBuilder.ResetState()
 			} else {

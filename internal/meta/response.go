@@ -1,8 +1,9 @@
 package meta
 
 import (
-	"orb/runner/internal/common"
 	"time"
+
+	"orb/runner/internal/common"
 )
 
 type ErrorDetails struct {
