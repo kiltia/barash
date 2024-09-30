@@ -47,7 +47,7 @@ func (r CrawlerResult) GetCreateQuery() string {
             error String,
             error_type String,
             error_code String,
-            attempts Int16,
+            attempts_number Int32,
             original_url String,
             final_url String,
             response_size Int128,
