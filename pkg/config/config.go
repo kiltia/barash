@@ -31,7 +31,12 @@ func Load() (
 		filepath = fmt.Sprintf("config/%s.%s.yml", api, mode)
 	} else {
 		fmt.Printf("Using environment settings to retrieve config path\n")
-		filepath = getEnv("CONFIG_FILE", "config/meta.dev.yml")
+		if value, exists := os.LookupEnv("CONFIG_FILE"); exists {
+			filepath = value
+		} else {
+			return cfg, fmt.Errorf("Please, provide a configuration file name either via " +
+				"CONFIG_FILE env variable or using the CLI arguments")
+		}
 	}
 	content, err = os.ReadFile(filepath)
 	if err != nil {
@@ -42,9 +47,27 @@ func Load() (
 	return cfg, err
 }
 
-func getEnv(key string, defaultVal string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
+func LoadEnv(cfg Config) Config {
+	if value, exists := os.LookupEnv("RUN_SELECTION_TABLE"); exists {
+		cfg.Run.SelectionTableName = value
 	}
-	return defaultVal
+	if value, exists := os.LookupEnv("RUN_INSERTION_TABLE"); exists {
+		cfg.Run.InsertionTableName = value
+	}
+	if value, exists := os.LookupEnv("CLICKHOUSE_HOST"); exists {
+		cfg.ClickHouse.Host = value
+	}
+	if value, exists := os.LookupEnv("CLICKHOUSE_PORT"); exists {
+		cfg.ClickHouse.Port = value
+	}
+	if value, exists := os.LookupEnv("CLICKHOUSE_DB"); exists {
+		cfg.ClickHouse.Database = value
+	}
+	if value, exists := os.LookupEnv("CLICKHOUSE_USER"); exists {
+		cfg.ClickHouse.Username = value
+	}
+	if value, exists := os.LookupEnv("CLICKHOUSE_PASSWORD"); exists {
+		cfg.ClickHouse.Password = value
+	}
+	return cfg
 }

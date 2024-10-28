@@ -18,6 +18,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	cfg = config.LoadEnv(cfg)
 
 	config.C = &cfg
 	log.Init()
