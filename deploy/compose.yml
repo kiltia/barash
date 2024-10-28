@@ -1,8 +1,6 @@
 name: wr
 services:
   clickhouse:
-    build:
-      context: ..
     image: clickhouse/clickhouse-server:24.6
     environment:
       - CLICKHOUSE_DB=${CLICKHOUSE_DB:-wv}
@@ -29,6 +27,7 @@ services:
         hard: 262144
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
   runner:
     image: runner
     build:
