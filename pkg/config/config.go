@@ -48,6 +48,9 @@ func Load() (
 }
 
 func LoadEnv(cfg Config) Config {
+	if value, exists := os.LookupEnv("RUN_MODE"); exists {
+		cfg.Run.Mode = RunnerMode(value)
+	}
 	if value, exists := os.LookupEnv("RUN_SELECTION_TABLE"); exists {
 		cfg.Run.SelectionTableName = value
 	}
