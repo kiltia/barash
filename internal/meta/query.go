@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"orb/runner/pkg/config"
+	"orb/runner/pkg/log"
 )
 
 type VerifyQueryBuilder struct {
@@ -17,26 +18,41 @@ type VerifyQueryBuilder struct {
 	Mode           config.RunnerMode
 }
 
-func (qb *VerifyQueryBuilder) UpdateState(batch []VerifyParams) {
+func (qb *VerifyQueryBuilder) UpdateState(
+	batch []VerifyParams,
+) {
 	for _, p := range batch {
-		if p.Timestamp.After(qb.LastTimestamp) {
+		if p.Timestamp.After(
+			qb.LastTimestamp,
+		) {
 			qb.LastTimestamp = p.Timestamp
 		}
 		qb.LastUrl = p.Url
 		qb.LastDuns = p.Duns
 	}
+
+	log.S.Debug(
+		"QueryBuilder state was updated",
+		log.L().
+			Add("last_ts", qb.LastTimestamp.String()).
+			Add("start_ts", qb.StartTimestamp.String()),
+	)
 }
 
 func (qb *VerifyQueryBuilder) ResetState() {
 	qb.StartTimestamp = time.Now()
-	qb.LastTimestamp = time.Unix(0, 1)
+	qb.LastTimestamp = time.Unix(
+		0,
+		1,
+	)
 }
 
 // Implement the [rinterface.StoredValue] interface.
 func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
-	return fmt.Sprintf(`
+	return fmt.Sprintf(
+		`
         with last as (
-            select duns, url, max(ts64) as max_ts
+            select duns, url, max(corr_ts) as max_ts
             from %s
             where is_active = True
             group by duns, url
@@ -44,7 +60,7 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
         batch as (
             select duns, url, max_ts
             from last
-            where max_ts < fromUnixTimestamp64Micro(%d) - toIntervalDay(%d) and max_ts >= fromUnixTimestamp64Micro(%d)
+            where max_ts < fromUnixTimestamp64Micro(%d) - toIntervalDay(%d) and max_ts > fromUnixTimestamp64Micro(%d)
             order by max_ts asc
             limit %d
         ),
@@ -67,7 +83,13 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
             order by cityHash64(batch.duns, batch.url)
         )
         select * from final
-    `, config.C.Run.SelectionTableName, qb.StartTimestamp.UnixMicro(), qb.DayInterval, qb.LastTimestamp.UnixMicro(), qb.Limit)
+    `,
+		config.C.Run.SelectionTableName,
+		qb.StartTimestamp.UnixMicro(),
+		qb.DayInterval,
+		qb.LastTimestamp.UnixMicro(),
+		qb.Limit,
+	)
 }
 
 func (qb VerifyQueryBuilder) GetTwoTableSelectQuery() string {
@@ -88,7 +110,8 @@ func (qb VerifyQueryBuilder) GetTwoTableSelectQuery() string {
 		config.C.Run.SelectionTableName,
 		qb.LastDuns,
 		qb.LastUrl,
-		qb.Limit)
+		qb.Limit,
+	)
 	return query
 }
 
@@ -99,6 +122,8 @@ func (qb VerifyQueryBuilder) GetSelectQuery() string {
 	case config.TwoTableMode:
 		return qb.GetTwoTableSelectQuery()
 	default:
-		panic("Not implemented")
+		panic(
+			"Not implemented",
+		)
 	}
 }

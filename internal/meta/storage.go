@@ -3,10 +3,47 @@ package meta
 import (
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"orb/runner/pkg/config"
+	"orb/runner/pkg/log"
+
+	"math/rand"
 )
+
+var MasterColumnNames = [30]string{
+	"duns",
+	"is_active",
+	"url",
+	"verification_url",
+	"status_code",
+	"error",
+	"error_code",
+	"error_type",
+	"error_repr",
+	"attempts_number",
+	"crawler_errors",
+	"crawl_fails",
+	"crawled_pages",
+	"num_errors",
+	"num_fails",
+	"num_successes",
+	"features",
+	"match_mask_details",
+	"mm_name",
+	"mm_address1",
+	"mm_address2",
+	"mm_city",
+	"mm_state",
+	"mm_country",
+	"mm_domain_name_similarity",
+	"final_url",
+	"score",
+	"tag",
+	"ts",
+	"corr_ts",
+}
 
 type VerifyResult struct {
 	StatusCode     int
@@ -20,13 +57,35 @@ type VerifyResult struct {
 
 // Implement the [rinterface.StoredValue] interface.
 func (r VerifyResult) GetInsertQuery() string {
-	query := fmt.Sprintf(`
-        INSERT INTO %s VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?, now(), fromUnixTimestamp64Micro(?)
-        )
-    `, config.C.Run.InsertionTableName)
+	values := make(
+		[]string,
+		len(
+			MasterColumnNames,
+		),
+	)
+	for i := range values {
+		values[i] = "?"
+	}
+	query := fmt.Sprintf(
+		`
+        INSERT INTO %s (%s) VALUES (%s)
+    `,
+		config.C.Run.InsertionTableName,
+		strings.Join(
+			MasterColumnNames[:],
+			", ",
+		),
+		strings.Join(
+			values,
+			", ",
+		),
+	)
+
+	log.S.Debug(
+		"Formed insert query: ",
+		log.L().
+			Add("query", query),
+	)
 	return query
 }
 
@@ -69,16 +128,14 @@ func (r VerifyResult) GetCreateQuery() string {
 			final_url String,
 			score Float32,
 			tag String,
-			ts DateTime,
-			ts64 DateTime64(6,
-			'UTC') DEFAULT fromUnixTimestamp64Micro(toUnixTimestamp64Micro(toDateTime64(ts,
-			6,
-			'UTC')) + toInt64(randUniform(1,
-			1000000.)))
+			ts DateTime64(6, 'UTC'),
+			corr_ts DateTime64(6, 'UTC')
         )
         ENGINE = MergeTree
         ORDER BY (duns, url)
-    `, config.C.Run.InsertionTableName)
+    `,
+		config.C.Run.InsertionTableName,
+	)
 	return query
 }
 
@@ -96,6 +153,23 @@ func (r VerifyResult) AsArray() []any {
 		score = math.NaN()
 	} else {
 		score = *response.Score
+	}
+
+	var correctedTs time.Time
+
+	if response.Error.ErrorType != nil &&
+		*response.Error.ErrorType == "simple_timeout" {
+		// Random number of seconds up to 3 weeks
+		seconds := rand.Intn(
+			60 * 60 * 24 * 7,
+		)
+		correctedTs = r.Timestamp.Add(
+			time.Duration(
+				seconds,
+			) * time.Second,
+		)
+	} else {
+		correctedTs = r.Timestamp
 	}
 
 	return []any{
@@ -127,6 +201,7 @@ func (r VerifyResult) AsArray() []any {
 		response.FinalUrl,
 		score,
 		config.C.Run.Tag,
-		r.Timestamp.UnixMicro(),
+		r.Timestamp,
+		correctedTs,
 	}
 }
