@@ -3,7 +3,6 @@ package hooks
 import (
 	"context"
 
-	rd "orb/runner/pkg/runner/data"
 	ri "orb/runner/pkg/runner/interface"
 )
 
@@ -13,7 +12,6 @@ type DummyHooks[S ri.StoredValue] struct{}
 func (dh *DummyHooks[S]) AfterBatch(
 	ctx context.Context,
 	results []S,
-	report *rd.QcReport,
 ) {
 	// do nothing
 }

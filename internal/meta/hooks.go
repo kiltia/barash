@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"orb/runner/pkg/log"
-	rd "orb/runner/pkg/runner/data"
 	"orb/runner/pkg/runner/hooks"
 	"orb/runner/pkg/util"
 )
@@ -18,17 +17,19 @@ type VerifyApiHooks struct {
 func (srv *VerifyApiHooks) AfterBatch(
 	ctx context.Context,
 	results []VerifyResult,
-	report *rd.QcReport,
 ) {
 	select {
 	case <-ctx.Done():
 		return
 	default:
 		successesWithScores := util.Reduce(
-			util.Map(results, func(res VerifyResult) bool {
-				return res.GetStatusCode() == 200 &&
-					res.MetaResponse.Score != nil
-			}),
+			util.Map(
+				results,
+				func(res VerifyResult) bool {
+					return res.GetStatusCode() == 200 &&
+						res.MetaResponse.Score != nil
+				},
+			),
 			0,
 			func(acc int, v bool) int {
 				if v {
@@ -39,7 +40,8 @@ func (srv *VerifyApiHooks) AfterBatch(
 		)
 		log.S.Info(
 			"Post-analyzed the processed batch",
-			log.L().Tag(log.LogTagQualityControl).
+			log.L().
+				Tag(log.LogTagQualityControl).
 				Add("successes_with_scores", successesWithScores),
 		)
 	}
