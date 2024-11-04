@@ -12,9 +12,13 @@ func (r *Runner[S, R, P, Q]) write(
 	ctx context.Context,
 	batch []S,
 ) (err error) {
-	logObject := log.L().Tag(log.LogTagWriting)
+	logObject := log.L().
+		Tag(log.LogTagWriting)
 
-	log.S.Debug("Saving processed batch to the database", logObject)
+	log.S.Debug(
+		"Saving processed batch to the database",
+		logObject,
+	)
 	err = r.clickHouseClient.AsyncInsertBatch(
 		ctx,
 		batch,
@@ -23,14 +27,21 @@ func (r *Runner[S, R, P, Q]) write(
 	if err != nil {
 		log.S.Error(
 			"Failed to save processed batch to the database",
-			logObject.Error(err),
+			logObject.Error(
+				err,
+			),
 		)
 		return err
 	}
 
 	log.S.Info(
 		"Saved processed batch to the database",
-		logObject.Add("batch_len", len(batch)),
+		logObject.Add(
+			"batch_len",
+			len(
+				batch,
+			),
+		),
 	)
 	return err
 }
@@ -40,15 +51,21 @@ func (r *Runner[S, R, P, Q]) writer(
 	writerCh chan S,
 	nothingLeft chan bool,
 ) {
-	logObject := log.L().Tag(log.LogTagWriting)
+	logObject := log.L().
+		Tag(log.LogTagWriting)
 	var batch []S
 
 	saveBatch := func() {
-		err := r.write(ctx, batch)
+		err := r.write(
+			ctx,
+			batch,
+		)
 		if err != nil {
 			log.S.Error(
 				"Failed to save processed batch to the database",
-				logObject.Error(err),
+				logObject.Error(
+					err,
+				),
 			)
 		}
 		batch = *new([]S)
@@ -61,18 +78,27 @@ func (r *Runner[S, R, P, Q]) writer(
 			return
 		case result, ok := <-writerCh:
 			if !ok {
-				log.S.Info("Channel is closed", logObject)
-			}
-			batch = append(batch, result)
-			if len(batch) >= config.C.Run.InsertionBatchSize {
 				log.S.Info(
-					"Have enough results, saving to the database", logObject,
+					"Channel is closed",
+					logObject,
+				)
+			}
+			batch = append(
+				batch,
+				result,
+			)
+			if len(
+				batch,
+			) >= config.C.Run.InsertionBatchSize {
+				log.S.Info(
+					"Have enough results, saving to the database",
+					logObject,
 				)
 				saveBatch()
 			}
 		case <-nothingLeft:
 			log.S.Info(
-				"Got \"nothing left\" signal, saving the rest of batch to database",
+				"Got nothing left signal, saving the rest of batch to database",
 				logObject,
 			)
 			saveBatch()

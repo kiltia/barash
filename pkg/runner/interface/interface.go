@@ -51,7 +51,9 @@ type (
 
 		// Updating [QueryBuilder]'s inner state
 		// based on data that was selected from the database.
-		UpdateState(batch []P)
+		UpdateState(
+			batch []P,
+		)
 
 		// Refreshes inner state
 		ResetState()

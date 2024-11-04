@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"time"
 
 	"orb/runner/pkg/config"
 	"orb/runner/pkg/log"
@@ -13,7 +14,8 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 	fetchTasks chan rr.GetRequest[P],
 	nothingLeft chan bool,
 ) {
-	logObject := log.L().Tag(log.LogTagRunner)
+	logObject := log.L().
+		Tag(log.LogTagRunner)
 
 	extraParams := config.C.Run.ExtraParams
 	for {
@@ -25,24 +27,47 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 				"Trying to get more tasks for fetchers",
 				logObject,
 			)
-			params, err := r.fetchParams(ctx)
+			params, err := r.fetchParams(
+				ctx,
+			)
 			if err != nil {
 				log.S.Error(
 					"Failed to fetch request parameters from the database",
-					logObject.Error(err),
+					logObject.Error(
+						err,
+					),
 				)
 				return
 			}
 
-			if len(params) == 0 && len(fetchTasks) == 0 {
+			if len(
+				params,
+			) == 0 &&
+				len(fetchTasks) == 0 {
 				log.S.Info(
-					"Runner has nothing to do, soon entering standby mode",
-					log.L().
-						Add("sleep_time", config.C.Run.SleepTime),
+					"Provider got no tasks, soon entering standby mode",
+					logObject.
+						Add(
+							"sleep_time",
+							config.C.Run.SleepTime,
+						),
 				)
 
 				nothingLeft <- true
 				r.queryBuilder.ResetState()
+
+				// wait sleep time
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(
+					time.Duration(config.C.Run.SleepTime) * time.Second,
+				):
+					log.S.Info(
+						"Data provider has left standby mode",
+						logObject,
+					)
+				}
 			} else {
 				r.queryBuilder.UpdateState(params)
 
@@ -52,8 +77,11 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 				for _, r := range requests {
 					fetchTasks <- r
 				}
+				log.S.Debug(
+					"A batch was completely sent to fetchers",
+					logObject,
+				)
 			}
-			log.S.Debug("A batch was completely sent to fetchers", logObject)
 		}
 	}
 }

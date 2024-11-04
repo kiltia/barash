@@ -12,8 +12,11 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-func (r *Runner[S, R, P, Q]) initTable(ctx context.Context) {
-	logObject := log.L().Tag(log.LogTagRunner)
+func (r *Runner[S, R, P, Q]) initTable(
+	ctx context.Context,
+) {
+	logObject := log.L().
+		Tag(log.LogTagRunner)
 	if config.C.Run.Mode == config.ContinuousMode {
 		log.S.Info(
 			"Running in continuous mode, skipping table initialization",
@@ -22,12 +25,17 @@ func (r *Runner[S, R, P, Q]) initTable(ctx context.Context) {
 		return
 	}
 	var nilInstance S
-	err := r.clickHouseClient.Connection.Exec(ctx, nilInstance.GetCreateQuery())
+	err := r.clickHouseClient.Connection.Exec(
+		ctx,
+		nilInstance.GetCreateQuery(),
+	)
 
 	if err != nil {
 		log.S.Warn(
 			"Table creation script has failed",
-			logObject.Error(err),
+			logObject.Error(
+				err,
+			),
 		)
 	} else {
 		log.S.Info(
@@ -38,8 +46,9 @@ func (r *Runner[S, R, P, Q]) initTable(ctx context.Context) {
 }
 
 func initHttpClient() *resty.Client {
-	return resty.New().SetRetryCount(config.C.HttpRetries.NumRetries).
-		SetTimeout(time.Duration(time.Duration(config.C.Timeouts.ApiTimeout) * time.Second)).
+	return resty.New().
+		SetRetryCount(config.C.HttpRetries.NumRetries).
+		SetTimeout(time.Duration(config.C.Timeouts.ApiTimeout) * time.Second).
 		SetRetryWaitTime(time.Duration(config.C.HttpRetries.MinWaitTime) * time.Second).
 		SetRetryMaxWaitTime(time.Duration(config.C.HttpRetries.MaxWaitTime) * time.Second).
 		AddRetryCondition(
@@ -49,7 +58,8 @@ func initHttpClient() *resty.Client {
 				if r.StatusCode() >= 500 {
 					log.S.Debug(
 						"Retrying request",
-						log.L().Tag(log.LogTagFetching).
+						log.L().
+							Tag(log.LogTagFetching).
 							Add("fetcher_num", fetcherNum).
 							Add("request_status_code", r.StatusCode()).
 							Add("url", r.Request.URL),
@@ -63,14 +73,20 @@ func initHttpClient() *resty.Client {
 			func(r *resty.Response, err error) {
 				ctx := r.Request.Context()
 				responses := ctx.Value(re.RequestContextKeyUnsuccessfulResponses).([]*resty.Response)
-				responses = append(responses, r)
+				responses = append(
+					responses,
+					r,
+				)
 				newCtx := context.WithValue(
 					ctx,
 					re.RequestContextKeyUnsuccessfulResponses,
 					responses,
 				)
-				r.Request.SetContext(newCtx)
+				r.Request.SetContext(
+					newCtx,
+				)
 			},
 		).
 		SetLogger(log.S.GetInternal())
+
 }

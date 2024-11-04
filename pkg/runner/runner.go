@@ -29,8 +29,12 @@ func New[
 	R ri.Response[S, P],
 	P ri.StoredParams,
 	Q ri.QueryBuilder[S, P],
-](hs hooks.Hooks[S], qb Q) (*Runner[S, R, P, Q], error) {
-	logObject := log.L().Tag(log.LogTagRunner)
+](
+	hs hooks.Hooks[S],
+	qb Q,
+) (*Runner[S, R, P, Q], error) {
+	logObject := log.L().
+		Tag(log.LogTagRunner)
 
 	clickHouseClient, version, err := dbclient.NewClickHouseClient[S, P, Q](
 		config.C.ClickHouse.Host,
@@ -42,14 +46,22 @@ func New[
 	if err != nil {
 		log.S.Error(
 			"Failed to create a new ClickHouse cilent",
-			logObject.Error(err),
+			logObject.Error(
+				err,
+			),
 		)
 		return nil, err
 	}
 
 	log.S.Info(
 		"Created a new ClickHouse client",
-		logObject.Add("version", fmt.Sprintf("%v", version)),
+		logObject.Add(
+			"version",
+			fmt.Sprintf(
+				"%v",
+				version,
+			),
+		),
 	)
 
 	runner := Runner[S, R, P, Q]{
@@ -62,15 +74,32 @@ func New[
 }
 
 // Run the runner's job within a given context.
-func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
+func (r *Runner[S, R, P, Q]) Run(
+	ctx context.Context,
+) {
 	// initialize storage in two-table mode
-	r.initTable(ctx)
-	logObject := log.L().Tag(log.LogTagRunner)
+	r.initTable(
+		ctx,
+	)
+	logObject := log.L().
+		Tag(log.LogTagRunner)
 
-	fetcherCh := make(chan rr.GetRequest[P], 2*config.C.Run.SelectionBatchSize)
-	writerCh := make(chan S, 2*config.C.Run.InsertionBatchSize+1)
-	nothingLeft := make(chan bool)
-	go r.dataProvider(ctx, fetcherCh, nothingLeft)
+	fetcherCh := make(
+		chan rr.GetRequest[P],
+		2*config.C.Run.SelectionBatchSize,
+	)
+	writerCh := make(
+		chan S,
+		2*config.C.Run.InsertionBatchSize+1,
+	)
+	nothingLeft := make(
+		chan bool,
+	)
+	go r.dataProvider(
+		ctx,
+		fetcherCh,
+		nothingLeft,
+	)
 
 	for i := range config.C.Run.MaxFetcherWorkers {
 		var rnd time.Duration
@@ -79,22 +108,40 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context) {
 		} else {
 			rnd = time.Duration(rand.IntN(config.C.Run.WarmupTime+1)) * time.Second
 		}
-		go r.fetcher(ctx, fetcherCh, writerCh, i, rnd)
+		go r.fetcher(
+			ctx,
+			fetcherCh,
+			writerCh,
+			i,
+			rnd,
+		)
 	}
 
 	go func() {
-		time.Sleep(time.Duration(config.C.Run.WarmupTime) * time.Second)
-		log.S.Info("Warm up has ended", logObject)
+		time.Sleep(
+			time.Duration(
+				config.C.Run.WarmupTime,
+			) * time.Second,
+		)
+		log.S.Info(
+			"Warm up has ended",
+			logObject,
+		)
 	}()
 
-	go r.writer(ctx, writerCh, nothingLeft)
+	go r.writer(
+		ctx,
+		writerCh,
+		nothingLeft,
+	)
 }
 
 // Fetch a new set of request parameters from the database.
 func (r *Runner[S, R, P, Q]) fetchParams(
 	ctx context.Context,
 ) (params []P, err error) {
-	logObject := log.L().Tag(log.LogTagRunner)
+	logObject := log.L().
+		Tag(log.LogTagRunner)
 
 	log.S.Debug(
 		"Fetching a new set of request parameters from the database",
@@ -113,13 +160,19 @@ func (r *Runner[S, R, P, Q]) fetchParams(
 				if err != nil {
 					log.S.Error(
 						"Failed to select the next batch from the database",
-						logObject.Error(err),
+						logObject.Error(
+							err,
+						),
 					)
 				}
 			}
 			return err
 		},
-		retry.Attempts(uint(config.C.SelectRetries.NumRetries)+1),
+		retry.Attempts(
+			uint(
+				config.C.SelectRetries.NumRetries,
+			)+1,
+		),
 	)
 	return params, err
 }
@@ -132,20 +185,24 @@ func (r *Runner[S, R, P, Q]) formRequests(
 ) (
 	requests []rr.GetRequest[P],
 ) {
-	logObject := log.L().Tag(log.LogTagRunner)
+	logObject := log.L().
+		Tag(log.LogTagRunner)
 
 	log.S.Debug(
 		"Creating requests for the fetching process",
 		logObject,
 	)
 	for _, params := range params {
-		requests = append(requests, rr.GetRequest[P]{
-			Host:        config.C.Api.Host,
-			Port:        config.C.Api.Port,
-			Method:      config.C.Api.Method,
-			Params:      params,
-			ExtraParams: extraParams,
-		})
+		requests = append(
+			requests,
+			rr.GetRequest[P]{
+				Host:        config.C.Api.Host,
+				Port:        config.C.Api.Port,
+				Method:      config.C.Api.Method,
+				Params:      params,
+				ExtraParams: extraParams,
+			},
+		)
 	}
 	return requests
 }
