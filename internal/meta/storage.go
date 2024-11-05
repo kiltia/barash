@@ -158,7 +158,7 @@ func (r VerifyResult) AsArray() []any {
 	var correctedTs time.Time
 
 	if response.Error.ErrorType != nil &&
-		*response.Error.ErrorType == "simple_timeout" {
+		*response.Error.Code == "simple_timeout" {
 		// Random number of seconds up to 3 weeks
 		seconds := rand.Intn(
 			60 * 60 * 24 * 7,

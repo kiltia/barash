@@ -8,6 +8,8 @@ import (
 	"orb/runner/pkg/log"
 )
 
+const DateFormat = "2006-01-02 00:00:00.000000"
+
 type VerifyQueryBuilder struct {
 	DayInterval    int
 	Limit          int
@@ -60,7 +62,7 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
         batch as (
             select duns, url, max_ts
             from last
-            where max_ts < fromUnixTimestamp64Micro(%d) - toIntervalDay(%d) and max_ts > fromUnixTimestamp64Micro(%d)
+            where max_ts < toDateTime64('%s', 6) - toIntervalDay(%d) and max_ts >= toDateTime64('%s', 6)
             order by max_ts asc
             limit %d
         ),
@@ -85,9 +87,13 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
         select * from final
     `,
 		config.C.Run.SelectionTableName,
-		qb.StartTimestamp.UnixMicro(),
+		qb.StartTimestamp.Format(
+			DateFormat,
+		),
 		qb.DayInterval,
-		qb.LastTimestamp.UnixMicro(),
+		qb.LastTimestamp.Format(
+			DateFormat,
+		),
 		qb.Limit,
 	)
 }
