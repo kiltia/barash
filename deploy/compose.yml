@@ -1,7 +1,7 @@
 name: wr
 services:
   clickhouse:
-    image: clickhouse/clickhouse-server:24.6
+    image: clickhouse/clickhouse-server:24.8-alpine
     environment:
       - CLICKHOUSE_DB=${CLICKHOUSE_DB:-wv}
       - CLICKHOUSE_USER=${CLICKHOUSE_USER:-user}
@@ -12,8 +12,8 @@ services:
     volumes:
       - ../db/data:/var/lib/clickhouse
       - ../db/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - ../db/master.csv:/var/lib/clickhouse/master.csv
-      - ../db/gdmi_compact.csv:/var/lib/clickhouse/gdmi_compact.csv
+      - ../db/master.parquet:/var/lib/clickhouse/master.parquet
+      - ../db/gdmi_compact.parquet:/var/lib/clickhouse/gdmi_compact.parquet
       - ../db/test_batch.csv:/var/lib/clickhouse/test_batch.csv
     healthcheck:
       test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
