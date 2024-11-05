@@ -37,7 +37,7 @@ func (r *Runner[S, R, P, Q]) sendGetRequest(
 	ctx context.Context,
 	logObject log.LogObject,
 	url string,
-) *resty.Response {
+) (*resty.Response, error) {
 	log.S.Debug("Performing request to the subject API", logObject)
 	ctx = context.WithValue(
 		ctx,
@@ -47,10 +47,11 @@ func (r *Runner[S, R, P, Q]) sendGetRequest(
 	lastResponse, err := r.httpClient.R().SetContext(ctx).Get(url)
 	if err != nil {
 		log.S.Error("Failed to perform the request", logObject.Error(err))
+		return nil, err
 	}
 	log.S.Debug("Finished request to the subject API", logObject)
 
-	return lastResponse
+	return lastResponse, nil
 }
 
 func (r *Runner[S, R, P, Q]) processResponse(
@@ -125,7 +126,10 @@ func (r *Runner[S, R, P, Q]) performRequest(
 		logObject.Add("url", requestUrl),
 	)
 
-	lastResponse := r.sendGetRequest(ctx, logObject, requestUrl)
+	lastResponse, err := r.sendGetRequest(ctx, logObject, requestUrl)
+	if err != nil {
+		return nil, err
+	}
 	lastStatus := lastResponse.StatusCode()
 
 	if lastStatus >= 400 && lastStatus < 500 {

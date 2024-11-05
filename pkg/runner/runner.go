@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand/v2"
+	"sync"
 	"time"
 
 	"orb/runner/pkg/config"
@@ -76,13 +77,11 @@ func New[
 // Run the runner's job within a given context.
 func (r *Runner[S, R, P, Q]) Run(
 	ctx context.Context,
+	wg *sync.WaitGroup,
 ) {
 	// initialize storage in two-table mode
-	r.initTable(
-		ctx,
-	)
-	logObject := log.L().
-		Tag(log.LogTagRunner)
+	r.initTable(ctx)
+	logObject := log.L().Tag(log.LogTagRunner)
 
 	fetcherCh := make(
 		chan rr.GetRequest[P],
@@ -92,15 +91,18 @@ func (r *Runner[S, R, P, Q]) Run(
 		chan S,
 		2*config.C.Run.InsertionBatchSize+1,
 	)
-	nothingLeft := make(
-		chan bool,
-	)
-	go r.dataProvider(
-		ctx,
-		fetcherCh,
-		nothingLeft,
-	)
-
+	nothingLeft := make(chan bool)
+	go func() {
+		r.dataProvider(
+			ctx,
+			fetcherCh,
+			nothingLeft,
+		)
+		log.S.Debug(
+			"Data provider is stopped",
+			logObject,
+		)
+	}()
 	for i := range config.C.Run.MaxFetcherWorkers {
 		var rnd time.Duration
 		if i < config.C.Run.MinFetcherWorkers {
@@ -108,13 +110,21 @@ func (r *Runner[S, R, P, Q]) Run(
 		} else {
 			rnd = time.Duration(rand.IntN(config.C.Run.WarmupTime+1)) * time.Second
 		}
-		go r.fetcher(
-			ctx,
-			fetcherCh,
-			writerCh,
-			i,
-			rnd,
-		)
+		go func() {
+			wg.Add(1)
+			r.fetcher(
+				ctx,
+				fetcherCh,
+				writerCh,
+				i,
+				rnd,
+			)
+			log.S.Debug(
+				"Fetcher is stopped",
+				logObject,
+			)
+			wg.Done()
+		}()
 	}
 
 	go func() {
@@ -129,11 +139,19 @@ func (r *Runner[S, R, P, Q]) Run(
 		)
 	}()
 
-	go r.writer(
-		ctx,
-		writerCh,
-		nothingLeft,
-	)
+	go func() {
+		wg.Add(1)
+		r.writer(
+			ctx,
+			writerCh,
+			nothingLeft,
+		)
+		log.S.Debug(
+			"Writer is stopped",
+			logObject,
+		)
+		wg.Done()
+	}()
 }
 
 // Fetch a new set of request parameters from the database.
@@ -160,9 +178,7 @@ func (r *Runner[S, R, P, Q]) fetchParams(
 				if err != nil {
 					log.S.Error(
 						"Failed to select the next batch from the database",
-						logObject.Error(
-							err,
-						),
+						logObject.Error(err),
 					)
 				}
 			}
@@ -185,8 +201,7 @@ func (r *Runner[S, R, P, Q]) formRequests(
 ) (
 	requests []rr.GetRequest[P],
 ) {
-	logObject := log.L().
-		Tag(log.LogTagRunner)
+	logObject := log.L().Tag(log.LogTagRunner)
 
 	log.S.Debug(
 		"Creating requests for the fetching process",

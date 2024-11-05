@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -25,7 +26,9 @@ func main() {
 		syscall.SIGINT,
 		syscall.SIGTERM,
 	)
-	defer cancel()
+
+	logObject := log.L().Tag(log.LogTagRunner)
+	wg := sync.WaitGroup{}
 
 	go func() {
 		switch config.C.Api.Name {
@@ -43,10 +46,10 @@ func main() {
 			if err != nil {
 				log.S.Fatal(
 					"Error in runner initialization",
-					log.L().Tag(log.LogTagRunner).Error(err),
+					logObject.Error(err),
 				)
 			}
-			instance.Run(ctx)
+			instance.Run(ctx, &wg)
 		case ApiNameMeta:
 			hooks := meta.VerifyApiHooks{}
 			queryBuilder := meta.VerifyQueryBuilder{
@@ -62,10 +65,10 @@ func main() {
 			if err != nil {
 				log.S.Fatal(
 					"Error in runner initialization",
-					log.L().Tag(log.LogTagRunner).Error(err),
+					logObject.Error(err),
 				)
 			}
-			instance.Run(ctx)
+			instance.Run(ctx, &wg)
 		default:
 			log.S.Panic(
 				"Unexpected API name",
@@ -78,8 +81,28 @@ func main() {
 	<-ctx.Done() // wait for the termination signal
 	log.S.Info(
 		"Shutting down gracefully, Ctrl+C to force.",
-		log.L().Tag(log.LogTagRunner).
-			Add("timeout", 10),
+		logObject.Add("timeout", 10),
 	)
-	cancel() // restore normal signal behavior
+	done := make(
+		chan bool,
+	)
+
+	go func() {
+		wg.Wait()
+		done <- true
+	}()
+
+	select {
+	case <-time.After(30 * time.Second):
+		log.S.Info(
+			"Shutdown timeout reached, forcefully shutting down.",
+			logObject,
+		)
+	case <-done:
+		log.S.Info(
+			"Shutdown completed.",
+			logObject,
+		)
+	}
+	cancel()
 }

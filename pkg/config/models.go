@@ -13,12 +13,6 @@ type Config struct {
 	SelectRetries  retryConfig          `yaml:"select_retries"`
 	Log            logConfig            `yaml:"log"`
 	Run            runConfig            `yaml:"run"`
-	QualityControl qualityControlConfig `yaml:"quality_control_config"`
-}
-
-type qualityControlConfig struct {
-	BatchTimeLimit   int     `yaml:"batch_time_limit"`
-	SuccessThreshold float64 `yaml:"success_threshold"`
 }
 
 type apiConfig struct {
