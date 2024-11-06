@@ -86,7 +86,7 @@ func main() {
 	done := make(chan bool)
 
 	go func() {
-        wg.Wait()
+		wg.Wait()
 		done <- true
 	}()
 
