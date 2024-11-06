@@ -28,7 +28,7 @@ func main() {
 	)
 	defer cancel()
 	wg := new(sync.WaitGroup)
-	logObject := log.L().Tag(log.LogTagInit)
+	logObject := log.L().Tag(log.LogTagMain)
 
 	go func() {
 		switch config.C.Api.Name {
@@ -72,8 +72,7 @@ func main() {
 		default:
 			log.S.Panic(
 				"Unexpected API name",
-				log.L().Tag(log.LogTagRunner).
-					Add("input_value", config.C.Api.Name),
+				logObject.Add("input_value", config.C.Api.Name),
 			)
 		}
 	}()
@@ -81,7 +80,7 @@ func main() {
 	<-ctx.Done()
 	log.S.Info(
 		"Shutting down gracefully, Ctrl+C to force.",
-		log.L().Tag(log.LogTagRunner).Add("timeout", 10),
+		logObject.Add("timeout", 30),
 	)
 	done := make(chan bool)
 
