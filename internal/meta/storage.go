@@ -3,13 +3,12 @@ package meta
 import (
 	"fmt"
 	"math"
+	"math/rand"
 	"strings"
 	"time"
 
 	"orb/runner/pkg/config"
 	"orb/runner/pkg/log"
-
-	"math/rand"
 )
 
 var MasterColumnNames = [30]string{
@@ -157,7 +156,8 @@ func (r VerifyResult) AsArray() []any {
 
 	if response.Error.ErrorType != nil &&
 		*response.Error.Code == "simple_timeout" {
-		// Random number of seconds up to 3 weeks
+        // NOTE(nrydanov): This is a hack to avoid sitations when
+        // too many potential timeouts are present in batch.
 		seconds := rand.Intn(
 			60 * 60 * 24 * 7,
 		)

@@ -29,7 +29,7 @@ var tagToString = map[LogTag]string{
 	LogTagQualityControl: "quality_control",
 	LogTagLogParsing:     "log_parsing",
 	LogTagApiImpl:        "api_impl",
-    LogTagMain: "main_loop",
+	LogTagMain:           "main_loop",
 }
 
 // Implement [fmt.Stringer] interface.
