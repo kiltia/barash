@@ -26,9 +26,9 @@ func main() {
 		syscall.SIGINT,
 		syscall.SIGTERM,
 	)
-
-	logObject := log.L().Tag(log.LogTagRunner)
-	wg := sync.WaitGroup{}
+	defer cancel()
+	wg := new(sync.WaitGroup)
+	logObject := log.L().Tag(log.LogTagInit)
 
 	go func() {
 		switch config.C.Api.Name {
@@ -49,7 +49,7 @@ func main() {
 					logObject.Error(err),
 				)
 			}
-			instance.Run(ctx, &wg)
+			instance.Run(ctx, wg)
 		case ApiNameMeta:
 			hooks := meta.VerifyApiHooks{}
 			queryBuilder := meta.VerifyQueryBuilder{
@@ -68,7 +68,7 @@ func main() {
 					logObject.Error(err),
 				)
 			}
-			instance.Run(ctx, &wg)
+			instance.Run(ctx, wg)
 		default:
 			log.S.Panic(
 				"Unexpected API name",
@@ -78,17 +78,15 @@ func main() {
 		}
 	}()
 
-	<-ctx.Done() // wait for the termination signal
+	<-ctx.Done()
 	log.S.Info(
 		"Shutting down gracefully, Ctrl+C to force.",
-		logObject.Add("timeout", 10),
+		log.L().Tag(log.LogTagRunner).Add("timeout", 10),
 	)
-	done := make(
-		chan bool,
-	)
+	done := make(chan bool)
 
 	go func() {
-		wg.Wait()
+        wg.Wait()
 		done <- true
 	}()
 

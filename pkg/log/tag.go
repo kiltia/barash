@@ -8,6 +8,7 @@ const (
 	LogTagUnknown
 
 	LogTagClickHouse
+    LogTagInit
 	LogTagRunner
 	LogTagStandby
 	LogTagFetching

@@ -75,10 +75,7 @@ func New[
 }
 
 // Run the runner's job within a given context.
-func (r *Runner[S, R, P, Q]) Run(
-	ctx context.Context,
-	wg *sync.WaitGroup,
-) {
+func (r *Runner[S, R, P, Q]) Run(ctx context.Context, wg *sync.WaitGroup) {
 	// initialize storage in two-table mode
 	r.initTable(ctx)
 	logObject := log.L().Tag(log.LogTagRunner)
@@ -139,19 +136,12 @@ func (r *Runner[S, R, P, Q]) Run(
 		)
 	}()
 
-	go func() {
-		wg.Add(1)
-		r.writer(
-			ctx,
-			writerCh,
-			nothingLeft,
-		)
-		log.S.Debug(
-			"Writer is stopped",
-			logObject,
-		)
-		wg.Done()
-	}()
+    go func() {
+        wg.Add(1)
+        defer wg.Done()
+        r.writer(ctx, writerCh, nothingLeft)
+        log.S.Debug("Writer is stopped", logObject)
+    }()
 }
 
 // Fetch a new set of request parameters from the database.
