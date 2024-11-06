@@ -110,6 +110,9 @@ func (r *Runner[S, R, P, Q]) processResponse(
 	return storedValue, nil
 }
 
+// NOTE(nrydanov): This function is too complex, I've been thinking about it
+// for a while and I'm not sure how to simplify it, sooo...
+//gocyclo:ignore
 func (r *Runner[S, R, P, Q]) performRequest(
 	ctx context.Context,
 	logObject log.LogObject,
