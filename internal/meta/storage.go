@@ -59,9 +59,7 @@ type VerifyResult struct {
 func (r VerifyResult) GetInsertQuery() string {
 	values := make(
 		[]string,
-		len(
-			MasterColumnNames,
-		),
+		len(MasterColumnNames),
 	)
 	for i := range values {
 		values[i] = "?"

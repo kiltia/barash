@@ -133,3 +133,4 @@ func (qb VerifyQueryBuilder) GetSelectQuery() string {
 		)
 	}
 }
+
