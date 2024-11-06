@@ -156,8 +156,8 @@ func (r VerifyResult) AsArray() []any {
 
 	if response.Error.ErrorType != nil &&
 		*response.Error.Code == "simple_timeout" {
-        // NOTE(nrydanov): This is a hack to avoid sitations when
-        // too many potential timeouts are present in batch.
+		// NOTE(nrydanov): This is a hack to avoid sitations when
+		// too many potential timeouts are present in batch.
 		seconds := rand.Intn(
 			60 * 60 * 24 * 7,
 		)
