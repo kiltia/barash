@@ -136,8 +136,8 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context, wg *sync.WaitGroup) {
 		)
 	}()
 
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		defer wg.Done()
 		r.writer(ctx, writerCh, nothingLeft)
 		log.S.Debug("Writer is stopped", logObject)
