@@ -154,10 +154,13 @@ func (r VerifyResult) AsArray() []any {
 
 	var correctedTs time.Time
 
-	if response.Error.ErrorType != nil &&
-		*response.Error.Code == "simple_timeout" {
+	// NOTE(nrydanov): Need to replace with certain error code when we'll
+	// determine it.
+	if response.Error.Code != nil &&
+		strings.Contains(strings.ToLower(*response.Error.Code), "timeout") {
 		// NOTE(nrydanov): This is a hack to avoid sitations when
 		// too many potential timeouts are present in batch.
+        log.S.Warn("Timeout was detected, postponing...", log.L())
 		seconds := rand.Intn(
 			60 * 60 * 24 * 7,
 		)
