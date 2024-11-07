@@ -43,10 +43,7 @@ func (qb *VerifyQueryBuilder) UpdateState(
 
 func (qb *VerifyQueryBuilder) ResetState() {
 	qb.StartTimestamp = time.Now()
-	qb.LastTimestamp = time.Unix(
-		0,
-		1,
-	)
+	qb.LastTimestamp = time.Unix(0, 1)
 }
 
 // Implement the [rinterface.StoredValue] interface.
@@ -87,13 +84,9 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
         select * from final
     `,
 		config.C.Run.SelectionTableName,
-		qb.StartTimestamp.Format(
-			DateFormat,
-		),
+		qb.StartTimestamp.Format(DateFormat),
 		qb.DayInterval,
-		qb.LastTimestamp.Format(
-			DateFormat,
-		),
+		qb.LastTimestamp.Format(DateFormat),
 		qb.Limit,
 	)
 }
@@ -128,8 +121,6 @@ func (qb VerifyQueryBuilder) GetSelectQuery() string {
 	case config.TwoTableMode:
 		return qb.GetTwoTableSelectQuery()
 	default:
-		panic(
-			"Not implemented",
-		)
+		panic("Not implemented")
 	}
 }
