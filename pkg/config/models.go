@@ -48,9 +48,10 @@ type runConfig struct {
 	InsertionBatchSize int               `yaml:"insertion_batch_size"`
 	SelectionTableName string            `yaml:"selection_table_name"`
 	InsertionTableName string            `yaml:"insertion_table_name"`
+	MaxCorrection      int               `yaml:"max_correction"` // days
 	Freshness          int               `yaml:"freshness"`
-	SleepTime          int               `yaml:"sleep_time"`
-	WarmupTime         int               `yaml:"warmup_time"`
+	SleepTime          int               `yaml:"sleep_time"`  // seconds
+	WarmupTime         int               `yaml:"warmup_time"` // seconds
 	Tag                string            `yaml:"tag"`
 	ExtraParams        map[string]string `yaml:"extra_params"`
 	Mode               RunnerMode        `yaml:"mode"`
