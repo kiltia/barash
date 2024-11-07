@@ -41,7 +41,6 @@ func (srv *VerifyApiHooks) AfterBatch(
 		log.S.Info(
 			"Post-analyzed the processed batch",
 			log.L().
-				Tag(log.LogTagQualityControl).
 				Add("successes_with_scores", successesWithScores),
 		)
 	}
