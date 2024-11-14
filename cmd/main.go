@@ -75,7 +75,7 @@ func main() {
 		)
 	}
 
-	timeout := time.Duration(config.C.Run.ShutdownTimeout) * time.Second
+	timeout := time.Duration(config.C.Timeouts.ShutdownTimeout) * time.Second
 
 	done := make(chan struct{})
 
@@ -90,7 +90,6 @@ func main() {
 			"Shutting down gracefully, Ctrl+C to force.",
 			logObject.Add("timeout", timeout),
 		)
-		cancel()
 		select {
 		case <-time.After(timeout):
 			log.S.Info(

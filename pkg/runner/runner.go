@@ -85,13 +85,11 @@ func (r *Runner[S, R, P, Q]) Run(
 
 	fetcherCh := make(chan rr.GetRequest[P], 2*config.C.Run.SelectionBatchSize)
 	writerCh := make(chan S, 2*config.C.Run.InsertionBatchSize+1)
-	writerWg, fetcherWg := sync.WaitGroup{}, sync.WaitGroup{}
+	wg := sync.WaitGroup{}
 
-	fetcherWg.Add(1)
-	writerWg.Add(1)
+	wg.Add(1)
 	go func() {
-		defer writerWg.Done()
-		defer fetcherWg.Done()
+		defer wg.Done()
 		r.dataProvider(ctx, fetcherCh)
 	}()
 
@@ -100,7 +98,7 @@ func (r *Runner[S, R, P, Q]) Run(
 		log.S.Info("Warm up has ended", logObject)
 	}()
 
-	writerWg.Add(config.C.Run.MaxFetcherWorkers)
+	wg.Add(config.C.Run.MaxFetcherWorkers)
 	for i := range config.C.Run.MaxFetcherWorkers {
 		var rnd time.Duration
 		if i < config.C.Run.MinFetcherWorkers {
@@ -109,15 +107,15 @@ func (r *Runner[S, R, P, Q]) Run(
 			rnd = time.Duration(rand.IntN(config.C.Run.WarmupTime+1)) * time.Second
 		}
 		go func() {
-			defer writerWg.Done()
-			r.fetcher(ctx, fetcherCh, writerCh, i, rnd, &fetcherWg)
+			defer wg.Done()
+			r.fetcher(ctx, fetcherCh, writerCh, i, rnd)
 		}()
 	}
 
 	globalWg.Add(1)
 	go func() {
 		defer globalWg.Done()
-		r.writer(ctx, writerCh, &writerWg)
+		r.writer(ctx, writerCh, &wg)
 	}()
 }
 

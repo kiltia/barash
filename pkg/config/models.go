@@ -33,6 +33,8 @@ type clickHouseConfig struct {
 type timeoutConfig struct {
 	ApiTimeout       int `yaml:"api_timeout"`
 	GoroutineTimeout int `yaml:"goroutine_timeout"`
+	ShutdownTimeout  int `yaml:"shutdown_timeout"` // seconds
+	DbSaveTimeout    int `yaml:"db_save_timeout"`  // seconds
 }
 
 type retryConfig struct {
@@ -55,7 +57,6 @@ type runConfig struct {
 	Tag                string            `yaml:"tag"`
 	ExtraParams        map[string]string `yaml:"extra_params"`
 	Mode               RunnerMode        `yaml:"mode"`
-	ShutdownTimeout    int               `yaml:"shutdown_timeout"` // seconds
 }
 
 type logConfig struct {

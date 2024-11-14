@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"sync"
+	"time"
 
 	"orb/runner/pkg/config"
 	"orb/runner/pkg/log"
@@ -53,14 +54,20 @@ func (r *Runner[S, R, P, Q]) writer(
 	var batch []S
 
 	saveBatch := func() {
+		ctx, cancel := context.WithTimeout(
+			context.Background(),
+			time.Duration(config.C.Timeouts.DbSaveTimeout)*time.Second,
+		)
+		defer cancel()
 		err := r.write(ctx, batch)
 		if err != nil {
 			log.S.Error(
 				"Failed to save processed batch to the database",
 				logObject.Error(err),
 			)
+		} else {
+			batch = *new([]S)
 		}
-		batch = *new([]S)
 	}
 
 	done := make(chan struct{})
@@ -73,7 +80,12 @@ func (r *Runner[S, R, P, Q]) writer(
 	for {
 		select {
 		case <-ctx.Done():
+			log.S.Info(
+				"Context is cancelled. Saving the remaining batch",
+				logObject,
+			)
 			saveBatch()
+			log.S.Info("Batch is saved, writer is stopped", logObject)
 			return
 		case result, ok := <-writerCh:
 			if !ok {

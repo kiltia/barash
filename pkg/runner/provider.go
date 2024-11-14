@@ -13,8 +13,8 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 	ctx context.Context,
 	fetchTasks chan rr.GetRequest[P],
 ) {
-	logObject := log.L().
-		Tag(log.LogTagRunner)
+	logObject := log.L().Tag(log.LogTagDataProvider)
+	defer close(fetchTasks)
 
 	extraParams := config.C.Run.ExtraParams
 	for {
