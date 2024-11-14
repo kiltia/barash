@@ -95,13 +95,13 @@ func (qb VerifyQueryBuilder) GetTwoTableSelectQuery() string {
 	query := fmt.Sprintf(
 		`
         SELECT
-            duns, url, name,
+            duns, url, name, dba,
             loc_address1, loc_address2,
             loc_city, loc_state,
             loc_zip, loc_country,
             mail_address1, mail_address2,
             mail_city, mail_state,
-            mail_zip, mail_country, dba FROM %s
+            mail_zip, mail_country FROM %s
         WHERE ('%s', '%s') < (duns, url)
         ORDER BY (duns, url)
         LIMIT %d
