@@ -12,7 +12,6 @@ import (
 func (r *Runner[S, R, P, Q]) dataProvider(
 	ctx context.Context,
 	fetchTasks chan rr.GetRequest[P],
-	nothingLeft chan bool,
 ) {
 	logObject := log.L().
 		Tag(log.LogTagRunner)
@@ -40,39 +39,28 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 				return
 			}
 
-			if len(
-				params,
-			) == 0 &&
-				len(fetchTasks) == 0 {
-				log.S.Info(
-					"Provider got no tasks, soon entering standby mode",
-					logObject.
-						Add(
-							"sleep_time",
-							config.C.Run.SleepTime,
-						),
-				)
-
-				nothingLeft <- true
-				r.queryBuilder.ResetState()
-
-				// wait sleep time
-				select {
-				case <-ctx.Done():
+			if len(params) == 0 {
+				if config.C.Run.Mode == config.TwoTableMode && len(fetchTasks) == 0 {
+					log.S.Info("All data is processed, exiting", logObject)
 					return
-				case <-time.After(
-					time.Duration(config.C.Run.SleepTime) * time.Second,
-				):
+				} else {
+					r.queryBuilder.ResetState()
 					log.S.Info(
-						"Data provider has left standby mode",
-						logObject,
+						"The data provider has nothing to do, entering standby mode",
+						logObject.
+							Add("sleep_time", config.C.Run.SleepTime).
+							Add("tasks_left", len(fetchTasks)),
 					)
+					select {
+					case <-ctx.Done():
+						return
+					case <-time.After(time.Duration(config.C.Run.SleepTime) * time.Second):
+						continue
+					}
 				}
 			} else {
 				r.queryBuilder.UpdateState(params)
 
-				// create requests using runner's configuration
-				// and parameters from the database
 				requests := r.formRequests(params, extraParams)
 				for _, r := range requests {
 					fetchTasks <- r

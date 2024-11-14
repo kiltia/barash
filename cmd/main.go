@@ -27,79 +27,87 @@ func main() {
 		syscall.SIGTERM,
 	)
 	defer cancel()
-	wg := new(sync.WaitGroup)
+	wg := sync.WaitGroup{}
 	logObject := log.L().Tag(log.LogTagMain)
 
-	go func() {
-		switch config.C.Api.Name {
-		case ApiNameCrawler:
-			hooks := crawler.CrawlerApiHooks{}
-			queryBuilder := crawler.CrawlerQueryBuilder{
-				BatchSize: config.C.Run.SelectionBatchSize,
-				Mode:      config.C.Run.Mode,
-				LastId:    0,
-			}
-			queryBuilder.ResetState()
-			instance, err := runner.New[
-				crawler.CrawlerResult, crawler.CrawlerResponse,
-			](&hooks, &queryBuilder)
-			if err != nil {
-				log.S.Fatal(
-					"Error in runner initialization",
-					logObject.Error(err),
-				)
-			}
-			instance.Run(ctx, wg)
-		case ApiNameMeta:
-			hooks := meta.VerifyApiHooks{}
-			queryBuilder := meta.VerifyQueryBuilder{
-				DayInterval:    config.C.Run.Freshness,
-				Limit:          config.C.Run.SelectionBatchSize,
-				Mode:           config.C.Run.Mode,
-				StartTimestamp: time.Now(),
-			}
-			queryBuilder.ResetState()
-			instance, err := runner.New[
-				meta.VerifyResult, meta.VerifyResponse,
-			](&hooks, &queryBuilder)
-			if err != nil {
-				log.S.Fatal(
-					"Error in runner initialization",
-					logObject.Error(err),
-				)
-			}
-			instance.Run(ctx, wg)
-		default:
-			log.S.Panic(
-				"Unexpected API name",
-				logObject.Add("input_value", config.C.Api.Name),
+	switch config.C.Api.Name {
+	case ApiNameCrawler:
+		hooks := crawler.CrawlerApiHooks{}
+		queryBuilder := crawler.CrawlerQueryBuilder{
+			BatchSize: config.C.Run.SelectionBatchSize,
+			Mode:      config.C.Run.Mode,
+			LastId:    0,
+		}
+		queryBuilder.ResetState()
+		instance, err := runner.New[
+			crawler.CrawlerResult, crawler.CrawlerResponse,
+		](&hooks, &queryBuilder)
+		if err != nil {
+			log.S.Fatal(
+				"Error in runner initialization",
+				logObject.Error(err),
 			)
 		}
-	}()
+		instance.Run(ctx, &wg)
+	case ApiNameMeta:
+		hooks := meta.VerifyApiHooks{}
+		queryBuilder := meta.VerifyQueryBuilder{
+			DayInterval:    config.C.Run.Freshness,
+			Limit:          config.C.Run.SelectionBatchSize,
+			Mode:           config.C.Run.Mode,
+			StartTimestamp: time.Now(),
+		}
+		queryBuilder.ResetState()
+		instance, err := runner.New[
+			meta.VerifyResult, meta.VerifyResponse,
+		](&hooks, &queryBuilder)
+		if err != nil {
+			log.S.Fatal(
+				"Error in runner initialization",
+				logObject.Error(err),
+			)
+		}
+		instance.Run(ctx, &wg)
+	default:
+		log.S.Panic(
+			"Unexpected API name",
+			logObject.Add("input_value", config.C.Api.Name),
+		)
+	}
 
-	<-ctx.Done()
-	log.S.Info(
-		"Shutting down gracefully, Ctrl+C to force.",
-		logObject.Add("timeout", 30),
-	)
-	done := make(chan bool)
+	timeout := time.Duration(config.C.Run.ShutdownTimeout) * time.Second
+
+	done := make(chan struct{})
 
 	go func() {
 		wg.Wait()
-		done <- true
+		done <- struct{}{}
 	}()
 
 	select {
-	case <-time.After(30 * time.Second):
+	case <-ctx.Done():
 		log.S.Info(
-			"Shutdown timeout reached, forcefully shutting down.",
-			logObject,
+			"Shutting down gracefully, Ctrl+C to force.",
+			logObject.Add("timeout", timeout),
 		)
+		cancel()
+		select {
+		case <-time.After(timeout):
+			log.S.Info(
+				"Shutdown timeout reached, forcefully shutting down.",
+				logObject,
+			)
+		case <-done:
+			log.S.Info(
+				"Shutdown completed.",
+				logObject,
+			)
+		}
 	case <-done:
 		log.S.Info(
-			"Shutdown completed.",
+			"Writer is stopped. Shutting down the application",
 			logObject,
 		)
 	}
-	cancel()
+
 }

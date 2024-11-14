@@ -55,6 +55,7 @@ type runConfig struct {
 	Tag                string            `yaml:"tag"`
 	ExtraParams        map[string]string `yaml:"extra_params"`
 	Mode               RunnerMode        `yaml:"mode"`
+	ShutdownTimeout    int               `yaml:"shutdown_timeout"` // seconds
 }
 
 type logConfig struct {

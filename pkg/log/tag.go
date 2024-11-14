@@ -11,6 +11,7 @@ const (
 	LogTagMain
 	LogTagRunner
 	LogTagStandby
+    LogTagDataProvider
 	LogTagFetching
 	LogTagWriting
 	LogTagLogParsing
@@ -23,6 +24,7 @@ var tagToString = map[LogTag]string{
 	LogTagClickHouse: "clickhouse",
 	LogTagRunner:     "runner",
 	LogTagStandby:    "standby",
+    LogTagDataProvider: "data_provider",
 	LogTagFetching:   "fetching",
 	LogTagWriting:    "writing",
 	LogTagLogParsing: "log_parsing",

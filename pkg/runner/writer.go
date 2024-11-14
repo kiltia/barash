@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"sync"
 
 	"orb/runner/pkg/config"
 	"orb/runner/pkg/log"
@@ -46,7 +47,7 @@ func (r *Runner[S, R, P, Q]) write(
 func (r *Runner[S, R, P, Q]) writer(
 	ctx context.Context,
 	writerCh chan S,
-	nothingLeft chan bool,
+	wg *sync.WaitGroup,
 ) {
 	logObject := log.L().Tag(log.LogTagWriting)
 	var batch []S
@@ -61,6 +62,13 @@ func (r *Runner[S, R, P, Q]) writer(
 		}
 		batch = *new([]S)
 	}
+
+	done := make(chan struct{})
+
+	go func() {
+		wg.Wait()
+		done <- struct{}{}
+	}()
 
 	for {
 		select {
@@ -84,12 +92,16 @@ func (r *Runner[S, R, P, Q]) writer(
 				)
 				saveBatch()
 			}
-		case <-nothingLeft:
-			log.S.Info(
-				"Got nothing left signal, saving the rest of batch to database",
-				logObject,
-			)
-			saveBatch()
+		default:
+			select {
+			case <-done:
+				log.S.Info("All workers are stopped. Saving the remaining batch", logObject)
+				saveBatch()
+				log.S.Info("Batch is saved, writer is stopped", logObject)
+				return
+			default:
+				continue
+			}
 		}
 	}
 }

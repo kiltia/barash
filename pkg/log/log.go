@@ -38,9 +38,11 @@ func Init() {
 		ErrorOutputPaths: config.C.Log.ErrorOutputPaths,
 		Development:      config.C.Log.DevMode,
 		EncoderConfig:    encConf,
+        Sampling:         nil,
 	}
 
 	S = &Logger{
 		internal: zap.Must(conf.Build()).Sugar(),
 	}
+
 }

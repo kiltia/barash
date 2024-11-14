@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"orb/runner/pkg/config"
@@ -180,18 +181,33 @@ func (r *Runner[S, R, P, Q]) fetcher(
 	output chan S,
 	fetcherNum int,
 	startupTime time.Duration,
+    wg *sync.WaitGroup,
 ) {
 	logObject := log.L().Tag(log.LogTagFetching).Add("fetcher_num", fetcherNum)
 	time.Sleep(startupTime)
 	log.S.Info("A new fetcher instance is starting up", logObject)
 	ctx = context.WithValue(ctx, re.RequestContextKeyFetcherNum, fetcherNum)
+
+    done := make(chan struct{})
+
+    go func() {
+        wg.Wait()
+        done <- struct{}{}
+    }()
+
 	for {
 		select {
+		case <-done:
+			if config.C.Run.Mode == config.TwoTableMode {
+				log.S.Debug("Fetcher has no work to do", logObject)
+				return
+			}
 		case task := <-input:
 			log.S.Debug(
 				"Pulling a new task",
 				logObject.Add("task_count", len(input)),
 			)
+			log.S.GetInternal().Sync()
 			storedValues := r.handleFetcherTask(ctx, logObject, task)
 			for _, value := range storedValues {
 				log.S.Debug("Sending fetch result to writer", logObject)

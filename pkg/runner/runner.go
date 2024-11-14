@@ -75,31 +75,29 @@ func New[
 }
 
 // Run the runner's job within a given context.
-func (r *Runner[S, R, P, Q]) Run(ctx context.Context, wg *sync.WaitGroup) {
+func (r *Runner[S, R, P, Q]) Run(ctx context.Context, globalWg *sync.WaitGroup) {
 	// initialize storage in two-table mode
 	r.initTable(ctx)
 	logObject := log.L().Tag(log.LogTagRunner)
 
-	fetcherCh := make(
-		chan rr.GetRequest[P],
-		2*config.C.Run.SelectionBatchSize,
-	)
-	writerCh := make(
-		chan S,
-		2*config.C.Run.InsertionBatchSize+1,
-	)
-	nothingLeft := make(chan bool)
+	fetcherCh := make(chan rr.GetRequest[P], 2*config.C.Run.SelectionBatchSize)
+	writerCh := make(chan S, 2*config.C.Run.InsertionBatchSize+1)
+	writerWg, fetcherWg := sync.WaitGroup{}, sync.WaitGroup{}
+
+	fetcherWg.Add(1)
+	writerWg.Add(1)
 	go func() {
-		r.dataProvider(
-			ctx,
-			fetcherCh,
-			nothingLeft,
-		)
-		log.S.Debug(
-			"Data provider is stopped",
-			logObject,
-		)
+		defer writerWg.Done()
+		defer fetcherWg.Done()
+		r.dataProvider(ctx, fetcherCh)
 	}()
+
+	go func() {
+		time.Sleep(time.Duration(config.C.Run.WarmupTime) * time.Second)
+		log.S.Info("Warm up has ended", logObject)
+	}()
+
+	writerWg.Add(config.C.Run.MaxFetcherWorkers)
 	for i := range config.C.Run.MaxFetcherWorkers {
 		var rnd time.Duration
 		if i < config.C.Run.MinFetcherWorkers {
@@ -108,39 +106,15 @@ func (r *Runner[S, R, P, Q]) Run(ctx context.Context, wg *sync.WaitGroup) {
 			rnd = time.Duration(rand.IntN(config.C.Run.WarmupTime+1)) * time.Second
 		}
 		go func() {
-			wg.Add(1)
-			r.fetcher(
-				ctx,
-				fetcherCh,
-				writerCh,
-				i,
-				rnd,
-			)
-			log.S.Debug(
-				"Fetcher is stopped",
-				logObject,
-			)
-			wg.Done()
+			defer writerWg.Done()
+			r.fetcher(ctx, fetcherCh, writerCh, i, rnd, &fetcherWg)
 		}()
 	}
 
+	globalWg.Add(1)
 	go func() {
-		time.Sleep(
-			time.Duration(
-				config.C.Run.WarmupTime,
-			) * time.Second,
-		)
-		log.S.Info(
-			"Warm up has ended",
-			logObject,
-		)
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		r.writer(ctx, writerCh, nothingLeft)
-		log.S.Debug("Writer is stopped", logObject)
+		defer globalWg.Done()
+		r.writer(ctx, writerCh, &writerWg)
 	}()
 }
 
