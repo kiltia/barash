@@ -16,6 +16,8 @@ services:
       - ../db/gdmi_compact.parquet:/var/lib/clickhouse/gdmi_compact.parquet
       - ../db/two_table.parquet:/var/lib/clickhouse/two_table.parquet
       - ../db/two_table_tiny.parquet:/var/lib/clickhouse/two_table_tiny.parquet
+      - ../db/two_table_big.parquet:/var/lib/clickhouse/two_table_big.parquet
+      - ../db/two_table_huge.parquet:/var/lib/clickhouse/two_table_huge.parquet
     healthcheck:
       test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
       interval: 5s
