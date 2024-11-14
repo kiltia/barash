@@ -8,12 +8,10 @@ import "go.uber.org/zap"
  */
 
 func (s *Logger) Debug(msg string, logObject LogObject) {
-	defer s.internal.Sync()
 	s.internal.Debugw(msg, zap.Inline(logObject))
 }
 
 func (s *Logger) Info(msg string, logObject LogObject) {
-	defer s.internal.Sync()
 	s.internal.Infow(msg, zap.Inline(logObject))
 }
 
