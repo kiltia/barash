@@ -17,7 +17,7 @@ func (r *Runner[S, R, P, Q]) write(
 
 	log.S.Debug(
 		"Saving processed batch to the database",
-		logObject,
+		logObject.Add("batch_len", len(batch)),
 	)
 	err = r.clickHouseClient.AsyncInsertBatch(
 		ctx,
@@ -95,7 +95,10 @@ func (r *Runner[S, R, P, Q]) writer(
 		default:
 			select {
 			case <-done:
-				log.S.Info("All workers are stopped. Saving the remaining batch", logObject)
+				log.S.Info(
+					"All workers are stopped. Saving the remaining batch",
+					logObject,
+				)
 				saveBatch()
 				log.S.Info("Batch is saved, writer is stopped", logObject)
 				return

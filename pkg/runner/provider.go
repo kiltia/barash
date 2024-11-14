@@ -40,7 +40,8 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 			}
 
 			if len(params) == 0 {
-				if config.C.Run.Mode == config.TwoTableMode && len(fetchTasks) == 0 {
+				if config.C.Run.Mode == config.TwoTableMode &&
+					len(fetchTasks) == 0 {
 					log.S.Info("All data is processed, exiting", logObject)
 					return
 				} else {

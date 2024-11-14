@@ -75,7 +75,10 @@ func New[
 }
 
 // Run the runner's job within a given context.
-func (r *Runner[S, R, P, Q]) Run(ctx context.Context, globalWg *sync.WaitGroup) {
+func (r *Runner[S, R, P, Q]) Run(
+	ctx context.Context,
+	globalWg *sync.WaitGroup,
+) {
 	// initialize storage in two-table mode
 	r.initTable(ctx)
 	logObject := log.L().Tag(log.LogTagRunner)
