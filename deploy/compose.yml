@@ -10,14 +10,14 @@ services:
       - "8124:8123"
       - "9001:9000"
     volumes:
-      - ../db/data:/var/lib/clickhouse
-      - ../db/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - ../db/master.parquet:/var/lib/clickhouse/master.parquet
-      - ../db/gdmi_compact.parquet:/var/lib/clickhouse/gdmi_compact.parquet
-      - ../db/two_table.parquet:/var/lib/clickhouse/two_table.parquet
-      - ../db/two_table_tiny.parquet:/var/lib/clickhouse/two_table_tiny.parquet
-      - ../db/two_table_big.parquet:/var/lib/clickhouse/two_table_big.parquet
-      - ../db/two_table_huge.parquet:/var/lib/clickhouse/two_table_huge.parquet
+      - ../clickhouse/data:/var/lib/clickhouse
+      - ../clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ../clickhouse/dumps/master.parquet:/var/lib/clickhouse/master.parquet
+      - ../clickhouse/dumps/gdmi_compact.parquet:/var/lib/clickhouse/gdmi_compact.parquet
+      - ../clickhouse/dumps/two_table.parquet:/var/lib/clickhouse/two_table.parquet
+      - ../clickhouse/dumps/two_table_tiny.parquet:/var/lib/clickhouse/two_table_tiny.parquet
+      - ../clickhouse/dumps/two_table_big.parquet:/var/lib/clickhouse/two_table_big.parquet
+      - ../clickhouse/dumps/two_table_huge.parquet:/var/lib/clickhouse/two_table_huge.parquet
     healthcheck:
       test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
       interval: 5s
