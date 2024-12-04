@@ -65,6 +65,10 @@ func (r *Runner[S, R, P, Q]) writer(
 				"Failed to save processed batch to the database",
 				logObject.Error(err),
 			)
+            // TODO(nrydanov): Add reaction based on error returned
+            // For example, if connection is dropped, we need to automatically
+            // restore session
+            // Source: https://github.com/kiltia/runner/issues/15
 		} else {
 			batch = *new([]S)
 		}
