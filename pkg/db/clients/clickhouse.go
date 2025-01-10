@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"orb/runner/pkg/config"
 	"orb/runner/pkg/log"
 	ri "orb/runner/pkg/runner/interface"
 
@@ -138,6 +139,28 @@ func (client *ClickHouseClient[S, P, Q]) SelectNextBatch(
 			Tag(log.LogTagClickHouse).
 			Add("query", query),
 	)
+	for attempt := 0; attempt < config.C.SelectRetries.NumRetries; attempt++ {
+		if err = client.Connection.Select(ctx, &result, query); err != nil {
+			log.S.Error(
+				"Got an error while retrieving records from the database",
+				log.L().
+					Tag(log.LogTagClickHouse).
+					Error(err),
+			)
+			if attempt < config.C.SelectRetries.NumRetries {
+				log.S.Warn(
+					"Retrying query",
+					log.L().
+						Tag(log.LogTagClickHouse).
+						Add("attempt", attempt+1),
+				)
+				continue
+			}
+			return nil, err
+		} else {
+		    break
+        }
+	}
 	if err = client.Connection.Select(ctx, &result, query); err != nil {
 		log.S.Error(
 			"Got an error while retrieving records from the database",
