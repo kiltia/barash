@@ -29,6 +29,7 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 			params, err := r.fetchParams(
 				ctx,
 			)
+			r.queryBuilder.UpdateState(params)
 			if err != nil {
 				log.S.Error(
 					"Failed to fetch request parameters from the database",
