@@ -8,7 +8,7 @@ import (
 	"orb/runner/pkg/log"
 )
 
-const DateFormat = "2006-01-02 00:00:00.000000"
+const DateFormat = "2006-01-02 15:04:05.999999"
 
 type VerifyQueryBuilder struct {
 	DayInterval    int
