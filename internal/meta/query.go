@@ -42,8 +42,8 @@ func (qb *VerifyQueryBuilder) UpdateState(
 }
 
 func (qb *VerifyQueryBuilder) ResetState() {
-	qb.StartTimestamp = time.Now()
-	qb.LastTimestamp = time.Unix(0, 1)
+	qb.LastTimestamp = qb.StartTimestamp
+	qb.StartTimestamp = time.Now().UTC()
 }
 
 // Implement the [rinterface.StoredValue] interface.
