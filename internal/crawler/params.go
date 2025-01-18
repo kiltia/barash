@@ -12,7 +12,7 @@ const (
 // The query parameters, which are sent to the Crawler.
 type CrawlerParams struct {
 	Url              string    `json:"url"              ch:"url"`
-	Id               int64     `json:"-"                ch:"id"`
+	Id               uint64    `json:"-"                ch:"id"`
 	HeadlessStrategy string    `json:"headless_browser"`
 	Fields           *[]string `json:"fields"`
 }
