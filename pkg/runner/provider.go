@@ -61,7 +61,6 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 					}
 				}
 			} else {
-				r.queryBuilder.UpdateState(params)
 
 				requests := r.formRequests(params, extraParams)
 				for _, r := range requests {
