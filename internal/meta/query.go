@@ -42,7 +42,6 @@ func (qb *VerifyQueryBuilder) UpdateState(
 }
 
 func (qb *VerifyQueryBuilder) ResetState() {
-	qb.LastTimestamp = qb.StartTimestamp
 	qb.StartTimestamp = time.Now().UTC()
 }
 
