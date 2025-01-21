@@ -52,7 +52,7 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
 		`
         with last as (
             select duns, url, maxMerge(max_ts) as max_ts
-            from wv.master_aggregated ma
+            from %s
             group by duns, url
         ),
         batch as (
