@@ -50,9 +50,8 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
 	return fmt.Sprintf(
 		`
         with last as (
-            select duns, url, max(corr_ts) as max_ts
-            from %s
-            where is_active = True
+            select duns, url, maxMerge(max_ts) as max_ts
+            from wv.master_aggregated ma
             group by duns, url
         ),
         batch as (
