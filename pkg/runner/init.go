@@ -88,5 +88,4 @@ func initHttpClient() *resty.Client {
 			},
 		).
 		SetLogger(log.S.GetInternal())
-
 }

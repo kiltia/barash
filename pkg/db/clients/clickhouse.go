@@ -158,8 +158,8 @@ func (client *ClickHouseClient[S, P, Q]) SelectNextBatch(
 			}
 			return nil, err
 		} else {
-		    break
-        }
+			break
+		}
 	}
 	if err = client.Connection.Select(ctx, &result, query); err != nil {
 		log.S.Error(

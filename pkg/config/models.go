@@ -6,13 +6,13 @@ import (
 )
 
 type Config struct {
-	Api            apiConfig            `yaml:"api"`
-	ClickHouse     clickHouseConfig     `yaml:"clickhouse"`
-	Timeouts       timeoutConfig        `yaml:"timeouts"`
-	HttpRetries    retryConfig          `yaml:"http_retries"`
-	SelectRetries  retryConfig          `yaml:"select_retries"`
-	Log            logConfig            `yaml:"log"`
-	Run            runConfig            `yaml:"run"`
+	Api           apiConfig        `yaml:"api"`
+	ClickHouse    clickHouseConfig `yaml:"clickhouse"`
+	Timeouts      timeoutConfig    `yaml:"timeouts"`
+	HttpRetries   retryConfig      `yaml:"http_retries"`
+	SelectRetries retryConfig      `yaml:"select_retries"`
+	Log           logConfig        `yaml:"log"`
+	Run           runConfig        `yaml:"run"`
 }
 
 type apiConfig struct {

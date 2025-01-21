@@ -52,9 +52,9 @@ func main() {
 	case ApiNameMeta:
 		hooks := meta.VerifyApiHooks{}
 		queryBuilder := meta.VerifyQueryBuilder{
-			DayInterval:    config.C.Run.Freshness,
-			Limit:          config.C.Run.SelectionBatchSize,
-			Mode:           config.C.Run.Mode,
+			DayInterval: config.C.Run.Freshness,
+			Limit:       config.C.Run.SelectionBatchSize,
+			Mode:        config.C.Run.Mode,
 		}
 		queryBuilder.ResetState()
 		instance, err := runner.New[
