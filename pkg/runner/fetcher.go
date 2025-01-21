@@ -183,7 +183,7 @@ func (r *Runner[S, R, P, Q]) fetcher(
 ) {
 	logObject := log.L().Tag(log.LogTagFetching).Add("fetcher_num", fetcherNum)
 	time.Sleep(startupTime)
-	log.S.Info("A new fetcher instance is starting up", logObject)
+	log.S.Debug("A new fetcher instance is starting up", logObject)
 	ctx = context.WithValue(ctx, re.RequestContextKeyFetcherNum, fetcherNum)
 
 	for {

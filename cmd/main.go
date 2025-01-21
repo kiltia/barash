@@ -55,7 +55,6 @@ func main() {
 			DayInterval:    config.C.Run.Freshness,
 			Limit:          config.C.Run.SelectionBatchSize,
 			Mode:           config.C.Run.Mode,
-			LastTimestamp: time.Unix(0, 1).UTC(),
 		}
 		queryBuilder.ResetState()
 		instance, err := runner.New[
