@@ -158,7 +158,7 @@ func (r VerifyResult) AsArray() []any {
 	// determine it.
 	if response.Error.Code != nil &&
 		strings.Contains(strings.ToLower(*response.Error.Code), "timeout") {
-		log.S.Warn("Timeout was detected, timestamp will be corrected", log.L())
+		log.S.Debug("Timeout was detected, timestamp will be corrected", log.L())
 		// NOTE(nrydanov): This is a hack to avoid sitations when
 		// too many potential timeouts are present in batch.
 		seconds := rand.Intn(24 * 60 * 60 * config.C.Run.MaxCorrection)
