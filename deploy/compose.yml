@@ -1,7 +1,7 @@
 name: wr
 services:
   clickhouse:
-    image: clickhouse/clickhouse-server:24.8-alpine
+    image: clickhouse/clickhouse-server:25.1-alpine
     environment:
       - CLICKHOUSE_DB=${CLICKHOUSE_DB:-wv}
       - CLICKHOUSE_USER=${CLICKHOUSE_USER:-user}
@@ -15,6 +15,7 @@ services:
       - ../clickhouse/dumps/master.parquet:/var/lib/clickhouse/master.parquet
       - ../clickhouse/dumps/gdmi_compact.parquet:/var/lib/clickhouse/gdmi_compact.parquet
       - ../clickhouse/dumps/two_table.parquet:/var/lib/clickhouse/two_table.parquet
+      - ../clickhouse/dumps/crawler_two_table.parquet:/var/lib/clickhouse/crawler_two_table.parquet
       - ../clickhouse/dumps/two_table_tiny.parquet:/var/lib/clickhouse/two_table_tiny.parquet
       - ../clickhouse/dumps/two_table_big.parquet:/var/lib/clickhouse/two_table_big.parquet
       - ../clickhouse/dumps/two_table_huge.parquet:/var/lib/clickhouse/two_table_huge.parquet
