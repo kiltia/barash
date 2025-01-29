@@ -89,8 +89,7 @@ func (client *ClickHouseClient[S, P, Q]) InsertBatch(
 		log.L().
 			Tag(log.LogTagClickHouse),
 	)
-	var zeroInstance S
-	query := zeroInstance.GetInsertQuery()
+	query := fmt.Sprintf("INSERT INTO %s", config.C.Run.InsertionTableName)
 	log.S.Debug(
 		"Sending query to the database",
 		log.L().
