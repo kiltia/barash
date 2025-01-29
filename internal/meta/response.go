@@ -27,6 +27,17 @@ type VerifyResponse struct {
 	DebugInfo DebugInfo    `json:"debug_info"`
 }
 
+type MetricsInner struct {
+	CrawlerStatusCode   uint16  `ch:"metrics.crawler_status_code"`
+	CrawlerResponseTime float32 `ch:"metrics.crawler_response_time"`
+	FeStatusCode        uint16  `ch:"metrics.fe_status_code"`
+	FeResponseTime      float32 `ch:"metrics.fe_response_time"`
+	FtStatusCode        uint16  `ch:"metrics.ft_status_code"`
+	FtResponseTime      float32 `ch:"metrics.ft_response_time"`
+	ScorerStatusCode    uint16  `ch:"metrics.scorer_status_code"`
+	ScorerResponseTime  float32 `ch:"metrics.scorer_response_time"`
+}
+
 func serializeMap(m map[string]any) string {
 	b, err := json.Marshal(m)
 	if err != nil {
@@ -77,6 +88,7 @@ func (response VerifyResponse) IntoStored(
 		Duns:                   params.Duns,
 		IsActive:               true,
 		Url:                    params.Url,
+		FinalUrl:               response.FinalUrl,
 		VerificationUrl:        url,
 		StatusCode:             uint16(status),
 		Error:                  response.Error.Reason,
@@ -99,7 +111,14 @@ func (response VerifyResponse) IntoStored(
 		MmState:                matchMaskSummary.State,
 		MmCountry:              matchMaskSummary.Country,
 		MmDomainNameSimilarity: matchMaskSummary.DomainNameSimilarity,
-		FinalUrl:               response.FinalUrl,
+		CrawlerStatusCode:      []uint16{response.DebugInfo.MetricsDebug.Crawler.StatusCode},
+		CrawlerResponseTime:    []float32{response.DebugInfo.MetricsDebug.Crawler.ResponseTime},
+		FeStatusCode:           []uint16{response.DebugInfo.MetricsDebug.Fe.StatusCode},
+		FeResponseTime:         []float32{response.DebugInfo.MetricsDebug.Fe.ResponseTime},
+		FtStatusCode:           []uint16{response.DebugInfo.MetricsDebug.Ft.StatusCode},
+		FtResponseTime:         []float32{response.DebugInfo.MetricsDebug.Ft.ResponseTime},
+		ScorerStatusCode:       []uint16{response.DebugInfo.MetricsDebug.Scorer.StatusCode},
+		ScorerResponseTime:     []float32{response.DebugInfo.MetricsDebug.Scorer.ResponseTime},
 		Score:                  score,
 		Tag:                    config.C.Run.Tag,
 		Timestamp:              ts,
@@ -113,9 +132,22 @@ type FeatureExtractorDebug struct {
 	Features map[string]any `json:"features"`
 }
 
+type MetricEntry struct {
+	ResponseTime float32 `json:"response_time"`
+	StatusCode   uint16  `json:"status_code"`
+}
+
+type MetricsDebug struct {
+	Crawler MetricEntry `json:"crawler"`
+	Fe      MetricEntry `json:"feature-extractor"`
+	Ft      MetricEntry `json:"fasttext"`
+	Scorer  MetricEntry `json:"scorer"`
+}
+
 type DebugInfo struct {
 	CrawlerDebug          CrawlerDebug          `json:"crawler_debug"`
 	FeatureExtractorDebug FeatureExtractorDebug `json:"fe_debug"`
+	MetricsDebug          MetricsDebug          `json:"metrics_debug"`
 }
 
 type CrawlerDebug struct {

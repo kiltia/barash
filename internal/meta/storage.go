@@ -36,6 +36,14 @@ type VerifyResult struct {
 	FinalUrl               string    `ch:"final_url"`
 	Score                  float64   `ch:"score"`
 	Tag                    string    `ch:"tag"`
+	CrawlerStatusCode      []uint16    `ch:"metrics.crawler_status_code"`
+	CrawlerResponseTime    []float32   `ch:"metrics.crawler_response_time"`
+	FeStatusCode           []uint16    `ch:"metrics.fe_status_code"`
+	FeResponseTime         []float32   `ch:"metrics.fe_response_time"`
+	FtStatusCode           []uint16    `ch:"metrics.ft_status_code"`
+	FtResponseTime         []float32   `ch:"metrics.ft_response_time"`
+	ScorerStatusCode       []uint16    `ch:"metrics.scorer_status_code"`
+	ScorerResponseTime     []float32   `ch:"metrics.scorer_response_time"`
 	Timestamp              time.Time `ch:"timestamp"`
 	Ts                     time.Time `ch:"ts"`
 	CorrTs                 time.Time `ch:"corr_ts"`
@@ -75,6 +83,16 @@ func (r VerifyResult) GetCreateQuery() string {
 			final_url String,
 			score Float32,
 			tag String,
+            metrics Nested(
+                crawler_status_code UInt16,
+                crawler_response_time Float32,
+                fe_status_code UInt16,
+                fe_response_time Float32,
+                ft_status_code UInt16,
+                ft_response_time Float32,
+                scorer_status_code UInt16,
+                scorer_response_time Float32,
+            ),
 			ts DateTime64(6, 'UTC'),
 			corr_ts DateTime64(6, 'UTC')
         )
