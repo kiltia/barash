@@ -101,7 +101,10 @@ func (client *ClickHouseClient[S, P, Q]) InsertBatch(
 		return err
 	}
 	for i := 0; i < len(batch); i++ {
-		batchBuilder.AppendStruct(batch[i])
+		err := batchBuilder.AppendStruct(&batch[i])
+		if err != nil {
+			return err
+		}
 	}
 	if err := batchBuilder.Send(); err != nil {
 		return err
