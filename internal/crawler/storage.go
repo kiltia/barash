@@ -64,7 +64,7 @@ func (r CrawlerResult) GetCreateQuery() string {
 }
 
 // Implement the [rinterface.StoredValue] interface.
-func (r CrawlerResult) AsArray() []any {
+func (r CrawlerResult) AsDict() map[string]any {
 	crawlingParams := r.CrawlerParams
 	response := r.CrawlerResponse
 
@@ -77,22 +77,22 @@ func (r CrawlerResult) AsArray() []any {
 		}
 	}
 
-	return []any{
-		crawlingParams.Url,
-		r.RequestLink,
-		r.StatusCode,
-		response.Status,
-		r.CrawlerResponse.ErrorInfo.Reason,
-		r.CrawlerResponse.ErrorInfo.ErrorType,
-		r.CrawlerResponse.ErrorInfo.Code,
-		r.AttemptsNumber,
-		response.OriginalUrl,
-		response.FinalUrl,
-		response.ResponseSize,
-		response.HeadlessUsed,
-		urls,
-		r.TimeElapsed.Abs().Milliseconds(),
-		config.C.Run.Tag,
-		r.Timestamp.UnixMicro(),
+	return map[string]any{
+		"url":                 crawlingParams.Url,
+		"request_link":        r.RequestLink,
+		"crawler_status_code": r.StatusCode,
+		"site_status_code":    response.Status,
+		"error":               response.ErrorInfo.Reason,
+		"error_type":          response.ErrorInfo.ErrorType,
+		"error_code":          response.ErrorInfo.Code,
+		"attempts_number":     r.AttemptsNumber,
+		"original_url":        response.OriginalUrl,
+		"final_url":           response.FinalUrl,
+		"response_size":       response.ResponseSize,
+		"headless_used":       response.HeadlessUsed,
+		"urls":                urls,
+		"time_elapsed":        r.TimeElapsed.Abs().Milliseconds(),
+		"tag":                 config.C.Run.Tag,
+		"ts":                  r.Timestamp.UnixMicro(),
 	}
 }

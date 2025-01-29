@@ -137,7 +137,7 @@ func (r VerifyResult) GetCreateQuery() string {
 }
 
 // Implement the [rinterface.StoredValue] interface.
-func (r VerifyResult) AsArray() []any {
+func (r VerifyResult) AsDict() map[string]any {
 	verifyParams := r.VerifyParams
 	response := r.MetaResponse
 	debugInfo := r.MetaResponse.DebugInfo
@@ -171,36 +171,36 @@ func (r VerifyResult) AsArray() []any {
 		correctedTs = r.Timestamp
 	}
 
-	return []any{
-		verifyParams.Duns,
-		true,
-		verifyParams.Url,
-		r.RequestLink,
-		r.StatusCode,
-		response.Error.Reason,
-		response.Error.ErrorType,
-		response.Error.Code,
-		response.Error.ErrorRepr,
-		r.AttemptsNumber,
-		crawlerDebug.CrawlerErrors,
-		crawlerDebug.CrawlFails,
-		crawlerDebug.CrawledPages,
-		pageStats.Errors,
-		pageStats.Fails,
-		pageStats.Successes,
-		debugInfo.FeatureExtractorDebug.Features,
-		response.MatchMask.MatchMaskDetails,
-		MatchMaskSummary.Name,
-		MatchMaskSummary.Address1,
-		MatchMaskSummary.Address2,
-		MatchMaskSummary.City,
-		MatchMaskSummary.State,
-		MatchMaskSummary.Country,
-		MatchMaskSummary.DomainNameSimilarity,
-		response.FinalUrl,
-		score,
-		config.C.Run.Tag,
-		r.Timestamp,
-		correctedTs,
+	return map[string]any{
+		"duns":                      verifyParams.Duns,
+		"is_active":                 true,
+		"url":                       verifyParams.Url,
+		"verification_url":          r.RequestLink,
+		"status_code":               r.StatusCode,
+		"error":                     response.Error.Reason,
+		"error_type":                response.Error.ErrorType,
+		"error_code":                response.Error.Code,
+		"error_repr":                response.Error.ErrorRepr,
+		"attempts_number":           r.AttemptsNumber,
+		"crawler_errors":            crawlerDebug.CrawlerErrors,
+		"crawl_fails":               crawlerDebug.CrawlFails,
+		"crawled_pages":             crawlerDebug.CrawledPages,
+		"num_errors":                pageStats.Errors,
+		"num_fails":                 pageStats.Fails,
+		"num_successes":             pageStats.Successes,
+		"features":                  debugInfo.FeatureExtractorDebug.Features,
+		"match_mask_details":        response.MatchMask.MatchMaskDetails,
+		"mm_name":                   MatchMaskSummary.Name,
+		"mm_address1":               MatchMaskSummary.Address1,
+		"mm_address2":               MatchMaskSummary.Address2,
+		"mm_city":                   MatchMaskSummary.City,
+		"mm_state":                  MatchMaskSummary.State,
+		"mm_country":                MatchMaskSummary.Country,
+		"mm_domain_name_similarity": MatchMaskSummary.DomainNameSimilarity,
+		"final_url":                 response.FinalUrl,
+		"score":                     score,
+		"tag":                       config.C.Run.Tag,
+		"ts":                        r.Timestamp,
+		"corr_ts":                   correctedTs,
 	}
 }

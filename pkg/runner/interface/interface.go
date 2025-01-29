@@ -26,7 +26,7 @@ type (
 		// Return stored values as an array.
 		//
 		// The values are used as parameters to the INSERT query.
-		AsArray() []any
+		AsDict() map[string]any
 
 		// Get value of the status code field.
 		GetStatusCode() int

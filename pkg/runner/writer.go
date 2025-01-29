@@ -20,7 +20,7 @@ func (r *Runner[S, R, P, Q]) write(
 		"Saving processed batch to the database",
 		logObject.Add("batch_len", len(batch)),
 	)
-	err = r.clickHouseClient.AsyncInsertBatch(
+	err = r.clickHouseClient.InsertBatch(
 		ctx,
 		batch,
 		config.C.Run.Tag,

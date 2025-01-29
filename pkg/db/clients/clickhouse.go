@@ -79,7 +79,7 @@ func NewClickHouseClient[S ri.StoredValue, P ri.StoredParams, Q ri.QueryBuilder[
 	}, version, err
 }
 
-func (client *ClickHouseClient[S, P, Q]) AsyncInsertBatch(
+func (client *ClickHouseClient[S, P, Q]) InsertBatch(
 	ctx context.Context,
 	batch []S,
 	tag string,
@@ -97,24 +97,17 @@ func (client *ClickHouseClient[S, P, Q]) AsyncInsertBatch(
 			Tag(log.LogTagClickHouse).
 			Add("query", query),
 	)
-	for i := 0; i < len(batch); i++ {
-		innerRepr := batch[i].AsArray()
-		err := client.Connection.AsyncInsert(
-			ctx,
-			query,
-			false,
-			innerRepr...,
-		)
-		if err != nil {
-			log.S.Error(
-				"Got an error while writing records to the database",
-				log.L().
-					Tag(log.LogTagClickHouse).
-					Error(err),
-			)
-			return err
-		}
+	batchBuilder, err := client.Connection.PrepareBatch(ctx, query)
+	if err != nil {
+		return err
 	}
+	for i := 0; i < len(batch); i++ {
+		batchBuilder.AppendStruct(batch[i])
+	}
+	if err := batchBuilder.Send(); err != nil {
+		return err
+	}
+
 	log.S.Debug(
 		"Successfully saved batch to the database",
 		log.L().
