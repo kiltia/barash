@@ -2,36 +2,28 @@ package crawler
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"orb/runner/pkg/config"
 )
 
 type CrawlerResult struct {
-	StatusCode      int
-	CrawlerParams   CrawlerParams
-	RequestLink     string
-	AttemptsNumber  int
-	TimeElapsed     time.Duration
-	CrawlerResponse *CrawlerResponse
-	Timestamp       time.Time
-}
-
-// Implement the [rinterface.StoredValue] interface.
-func (r CrawlerResult) GetInsertQuery() string {
-	query := fmt.Sprintf(
-		`
-        INSERT INTO %s VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, fromUnixTimestamp64Micro(?)
-        )
-    `, config.C.Run.InsertionTableName)
-	return query
-}
-
-// Implement the [rinterface.StoredValue] interface.
-func (r CrawlerResult) GetStatusCode() int {
-	return r.StatusCode
+	Url               string    `json:"url"                 ch:"url"`
+	RequestLink       string    `json:"request_link"        ch:"request_link"`
+	CrawlerStatusCode uint16    `json:"crawler_status_code" ch:"crawler_status_code"`
+	SiteStatusCode    uint16    `json:"site_status_code"    ch:"site_status_code"`
+	Error             string    `json:"error"               ch:"error"`
+	ErrorType         string    `json:"error_type"          ch:"error_type"`
+	ErrorCode         string    `json:"error_code"          ch:"error_code"`
+	AttemptsNumber    uint8     `json:"attempts_number"     ch:"attempts_number"`
+	OriginalUrl       string    `json:"original_url"        ch:"original_url"`
+	FinalUrl          string    `json:"final_url"           ch:"final_url"`
+	ResponseSize      int64     `json:"response_size"       ch:"response_size"`
+	HeadlessUsed      bool      `json:"headless_used"       ch:"headless_used"`
+	Urls              []string  `json:"urls"                ch:"urls"`
+	TimeElapsed       int64     `json:"time_elapsed"        ch:"time_elapsed"`
+	Tag               string    `json:"tag"                 ch:"tag"`
+	Timestamp         time.Time `json:"ts"                  ch:"ts"`
 }
 
 // Implement the [rinterface.StoredValue] interface.
@@ -61,38 +53,4 @@ func (r CrawlerResult) GetCreateQuery() string {
         ORDER BY ts
     `, config.C.Run.InsertionTableName)
 	return query
-}
-
-// Implement the [rinterface.StoredValue] interface.
-func (r CrawlerResult) AsDict() map[string]any {
-	crawlingParams := r.CrawlerParams
-	response := r.CrawlerResponse
-
-	urls := []string{}
-
-	for _, url := range response.Parsed.Urls {
-		if url.TagName == "a" && url.Type == "href" &&
-			(strings.HasPrefix(url.URL, "http") || strings.HasPrefix(url.URL, "https")) {
-			urls = append(urls, url.URL)
-		}
-	}
-
-	return map[string]any{
-		"url":                 crawlingParams.Url,
-		"request_link":        r.RequestLink,
-		"crawler_status_code": r.StatusCode,
-		"site_status_code":    response.Status,
-		"error":               response.ErrorInfo.Reason,
-		"error_type":          response.ErrorInfo.ErrorType,
-		"error_code":          response.ErrorInfo.Code,
-		"attempts_number":     r.AttemptsNumber,
-		"original_url":        response.OriginalUrl,
-		"final_url":           response.FinalUrl,
-		"response_size":       response.ResponseSize,
-		"headless_used":       response.HeadlessUsed,
-		"urls":                urls,
-		"time_elapsed":        r.TimeElapsed.Abs().Milliseconds(),
-		"tag":                 config.C.Run.Tag,
-		"ts":                  r.Timestamp.UnixMicro(),
-	}
 }

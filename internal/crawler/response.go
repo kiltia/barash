@@ -1,6 +1,10 @@
 package crawler
 
-import "time"
+import (
+	"time"
+
+	"orb/runner/pkg/config"
+)
 
 type PartialErrorInfo struct {
 	Reason    string `json:"reason"`
@@ -25,14 +29,27 @@ func (resp CrawlerResponse) IntoStored(
 	status int,
 	timeElapsed time.Duration,
 ) CrawlerResult {
+	var urls []string
+	for i := range resp.Parsed.Urls {
+		urls = append(urls, resp.Parsed.Urls[i].URL)
+	}
 	return CrawlerResult{
-		AttemptsNumber:  n,
-		CrawlerParams:   params,
-		CrawlerResponse: &resp,
-		RequestLink:     url,
-		StatusCode:      status,
-		TimeElapsed:     timeElapsed,
-		Timestamp:       time.Now(),
+		Url:               params.Url,
+		RequestLink:       url,
+		CrawlerStatusCode: uint16(status),
+		SiteStatusCode:    uint16(resp.Status),
+		Error:             resp.ErrorInfo.Reason,
+		ErrorType:         resp.ErrorInfo.ErrorType,
+		ErrorCode:         resp.ErrorInfo.Code,
+		AttemptsNumber:    uint8(n),
+		OriginalUrl:       resp.OriginalUrl,
+		FinalUrl:          resp.FinalUrl,
+		ResponseSize:      resp.ResponseSize,
+		HeadlessUsed:      resp.HeadlessUsed,
+		Urls:              urls,
+		TimeElapsed:       timeElapsed.Abs().Milliseconds(),
+		Tag:               config.C.Run.Tag,
+		Timestamp:         time.Now(),
 	}
 }
 
