@@ -2,93 +2,43 @@ package meta
 
 import (
 	"fmt"
-	"math"
-	"math/rand"
-	"strings"
 	"time"
 
 	"orb/runner/pkg/config"
-	"orb/runner/pkg/log"
 )
 
-var MasterColumnNames = [30]string{
-	"duns",
-	"is_active",
-	"url",
-	"verification_url",
-	"status_code",
-	"error",
-	"error_type",
-	"error_code",
-	"error_repr",
-	"attempts_number",
-	"crawler_errors",
-	"crawl_fails",
-	"crawled_pages",
-	"num_errors",
-	"num_fails",
-	"num_successes",
-	"features",
-	"match_mask_details",
-	"mm_name",
-	"mm_address1",
-	"mm_address2",
-	"mm_city",
-	"mm_state",
-	"mm_country",
-	"mm_domain_name_similarity",
-	"final_url",
-	"score",
-	"tag",
-	"ts",
-	"corr_ts",
-}
-
 type VerifyResult struct {
-	StatusCode     int
-	TimeElapsed    time.Duration
-	VerifyParams   VerifyParams
-	RequestLink    string
-	AttemptsNumber int
-	Timestamp      time.Time
-	MetaResponse   VerifyResponse
-}
-
-// Implement the [rinterface.StoredValue] interface.
-func (r VerifyResult) GetInsertQuery() string {
-	values := make(
-		[]string,
-		len(MasterColumnNames),
-	)
-	for i := range values {
-		values[i] = "?"
-	}
-	query := fmt.Sprintf(
-		`
-        INSERT INTO %s (%s) VALUES (%s)
-    `,
-		config.C.Run.InsertionTableName,
-		strings.Join(
-			MasterColumnNames[:],
-			", ",
-		),
-		strings.Join(
-			values,
-			", ",
-		),
-	)
-
-	log.S.Debug(
-		"Formed insert query: ",
-		log.L().
-			Add("query", query),
-	)
-	return query
-}
-
-// Implement the [rinterface.StoredValue] interface.
-func (r VerifyResult) GetStatusCode() int {
-	return r.StatusCode
+	Duns                   string    `ch:"duns"`
+	IsActive               bool      `ch:"is_active"`
+	Url                    string    `ch:"url"`
+	VerificationUrl        string    `ch:"verification_url"`
+	StatusCode             uint16    `ch:"status_code"`
+	Error                  string    `ch:"error"`
+	ErrorCode              string    `ch:"error_code"`
+	ErrorType              string    `ch:"error_type"`
+	ErrorRepr              string    `ch:"error_repr"`
+	AttemptsNumber         uint8     `ch:"attempts_number"`
+	CrawlerErrors          []string  `ch:"crawler_errors"`
+	CrawlFails             []string  `ch:"crawl_fails"`
+	CrawledPages           []string  `ch:"crawled_pages"`
+	NumErrors              int       `ch:"num_errors"`
+	NumFails               int       `ch:"num_fails"`
+	NumSuccesses           int       `ch:"num_successes"`
+	Features               string    `ch:"features"`
+	MatchMaskDetails       string    `ch:"match_mask_details"`
+	MmName                 string    `ch:"mm_name"`
+	MmAddress1             string    `ch:"mm_address1"`
+	MmAddress2             string    `ch:"mm_address2"`
+	MmCity                 string    `ch:"mm_city"`
+	MmState                string    `ch:"mm_state"`
+	MmCountry              string    `ch:"mm_country"`
+	MmDomainNameSimilarity float64   `ch:"mm_domain_name_similarity"`
+	FinalUrl               string    `ch:"final_url"`
+	Score                  float64   `ch:"score"`
+	Tag                    string    `ch:"tag"`
+	Timestamp              time.Time `ch:"timestamp"`
+	Ts                     time.Time `ch:"ts"`
+	CorrTs                 time.Time `ch:"corr_ts"`
 }
 
 // Implement the [rinterface.StoredValue] interface.
@@ -101,7 +51,7 @@ func (r VerifyResult) GetCreateQuery() string {
 			is_active Bool,
 			url String,
 			verification_url String,
-			status_code Int32,
+			status_code UInt16,
             error String,
             error_code String,
             error_type String,
@@ -134,73 +84,4 @@ func (r VerifyResult) GetCreateQuery() string {
 		config.C.Run.InsertionTableName,
 	)
 	return query
-}
-
-// Implement the [rinterface.StoredValue] interface.
-func (r VerifyResult) AsDict() map[string]any {
-	verifyParams := r.VerifyParams
-	response := r.MetaResponse
-	debugInfo := r.MetaResponse.DebugInfo
-	pageStats := r.MetaResponse.DebugInfo.CrawlerDebug.PageStats
-	crawlerDebug := debugInfo.CrawlerDebug
-	MatchMaskSummary := response.MatchMask.MatchMaskSummary
-
-	var score float64
-	if response.Score == nil {
-		score = math.NaN()
-	} else {
-		score = *response.Score
-	}
-
-	var correctedTs time.Time
-
-	// NOTE(nrydanov): Need to replace with certain error code when we'll
-	// determine it.
-	if response.Error.Code != nil &&
-		strings.Contains(strings.ToLower(*response.Error.Code), "timeout") {
-		log.S.Debug("Timeout was detected, timestamp will be corrected", log.L())
-		// NOTE(nrydanov): This is a hack to avoid sitations when
-		// too many potential timeouts are present in batch.
-		seconds := rand.Intn(24 * 60 * 60 * config.C.Run.MaxCorrection)
-		correctedTs = r.Timestamp.Add(
-			time.Duration(
-				seconds,
-			) * time.Second,
-		)
-	} else {
-		correctedTs = r.Timestamp
-	}
-
-	return map[string]any{
-		"duns":                      verifyParams.Duns,
-		"is_active":                 true,
-		"url":                       verifyParams.Url,
-		"verification_url":          r.RequestLink,
-		"status_code":               r.StatusCode,
-		"error":                     response.Error.Reason,
-		"error_type":                response.Error.ErrorType,
-		"error_code":                response.Error.Code,
-		"error_repr":                response.Error.ErrorRepr,
-		"attempts_number":           r.AttemptsNumber,
-		"crawler_errors":            crawlerDebug.CrawlerErrors,
-		"crawl_fails":               crawlerDebug.CrawlFails,
-		"crawled_pages":             crawlerDebug.CrawledPages,
-		"num_errors":                pageStats.Errors,
-		"num_fails":                 pageStats.Fails,
-		"num_successes":             pageStats.Successes,
-		"features":                  debugInfo.FeatureExtractorDebug.Features,
-		"match_mask_details":        response.MatchMask.MatchMaskDetails,
-		"mm_name":                   MatchMaskSummary.Name,
-		"mm_address1":               MatchMaskSummary.Address1,
-		"mm_address2":               MatchMaskSummary.Address2,
-		"mm_city":                   MatchMaskSummary.City,
-		"mm_state":                  MatchMaskSummary.State,
-		"mm_country":                MatchMaskSummary.Country,
-		"mm_domain_name_similarity": MatchMaskSummary.DomainNameSimilarity,
-		"final_url":                 response.FinalUrl,
-		"score":                     score,
-		"tag":                       config.C.Run.Tag,
-		"ts":                        r.Timestamp,
-		"corr_ts":                   correctedTs,
-	}
 }

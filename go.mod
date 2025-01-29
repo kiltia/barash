@@ -8,6 +8,7 @@ require (
 )
 
 require (
+	github.com/sa-/slicefunk v0.1.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/net v0.30.0 // indirect
 )
