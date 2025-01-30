@@ -69,6 +69,20 @@ func (response VerifyResponse) IntoStored(
 	ts := time.Now()
 	var correctedTs time.Time
 
+	convertMetrics := func(metrics MetricsDebug) (map[string]float32, map[string]uint16) {
+		var responseTimes = make(map[string]float32)
+		var responseCodes = make(map[string]uint16)
+
+		for key, metric := range metrics {
+			responseTimes[key] = metric.ResponseTime
+			responseCodes[key] = metric.StatusCode
+		}
+
+		return responseTimes, responseCodes
+	}
+
+	responseTimes, responseCodes := convertMetrics(response.DebugInfo.MetricsDebug)
+
 	// NOTE(nrydanov): Need to replace with certain error code when we'll
 	// determine it.
 	if strings.Contains(strings.ToLower(response.Error.Code), "timeout") {
@@ -111,14 +125,8 @@ func (response VerifyResponse) IntoStored(
 		MmState:                matchMaskSummary.State,
 		MmCountry:              matchMaskSummary.Country,
 		MmDomainNameSimilarity: matchMaskSummary.DomainNameSimilarity,
-		CrawlerStatusCode:      []uint16{response.DebugInfo.MetricsDebug.Crawler.StatusCode},
-		CrawlerResponseTime:    []float32{response.DebugInfo.MetricsDebug.Crawler.ResponseTime},
-		FeStatusCode:           []uint16{response.DebugInfo.MetricsDebug.Fe.StatusCode},
-		FeResponseTime:         []float32{response.DebugInfo.MetricsDebug.Fe.ResponseTime},
-		FtStatusCode:           []uint16{response.DebugInfo.MetricsDebug.Ft.StatusCode},
-		FtResponseTime:         []float32{response.DebugInfo.MetricsDebug.Ft.ResponseTime},
-		ScorerStatusCode:       []uint16{response.DebugInfo.MetricsDebug.Scorer.StatusCode},
-		ScorerResponseTime:     []float32{response.DebugInfo.MetricsDebug.Scorer.ResponseTime},
+		ResponseTimes:          responseTimes,
+		ResponseCodes:          responseCodes,
 		Score:                  score,
 		Tag:                    config.C.Run.Tag,
 		Timestamp:              ts,
@@ -137,12 +145,7 @@ type MetricEntry struct {
 	StatusCode   uint16  `json:"status_code"`
 }
 
-type MetricsDebug struct {
-	Crawler MetricEntry `json:"crawler"`
-	Fe      MetricEntry `json:"feature-extractor"`
-	Ft      MetricEntry `json:"fasttext"`
-	Scorer  MetricEntry `json:"scorer"`
-}
+type MetricsDebug = map[string]MetricEntry
 
 type DebugInfo struct {
 	CrawlerDebug          CrawlerDebug          `json:"crawler_debug"`
