@@ -36,8 +36,8 @@ type VerifyResult struct {
 	FinalUrl               string             `ch:"final_url"`
 	Score                  float64            `ch:"score"`
 	Tag                    string             `ch:"tag"`
-	ResponseTimes          map[string]float32 `ch:"response_times"`
-	ResponseCodes          map[string]uint16  `ch:"response_codes"`
+	ResponseTimes          map[string]float32 `ch:"service_response_times"`
+	ResponseCodes          map[string]uint16  `ch:"service_status_codes"`
 	Timestamp              time.Time          `ch:"ts"`
 	CorrTs                 time.Time          `ch:"corr_ts"`
 }
@@ -76,8 +76,8 @@ func (r VerifyResult) GetCreateQuery() string {
 			final_url String,
 			score Float32,
 			tag String,
-            response_times Map(String, float32),
-            service_status_codes Map(String, uint16)
+            service_response_times Map(String, Float32),
+            service_status_codes Map(String, UInt16),
 			ts DateTime64(6, 'UTC'),
 			corr_ts DateTime64(6, 'UTC')
         )
