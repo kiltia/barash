@@ -2,13 +2,14 @@ package meta
 
 import (
 	"encoding/json"
-	sf "github.com/sa-/slicefunk"
 	"math"
-	"orb/runner/pkg/config"
+	"math/rand"
 	"strings"
 	"time"
 
-	"math/rand"
+	"orb/runner/pkg/config"
+
+	sf "github.com/sa-/slicefunk"
 )
 
 type ErrorDetails struct {
@@ -25,17 +26,6 @@ type VerifyResponse struct {
 	FinalUrl  string       `json:"final_url"`
 	MatchMask MatchMask    `json:"match_mask"`
 	DebugInfo DebugInfo    `json:"debug_info"`
-}
-
-type MetricsInner struct {
-	CrawlerStatusCode   uint16  `ch:"metrics.crawler_status_code"`
-	CrawlerResponseTime float32 `ch:"metrics.crawler_response_time"`
-	FeStatusCode        uint16  `ch:"metrics.fe_status_code"`
-	FeResponseTime      float32 `ch:"metrics.fe_response_time"`
-	FtStatusCode        uint16  `ch:"metrics.ft_status_code"`
-	FtResponseTime      float32 `ch:"metrics.ft_response_time"`
-	ScorerStatusCode    uint16  `ch:"metrics.scorer_status_code"`
-	ScorerResponseTime  float32 `ch:"metrics.scorer_response_time"`
 }
 
 func serializeMap(m map[string]any) string {
@@ -70,8 +60,8 @@ func (response VerifyResponse) IntoStored(
 	var correctedTs time.Time
 
 	convertMetrics := func(metrics MetricsDebug) (map[string]float32, map[string]uint16) {
-		var responseTimes = make(map[string]float32)
-		var responseCodes = make(map[string]uint16)
+		responseTimes := make(map[string]float32)
+		responseCodes := make(map[string]uint16)
 
 		for key, metric := range metrics {
 			responseTimes[key] = metric.ResponseTime
@@ -81,7 +71,9 @@ func (response VerifyResponse) IntoStored(
 		return responseTimes, responseCodes
 	}
 
-	responseTimes, responseCodes := convertMetrics(response.DebugInfo.MetricsDebug)
+	responseTimes, responseCodes := convertMetrics(
+		response.DebugInfo.MetricsDebug,
+	)
 
 	// NOTE(nrydanov): Need to replace with certain error code when we'll
 	// determine it.
