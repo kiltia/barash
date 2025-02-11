@@ -47,7 +47,7 @@ func (resp CrawlerResponse) IntoStored(
 		ResponseSize:      resp.ResponseSize,
 		HeadlessUsed:      resp.HeadlessUsed,
 		Urls:              urls,
-		TimeElapsed:       timeElapsed.Abs().Milliseconds(),
+		TimeElapsed:       timeElapsed.Seconds(),
 		Tag:               config.C.Run.Tag,
 		Timestamp:         time.Now(),
 	}

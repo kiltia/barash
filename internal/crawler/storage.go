@@ -21,7 +21,7 @@ type CrawlerResult struct {
 	ResponseSize      int64     `json:"response_size"       ch:"response_size"`
 	HeadlessUsed      bool      `json:"headless_used"       ch:"headless_used"`
 	Urls              []string  `json:"urls"                ch:"urls"`
-	TimeElapsed       int64     `json:"time_elapsed"        ch:"time_elapsed"`
+	TimeElapsed       float64   `json:"time_elapsed"        ch:"time_elapsed"`
 	Tag               string    `json:"tag"                 ch:"tag"`
 	Timestamp         time.Time `json:"ts"                  ch:"ts"`
 }
@@ -45,7 +45,7 @@ func (r CrawlerResult) GetCreateQuery() string {
             response_size Int64,
             headless_used Bool,
             urls Array(String),
-            time_elapsed Int32,
+            time_elapsed Float64,
             tag String,
             ts DateTime64
         )
