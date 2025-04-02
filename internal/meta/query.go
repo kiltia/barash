@@ -58,7 +58,7 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
         batch as (
             select duns, url, max_ts
             from last
-            where max_ts < toDateTime64('%s', 6) - toIntervalDay(%d) and max_ts >= toDateTime64('%s', 6)
+            where max_ts < toDateTime64('%s', 6) - toIntervalDay(%d) and max_ts > toDateTime64('%s', 6)
             order by max_ts asc
             limit %d
         ),
