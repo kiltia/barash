@@ -7,7 +7,7 @@ import (
 )
 
 type CrawlerQueryBuilder struct {
-	LastId    uint64
+	LastId    int64
 	BatchSize int
 	Mode      config.RunnerMode
 }
