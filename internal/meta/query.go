@@ -37,13 +37,18 @@ func (qb *VerifyQueryBuilder) UpdateState(
 		"QueryBuilder state was updated",
 		log.L().
 			Add("last_ts", qb.LastTimestamp.String()).
-			Add("start_ts", qb.StartTimestamp.String()),
+			Add("start_ts", qb.StartTimestamp.String()).
+			Add("tasks_fetched", len(batch)),
 	)
 }
 
 func (qb *VerifyQueryBuilder) ResetState() {
 	qb.StartTimestamp = time.Now().UTC()
 	qb.LastTimestamp = time.Unix(0, 1).UTC()
+	log.S.Info(
+		"QueryBuilder state reset",
+		log.L().Add("last_ts", qb.LastTimestamp).Add("start_ts", qb.StartTimestamp),
+	)
 }
 
 // Implement the [rinterface.StoredValue] interface.
