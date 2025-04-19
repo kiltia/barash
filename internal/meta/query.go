@@ -33,7 +33,7 @@ func (qb *VerifyQueryBuilder) UpdateState(
 		qb.LastDuns = p.Duns
 	}
 
-	log.S.Debug(
+	log.S.Info(
 		"QueryBuilder state was updated",
 		log.L().
 			Add("last_ts", qb.LastTimestamp.String()).

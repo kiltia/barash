@@ -46,7 +46,6 @@ func (r *Runner[S, R, P, Q]) sendGetRequest(
 	)
 	lastResponse, err := r.httpClient.R().SetContext(ctx).Get(url)
 	if err != nil {
-		log.S.Error("Failed to perform the request", logObject.Error(err))
 		return lastResponse
 	}
 	log.S.Debug("Finished request to the subject API", logObject)
