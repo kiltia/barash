@@ -16,10 +16,10 @@ type Config struct {
 }
 
 type apiConfig struct {
-	Name   string `yaml:"name"`
-	Host   string `yaml:"host"`
-	Port   string `yaml:"port"`
-	Method string `yaml:"method"`
+	Name     string `yaml:"name"`
+	Host     string `yaml:"host"`
+	Port     string `yaml:"port"`
+	Endpoint string `yaml:"endpoint"`
 }
 
 type clickHouseConfig struct {

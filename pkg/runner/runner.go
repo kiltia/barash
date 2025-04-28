@@ -174,7 +174,7 @@ func (r *Runner[S, R, P, Q]) formRequests(
 			rr.GetRequest[P]{
 				Host:        config.C.Api.Host,
 				Port:        config.C.Api.Port,
-				Method:      config.C.Api.Method,
+				Method:      config.C.Api.Endpoint,
 				Params:      params,
 				ExtraParams: extraParams,
 			},
