@@ -11,7 +11,6 @@ import (
 	dbclient "orb/runner/pkg/db/clients"
 	"orb/runner/pkg/log"
 	ri "orb/runner/pkg/runner/interface"
-	rr "orb/runner/pkg/runner/request"
 
 	"github.com/avast/retry-go/v4"
 	"github.com/go-resty/resty/v2"
@@ -79,7 +78,7 @@ func (r *Runner[S, R, P, Q]) Run(
 	r.initTable(ctx)
 	logObject := log.L().Tag(log.LogTagRunner)
 
-	fetcherCh := make(chan rr.GetRequest[P], 2*config.C.Run.SelectionBatchSize)
+	fetcherCh := make(chan GetRequest[P], 2*config.C.Run.SelectionBatchSize)
 	writerCh := make(chan S, 2*config.C.Run.InsertionBatchSize+1)
 	wg := sync.WaitGroup{}
 
@@ -160,7 +159,7 @@ func (r *Runner[S, R, P, Q]) formRequests(
 	params []P,
 	extraParams map[string]string,
 ) (
-	requests []rr.GetRequest[P],
+	requests []GetRequest[P],
 ) {
 	logObject := log.L().Tag(log.LogTagRunner)
 
@@ -171,7 +170,7 @@ func (r *Runner[S, R, P, Q]) formRequests(
 	for _, params := range params {
 		requests = append(
 			requests,
-			rr.GetRequest[P]{
+			GetRequest[P]{
 				Host:        config.C.Api.Host,
 				Port:        config.C.Api.Port,
 				Method:      config.C.Api.Endpoint,

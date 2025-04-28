@@ -5,6 +5,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+type RunnerHttpMethod string
+
 type Config struct {
 	Api           apiConfig        `yaml:"api"`
 	ClickHouse    clickHouseConfig `yaml:"clickhouse"`

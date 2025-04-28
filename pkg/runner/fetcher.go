@@ -8,8 +8,6 @@ import (
 
 	"orb/runner/pkg/config"
 	"orb/runner/pkg/log"
-	re "orb/runner/pkg/runner/enum"
-	rr "orb/runner/pkg/runner/request"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -19,7 +17,7 @@ import (
 func (r *Runner[S, R, P, Q]) handleFetcherTask(
 	ctx context.Context,
 	logObject log.LogObject,
-	task rr.GetRequest[P],
+	task GetRequest[P],
 ) []S {
 	log.S.Debug("Sending request to the subject API", logObject)
 	resultList, err := r.performRequest(ctx, logObject, task)
@@ -41,7 +39,7 @@ func (r *Runner[S, R, P, Q]) sendGetRequest(
 	log.S.Debug("Performing request to the subject API", logObject)
 	ctx = context.WithValue(
 		ctx,
-		re.RequestContextKeyUnsuccessfulResponses,
+		ContextKeyUnsuccessfulResponses,
 		[]*resty.Response{},
 	)
 	lastResponse, err := r.httpClient.R().SetContext(ctx).Get(url)
@@ -55,7 +53,7 @@ func (r *Runner[S, R, P, Q]) sendGetRequest(
 
 func (r *Runner[S, R, P, Q]) processResponse(
 	logObject log.LogObject,
-	req rr.GetRequest[P],
+	req GetRequest[P],
 	resp *resty.Response,
 	attemptNumber int,
 ) (S, error) {
@@ -116,7 +114,7 @@ func (r *Runner[S, R, P, Q]) processResponse(
 func (r *Runner[S, R, P, Q]) performRequest(
 	ctx context.Context,
 	logObject log.LogObject,
-	req rr.GetRequest[P],
+	req GetRequest[P],
 ) ([]S, error) {
 	log.S.Debug("Creating request link", logObject)
 	requestUrl, err := req.GetRequestLink()
@@ -156,7 +154,7 @@ func (r *Runner[S, R, P, Q]) performRequest(
 	failed := lastResponse.
 		Request.
 		Context().
-		Value(re.RequestContextKeyUnsuccessfulResponses).([]*resty.Response)
+		Value(ContextKeyUnsuccessfulResponses).([]*resty.Response)
 	responses = append(responses, failed...)
 
 	var results []S
@@ -175,7 +173,7 @@ func (r *Runner[S, R, P, Q]) performRequest(
 
 func (r *Runner[S, R, P, Q]) fetcher(
 	ctx context.Context,
-	input chan rr.GetRequest[P],
+	input chan GetRequest[P],
 	output chan S,
 	fetcherNum int,
 	startupTime time.Duration,
@@ -183,7 +181,7 @@ func (r *Runner[S, R, P, Q]) fetcher(
 	logObject := log.L().Tag(log.LogTagFetching).Add("fetcher_num", fetcherNum)
 	time.Sleep(startupTime)
 	log.S.Debug("A new fetcher instance is starting up", logObject)
-	ctx = context.WithValue(ctx, re.RequestContextKeyFetcherNum, fetcherNum)
+	ctx = context.WithValue(ctx, ContextKeyFetcherNum, fetcherNum)
 
 	for {
 		select {

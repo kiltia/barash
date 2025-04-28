@@ -6,12 +6,11 @@ import (
 
 	"orb/runner/pkg/config"
 	"orb/runner/pkg/log"
-	rr "orb/runner/pkg/runner/request"
 )
 
 func (r *Runner[S, R, P, Q]) dataProvider(
 	ctx context.Context,
-	fetchTasks chan rr.GetRequest[P],
+	fetchTasks chan GetRequest[P],
 ) {
 	logObject := log.L().Tag(log.LogTagDataProvider)
 	defer close(fetchTasks)
@@ -61,7 +60,6 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 					}
 				}
 			} else {
-
 				requests := r.formRequests(params, extraParams)
 				for _, r := range requests {
 					fetchTasks <- r

@@ -7,7 +7,6 @@ import (
 	"orb/runner/pkg/config"
 
 	"orb/runner/pkg/log"
-	re "orb/runner/pkg/runner/enum"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -54,7 +53,7 @@ func initHttpClient() *resty.Client {
 		AddRetryCondition(
 			func(r *resty.Response, err error) bool {
 				ctx := r.Request.Context()
-				fetcherNum := ctx.Value(re.RequestContextKeyFetcherNum).(int)
+				fetcherNum := ctx.Value(ContextKeyFetcherNum).(int)
 				if r.StatusCode() >= 500 {
 					log.S.Debug(
 						"Retrying request",
@@ -72,14 +71,14 @@ func initHttpClient() *resty.Client {
 		AddRetryHook(
 			func(r *resty.Response, err error) {
 				ctx := r.Request.Context()
-				responses := ctx.Value(re.RequestContextKeyUnsuccessfulResponses).([]*resty.Response)
+				responses := ctx.Value(ContextKeyUnsuccessfulResponses).([]*resty.Response)
 				responses = append(
 					responses,
 					r,
 				)
 				newCtx := context.WithValue(
 					ctx,
-					re.RequestContextKeyUnsuccessfulResponses,
+					ContextKeyUnsuccessfulResponses,
 					responses,
 				)
 				r.Request.SetContext(

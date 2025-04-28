@@ -1,4 +1,4 @@
-package rrequest
+package runner
 
 import (
 	"fmt"
