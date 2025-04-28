@@ -42,7 +42,7 @@ type ClickHouseConfig struct {
 	Database string `env:"DB, required"`
 	Username string `env:"USER, required"`
 	Password string `env:"PASSWORD, required"`
-	Host     string `env:"HOST, deafult=127.0.0.1"`
+	Host     string `env:"HOST, default=127.0.0.1"`
 	Port     string `env:"PORT, default=9000"`
 }
 
