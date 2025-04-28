@@ -47,7 +47,9 @@ func (qb *VerifyQueryBuilder) ResetState() {
 	qb.LastTimestamp = time.Unix(0, 1).UTC()
 	log.S.Info(
 		"QueryBuilder state reset",
-		log.L().Add("last_ts", qb.LastTimestamp).Add("start_ts", qb.StartTimestamp),
+		log.L().
+			Add("last_ts", qb.LastTimestamp).
+			Add("start_ts", qb.StartTimestamp),
 	)
 }
 

@@ -32,7 +32,6 @@ func main() {
 
 	switch config.C.Api.Name {
 	case ApiNameCrawler:
-		hooks := crawler.CrawlerApiHooks{}
 		queryBuilder := crawler.CrawlerQueryBuilder{
 			BatchSize: config.C.Run.SelectionBatchSize,
 			Mode:      config.C.Run.Mode,
@@ -41,7 +40,7 @@ func main() {
 		queryBuilder.ResetState()
 		instance, err := runner.New[
 			crawler.CrawlerResult, crawler.CrawlerResponse,
-		](&hooks, &queryBuilder)
+		](&queryBuilder)
 		if err != nil {
 			log.S.Fatal(
 				"Error in runner initialization",
@@ -50,7 +49,6 @@ func main() {
 		}
 		instance.Run(ctx, &wg)
 	case ApiNameMeta:
-		hooks := meta.VerifyApiHooks{}
 		queryBuilder := meta.VerifyQueryBuilder{
 			DayInterval: config.C.Run.Freshness,
 			Limit:       config.C.Run.SelectionBatchSize,
@@ -59,7 +57,7 @@ func main() {
 		queryBuilder.ResetState()
 		instance, err := runner.New[
 			meta.VerifyResult, meta.VerifyResponse,
-		](&hooks, &queryBuilder)
+		](&queryBuilder)
 		if err != nil {
 			log.S.Fatal(
 				"Error in runner initialization",

@@ -10,7 +10,6 @@ import (
 	"orb/runner/pkg/config"
 	dbclient "orb/runner/pkg/db/clients"
 	"orb/runner/pkg/log"
-	"orb/runner/pkg/runner/hooks"
 	ri "orb/runner/pkg/runner/interface"
 	rr "orb/runner/pkg/runner/request"
 
@@ -21,7 +20,6 @@ import (
 type Runner[S ri.StoredValue, R ri.Response[S, P], P ri.StoredParams, Q ri.QueryBuilder[S, P]] struct {
 	clickHouseClient dbclient.ClickHouseClient[S, P, Q]
 	httpClient       *resty.Client
-	hooks            hooks.Hooks[S]
 	queryBuilder     Q
 }
 
@@ -31,7 +29,6 @@ func New[
 	P ri.StoredParams,
 	Q ri.QueryBuilder[S, P],
 ](
-	hs hooks.Hooks[S],
 	qb Q,
 ) (*Runner[S, R, P, Q], error) {
 	logObject := log.L().
@@ -68,7 +65,6 @@ func New[
 	runner := Runner[S, R, P, Q]{
 		clickHouseClient: *clickHouseClient,
 		httpClient:       initHttpClient(),
-		hooks:            hs,
 		queryBuilder:     qb,
 	}
 	return &runner, nil
