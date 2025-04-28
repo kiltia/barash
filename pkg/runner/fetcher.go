@@ -16,7 +16,7 @@ import (
 func (r *Runner[S, R, P, Q]) handleFetcherTask(
 	ctx context.Context,
 	logObject log.LogObject,
-	task GetRequest[P],
+	task ServiceRequest[P],
 ) []S {
 	log.S.Debug("Sending request to the subject API", logObject)
 	resultList, err := r.performRequest(ctx, logObject, task)
@@ -52,7 +52,7 @@ func (r *Runner[S, R, P, Q]) sendGetRequest(
 
 func (r *Runner[S, R, P, Q]) processResponse(
 	logObject log.LogObject,
-	req GetRequest[P],
+	req ServiceRequest[P],
 	resp *resty.Response,
 	attemptNumber int,
 ) (S, error) {
@@ -113,7 +113,7 @@ func (r *Runner[S, R, P, Q]) processResponse(
 func (r *Runner[S, R, P, Q]) performRequest(
 	ctx context.Context,
 	logObject log.LogObject,
-	req GetRequest[P],
+	req ServiceRequest[P],
 ) ([]S, error) {
 	log.S.Debug("Creating request link", logObject)
 	requestUrl, err := req.GetRequestLink()
@@ -172,7 +172,7 @@ func (r *Runner[S, R, P, Q]) performRequest(
 
 func (r *Runner[S, R, P, Q]) fetcher(
 	ctx context.Context,
-	input chan GetRequest[P],
+	input chan ServiceRequest[P],
 	output chan S,
 	fetcherNum int,
 ) {

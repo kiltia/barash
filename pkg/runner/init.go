@@ -2,7 +2,6 @@ package runner
 
 import (
 	"context"
-	"time"
 
 	"orb/runner/pkg/config"
 
@@ -47,9 +46,9 @@ func (r *Runner[S, R, P, Q]) initTable(
 func initHttpClient() *resty.Client {
 	return resty.New().
 		SetRetryCount(config.C.HttpRetries.NumRetries).
-		SetTimeout(time.Duration(config.C.Timeouts.ApiTimeout) * time.Second).
-		SetRetryWaitTime(time.Duration(config.C.HttpRetries.MinWaitTime) * time.Second).
-		SetRetryMaxWaitTime(time.Duration(config.C.HttpRetries.MaxWaitTime) * time.Second).
+		SetTimeout(config.C.Timeouts.ApiTimeout).
+		SetRetryWaitTime(config.C.HttpRetries.MinWaitTime).
+		SetRetryMaxWaitTime(config.C.HttpRetries.MaxWaitTime).
 		AddRetryCondition(
 			func(r *resty.Response, err error) bool {
 				ctx := r.Request.Context()

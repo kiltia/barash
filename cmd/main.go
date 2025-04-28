@@ -20,6 +20,12 @@ const (
 )
 
 func main() {
+	var cfg config.Config
+	config.Load(&cfg)
+
+	config.C = &cfg
+	log.Init(config.C.Log)
+
 	// application will run using this context
 	ctx, cancel := signal.NotifyContext(
 		context.Background(),
@@ -72,7 +78,7 @@ func main() {
 		)
 	}
 
-	timeout := time.Duration(config.C.Timeouts.ShutdownTimeout) * time.Second
+	timeout := config.C.Timeouts.ShutdownTimeout
 
 	done := make(chan struct{})
 

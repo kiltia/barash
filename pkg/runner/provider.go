@@ -10,7 +10,7 @@ import (
 
 func (r *Runner[S, R, P, Q]) dataProvider(
 	ctx context.Context,
-	fetchTasks chan GetRequest[P],
+	fetchTasks chan ServiceRequest[P],
 ) {
 	logObject := log.L().Tag(log.LogTagDataProvider)
 	defer close(fetchTasks)
@@ -55,7 +55,7 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 					select {
 					case <-ctx.Done():
 						return
-					case <-time.After(time.Duration(config.C.Run.SleepTime) * time.Second):
+					case <-time.After(config.C.Run.SleepTime):
 						continue
 					}
 				}

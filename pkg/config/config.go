@@ -1,76 +1,58 @@
 package config
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"log"
 	"os"
+	"strings"
 
-	"gopkg.in/yaml.v2"
-)
-
-type (
-	RunnerMode string
-)
-
-const (
-	TwoTableMode   RunnerMode = "two-table"
-	ContinuousMode RunnerMode = "continuous"
+	"github.com/joho/godotenv"
+	"github.com/sethvargo/go-envconfig"
 )
 
 var C *Config
 
-func Load() (
-	cfg Config,
-	err error,
-) {
-	var content []byte
-	var filepath string
-	if len(os.Args) > 2 {
-		api := os.Args[1]
-		mode := os.Args[2]
-		fmt.Printf("Using CLI settings to retrieve config path\n")
-		filepath = fmt.Sprintf("config/%s.%s.yml", api, mode)
+const configFileEnvVar = "CONFIG_FILE"
+
+func Init() {
+	_ = godotenv.Load() // load the user-defined `.env` file
+	// NOTE(evgenymng): godotenv.Load() does not override environment variables,
+	// if they are already set. So, we first read the `.env` file and then
+	// try to load the base configuration file.
+
+	var baseEnvPath string
+	if len(os.Args) > 1 {
+		log.Println(
+			"Loading the base configuration for the API from the CLI arguments",
+		)
+		parts := os.Args[1:]
+		baseEnvPath = fmt.Sprintf(
+			"config/base/%s.env",
+			strings.Join(parts, "."),
+		)
 	} else {
-		fmt.Printf("Using environment settings to retrieve config path\n")
-		if value, exists := os.LookupEnv("CONFIG_FILE"); exists {
-			filepath = value
+		if value, exists := os.LookupEnv(configFileEnvVar); exists {
+			log.Printf("Using the %s env variable to retrieve the config path\n", configFileEnvVar)
+			baseEnvPath = value
 		} else {
-			return cfg, fmt.Errorf("Please, provide a configuration file name either via " +
-				"CONFIG_FILE env variable or using the CLI arguments")
+			log.Printf("Base configuration file haven't been specified. "+
+				"It will not be loaded. You can specify the path to the base configuration file "+
+				"via the %s env variable or using the CLI arguments.\n", configFileEnvVar)
+			return
 		}
 	}
-	content, err = os.ReadFile(filepath)
-	if err != nil {
-		fmt.Printf("Failed to read the config file: %v", err)
-		return cfg, err
+
+	if err := godotenv.Load(baseEnvPath); err != nil {
+		log.Fatalf("Failed to read the base configuration file: %v", err)
 	}
-	err = yaml.Unmarshal(content, &cfg)
-	return cfg, err
 }
 
-func LoadEnv(cfg Config) Config {
-	if value, exists := os.LookupEnv("RUN_MODE"); exists {
-		cfg.Run.Mode = RunnerMode(value)
+func Load(i *Config) {
+	if err := envconfig.Process(context.Background(), i); err != nil {
+		log.Fatal(err)
 	}
-	if value, exists := os.LookupEnv("RUN_SELECTION_TABLE"); exists {
-		cfg.Run.SelectionTableName = value
-	}
-	if value, exists := os.LookupEnv("RUN_INSERTION_TABLE"); exists {
-		cfg.Run.InsertionTableName = value
-	}
-	if value, exists := os.LookupEnv("CLICKHOUSE_HOST"); exists {
-		cfg.ClickHouse.Host = value
-	}
-	if value, exists := os.LookupEnv("CLICKHOUSE_PORT"); exists {
-		cfg.ClickHouse.Port = value
-	}
-	if value, exists := os.LookupEnv("CLICKHOUSE_DB"); exists {
-		cfg.ClickHouse.Database = value
-	}
-	if value, exists := os.LookupEnv("CLICKHOUSE_USER"); exists {
-		cfg.ClickHouse.Username = value
-	}
-	if value, exists := os.LookupEnv("CLICKHOUSE_PASSWORD"); exists {
-		cfg.ClickHouse.Password = value
-	}
-	return cfg
+	text, _ := json.MarshalIndent(i, "", "\t")
+	log.Println(string(text))
 }

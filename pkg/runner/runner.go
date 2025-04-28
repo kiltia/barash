@@ -79,7 +79,7 @@ func (r *Runner[S, R, P, Q]) Run(
 	r.initTable(ctx)
 	logObject := log.L().Tag(log.LogTagRunner)
 
-	fetcherCh := make(chan GetRequest[P], 2*config.C.Run.SelectionBatchSize)
+	fetcherCh := make(chan ServiceRequest[P], 2*config.C.Run.SelectionBatchSize)
 	writerCh := make(chan S, 2*config.C.Run.InsertionBatchSize+1)
 	wg := sync.WaitGroup{}
 
@@ -111,9 +111,9 @@ func (r *Runner[S, R, P, Q]) Run(
 	for i := range config.C.Run.MaxFetcherWorkers {
 		var rnd time.Duration
 		if i < config.C.Run.MinFetcherWorkers {
-			rnd = 0 * time.Second
+			rnd = 0
 		} else {
-			rnd = time.Duration(rand.IntN(config.C.Run.WarmupTime+1)) * time.Second
+			rnd = time.Duration(rand.IntN(int(config.C.Run.WarmupTime.Seconds())+1)) * time.Second
 		}
 		go func() {
 			defer wg.Done()
@@ -175,7 +175,7 @@ func (r *Runner[S, R, P, Q]) formRequests(
 	params []P,
 	extraParams map[string]string,
 ) (
-	requests []GetRequest[P],
+	requests []ServiceRequest[P],
 ) {
 	logObject := log.L().Tag(log.LogTagRunner)
 
@@ -186,10 +186,10 @@ func (r *Runner[S, R, P, Q]) formRequests(
 	for _, params := range params {
 		requests = append(
 			requests,
-			GetRequest[P]{
+			ServiceRequest[P]{
 				Host:        config.C.Api.Host,
 				Port:        config.C.Api.Port,
-				Method:      config.C.Api.Endpoint,
+				Endpoint:    config.C.Api.Endpoint,
 				Params:      params,
 				ExtraParams: extraParams,
 			},

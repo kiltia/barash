@@ -1,83 +1,84 @@
 package config
 
 import (
+	"time"
+
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+)
+
+type RunnerMode string
+
+const (
+	TwoTableMode   RunnerMode = "two-table"
+	ContinuousMode RunnerMode = "continuous"
 )
 
 type RunnerHttpMethod string
 
+const (
+	GET  RunnerHttpMethod = "GET"
+	POST RunnerHttpMethod = "POST"
+)
+
 type Config struct {
-	Api           apiConfig        `yaml:"api"`
-	ClickHouse    clickHouseConfig `yaml:"clickhouse"`
-	Timeouts      timeoutConfig    `yaml:"timeouts"`
-	HttpRetries   retryConfig      `yaml:"http_retries"`
-	SelectRetries retryConfig      `yaml:"select_retries"`
-	Log           logConfig        `yaml:"log"`
-	Run           runConfig        `yaml:"run"`
+	Api           ApiConfig         `env:", prefix=API_"`
+	ClickHouse    ClickHouseConfig  `env:", prefix=CLICKHOUSE_"`
+	Timeouts      TimeoutConfig     `env:", prefix=TIMEOUTS_"`
+	HttpRetries   HttpRetryConfig   `env:", prefix=HTTP_RETRIES_"`
+	SelectRetries SelectRetryConfig `env:", prefix=SELECT_RETRIES_"`
+	Log           LogConfig         `env:", prefix=LOG_"`
+	Run           RunConfig         `env:", prefix=RUN_"`
 }
 
-type apiConfig struct {
-	Name     string `yaml:"name"`
-	Host     string `yaml:"host"`
-	Port     string `yaml:"port"`
-	Endpoint string `yaml:"endpoint"`
+type ApiConfig struct {
+	Name     string           `env:"NAME, required"`
+	Host     string           `env:"HOST, required"`
+	Port     string           `env:"PORT, default=80"`
+	Endpoint string           `env:"ENDPOINT, required"`
+	Method   RunnerHttpMethod `env:"METHOD, default=GET"`
 }
 
-type clickHouseConfig struct {
-	Username string `yaml:"user"`
-	Database string `yaml:"db"`
-	Password string `yaml:"password"`
-	Host     string `yaml:"host"`
-	Port     string `yaml:"port"`
+type ClickHouseConfig struct {
+	Database string `env:"DB, required"`
+	Username string `env:"USER, required"`
+	Password string `env:"PASSWORD, required"`
+	Host     string `env:"HOST, deafult=127.0.0.1"`
+	Port     string `env:"PORT, default=9000"`
 }
 
-type timeoutConfig struct {
-	ApiTimeout       int `yaml:"api_timeout"`
-	GoroutineTimeout int `yaml:"goroutine_timeout"`
-	ShutdownTimeout  int `yaml:"shutdown_timeout"` // seconds
-	DbSaveTimeout    int `yaml:"db_save_timeout"`  // seconds
+type TimeoutConfig struct {
+	ApiTimeout      time.Duration `env:"API_TIMEOUT, default=3m"`
+	ShutdownTimeout time.Duration `env:"SHUTDOWN_TIMEOUT, default=10s"`
+	DbSaveTimeout   time.Duration `env:"DB_SAVE_TIMEOUT, default=10s"`
 }
 
-type retryConfig struct {
-	NumRetries  int `yaml:"retries_number"`
-	MinWaitTime int `yaml:"min_wait_time"`
-	MaxWaitTime int `yaml:"max_wait_time"`
+type HttpRetryConfig struct {
+	NumRetries  int           `env:"NUMBER, default=3"`
+	MinWaitTime time.Duration `env:"MIN_WAIT_TIME, default=2s"`
+	MaxWaitTime time.Duration `env:"MAX_WAIT_TIME, default=16s"`
 }
 
-type runConfig struct {
-	MaxFetcherWorkers  int               `yaml:"max_fetcher_workers"`
-	MinFetcherWorkers  int               `yaml:"min_fetcher_workers"`
-	SelectionBatchSize int               `yaml:"selection_batch_size"`
-	InsertionBatchSize int               `yaml:"insertion_batch_size"`
-	SelectionTableName string            `yaml:"selection_table_name"`
-	InsertionTableName string            `yaml:"insertion_table_name"`
-	MaxCorrection      int               `yaml:"max_correction"` // days
-	Freshness          int               `yaml:"freshness"`
-	SleepTime          int               `yaml:"sleep_time"`  // seconds
-	WarmupTime         int               `yaml:"warmup_time"` // seconds
-	Tag                string            `yaml:"tag"`
-	ExtraParams        map[string]string `yaml:"extra_params"`
-	Mode               RunnerMode        `yaml:"mode"`
+type SelectRetryConfig struct {
+	NumRetries int `env:"NUMBER, default=5"`
 }
 
-type logConfig struct {
-	Level            zap.AtomicLevel `yaml:"level"`
-	Encoding         string          `yaml:"encoding"`
-	OutputPaths      []string        `yaml:"output_paths"`
-	ErrorOutputPaths []string        `yaml:"error_output_paths"`
-	DevMode          bool            `yaml:"dev_mode"`
-	EncoderConfig    encoderConfig   `yaml:"encoder_config"`
+type RunConfig struct {
+	MaxFetcherWorkers  int               `env:"MAX_FETCHER_WORKERS, default=800"`
+	MinFetcherWorkers  int               `env:"MIN_FETCHER_WORKERS, default=400"`
+	SelectionBatchSize int               `env:"SELECTION_BATCH_SIZE, default=40000"`
+	InsertionBatchSize int               `env:"INSERTION_BATCH_SIZE, default=10000"`
+	SelectionTableName string            `env:"SELECTION_TABLE, required"`
+	InsertionTableName string            `env:"INSERTION_TABLE"`
+	MaxCorrection      int               `env:"MAX_CORRECTION, default=21"` // days
+	Freshness          int               `env:"FRESHNESS, default=7"`       // days
+	SleepTime          time.Duration     `env:"SLEEP_TIME, default=1m"`
+	WarmupTime         time.Duration     `env:"WARMUP_TIME, default=3m"`
+	Tag                string            `env:"TAG"`
+	ExtraParams        map[string]string `env:"EXTRA_PARAMS"`
+	Mode               RunnerMode        `env:"MODE, required"`
 }
 
-type encoderConfig struct {
-	MessageKey    string               `yaml:"message_key"`
-	LevelKey      string               `yaml:"level_key"`
-	LevelEncoder  zapcore.LevelEncoder `yaml:"level_encoder"`
-	TimeKey       string               `yaml:"time_key"`
-	TimeEncoder   zapcore.TimeEncoder  `yaml:"time_encoder"`
-	NameKey       string               `yaml:"name_key"`
-	CallerKey     string               `yaml:"caller_key"`
-	FunctionKey   string               `yaml:"function_key"`
-	StacktraceKey string               `yaml:"stacktrace_key"`
+type LogConfig struct {
+	Level    zap.AtomicLevel `yaml:"LEVEL, default=warn"`
+	Encoding string          `yaml:"ENCODING, default=console"`
 }

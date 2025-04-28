@@ -8,25 +8,33 @@ import (
 	"orb/runner/pkg/util"
 )
 
-type GetRequest[P ri.StoredParams] struct {
+type RunnerHttpMethod string
+
+const (
+	GET  RunnerHttpMethod = "GET"
+	POST RunnerHttpMethod = "POST"
+)
+
+type ServiceRequest[P ri.StoredParams] struct {
 	Host        string
 	Port        string
-	Method      string
+	Endpoint    string
+	Method      RunnerHttpMethod
 	Params      P
 	ExtraParams map[string]string
 
-	cachedRequestLink *string
+	cachedRequestLink string
 }
 
-func (req *GetRequest[P]) GetRequestLink() (string, error) {
-	if req.cachedRequestLink != nil {
-		return *req.cachedRequestLink, nil
+func (req *ServiceRequest[P]) GetRequestLink() (string, error) {
+	if req.cachedRequestLink != "" {
+		return req.cachedRequestLink, nil
 	}
 
 	baseURL := &url.URL{
 		Scheme: "http",
 		Host:   fmt.Sprintf("%s:%s", req.Host, req.Port),
-		Path:   req.Method,
+		Path:   req.Endpoint,
 	}
 	params := url.Values{}
 	paramsMap, err := util.ObjectToMap(req.Params)
@@ -44,6 +52,6 @@ func (req *GetRequest[P]) GetRequestLink() (string, error) {
 	baseURL.RawQuery = params.Encode()
 	urlString := baseURL.String()
 
-	req.cachedRequestLink = &urlString
+	req.cachedRequestLink = urlString
 	return urlString, nil
 }

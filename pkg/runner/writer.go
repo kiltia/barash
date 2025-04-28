@@ -3,7 +3,6 @@ package runner
 import (
 	"context"
 	"sync"
-	"time"
 
 	"orb/runner/pkg/config"
 	"orb/runner/pkg/log"
@@ -56,7 +55,7 @@ func (r *Runner[S, R, P, Q]) writer(
 	saveBatch := func() {
 		ctx, cancel := context.WithTimeout(
 			context.Background(),
-			time.Duration(config.C.Timeouts.DbSaveTimeout)*time.Second,
+			config.C.Timeouts.DbSaveTimeout,
 		)
 		defer cancel()
 		err := r.write(ctx, batch)
