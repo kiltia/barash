@@ -1,27 +1,113 @@
 package util
 
 import (
-	"encoding/json"
+	"fmt"
 	"reflect"
+	"strconv"
 )
 
-func ObjectToMap[T any](data T) (map[string]*string, error) {
-	dataBytes, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	mapData := map[string]*string{}
+const (
+	QueryTag = "query"
+	JsonTag  = "json"
+)
 
-	err = json.Unmarshal(dataBytes, &mapData)
-	if err != nil {
-		return nil, err
+// Converts an object to a map of query parameters.
+//
+// Can work with both concrete and pointer types.
+func ObjectToParams(obj any) (
+	query map[string]string,
+) {
+	query = map[string]string{}
+
+	val := reflect.ValueOf(obj)
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
 	}
-	v := reflect.ValueOf(data)
-	for i := 0; i < v.NumField(); i++ {
-		tagValue := v.Type().Field(i).Tag.Get("json")
-		if tagValue == "" {
-			delete(mapData, v.Type().Field(i).Name)
+	typ := val.Type()
+
+	for i := range val.NumField() {
+		field := typ.Field(i)
+		queryKey := field.Tag.Get(QueryTag)
+		fieldValue := val.Field(i)
+
+		if queryKey != "" && queryKey != "-" {
+			if isValueNil(fieldValue) {
+				continue
+			}
+			strRepr := valueToString(fieldValue)
+			if strRepr == "" {
+				continue
+			}
+			query[queryKey] = strRepr
 		}
 	}
-	return mapData, nil
+
+	return
+}
+
+// Converts an object to a JSON body.
+//
+// Can work with both concrete and pointer types.
+func ObjectToBody(obj any) (
+	body map[string]any,
+) {
+	body = map[string]any{}
+
+	val := reflect.ValueOf(obj)
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+	typ := val.Type()
+
+	for i := range val.NumField() {
+		field := typ.Field(i)
+		jsonKey := field.Tag.Get(JsonTag)
+		fieldValue := val.Field(i)
+
+		if jsonKey != "" && jsonKey != "-" {
+			body[jsonKey] = fieldValue.Interface()
+		}
+	}
+
+	return
+}
+
+func isValueNil(v reflect.Value) bool {
+	if !v.IsValid() {
+		return true
+	}
+	switch v.Kind() {
+	case reflect.Chan,
+		reflect.Func,
+		reflect.Interface,
+		reflect.Map,
+		reflect.Pointer,
+		reflect.Slice:
+		return v.IsNil()
+	}
+	return false
+}
+
+func valueToString(v reflect.Value) string {
+	switch v.Kind() {
+	case reflect.Pointer:
+		return valueToString(v.Elem())
+	case reflect.Bool:
+		return strconv.FormatBool(v.Bool())
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(v.Int(), 10)
+	case reflect.Uint,
+		reflect.Uint8,
+		reflect.Uint16,
+		reflect.Uint32,
+		reflect.Uint64,
+		reflect.Uintptr:
+		return strconv.FormatUint(v.Uint(), 10)
+	case reflect.Float32, reflect.Float64:
+		return strconv.FormatFloat(v.Float(), 'f', -1, 64)
+	case reflect.String:
+		return v.String()
+	default:
+		return fmt.Sprintf("%v", v.Interface())
+	}
 }

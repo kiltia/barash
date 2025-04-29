@@ -190,6 +190,7 @@ func (r *Runner[S, R, P, Q]) formRequests(
 				Host:        config.C.Api.Host,
 				Port:        config.C.Api.Port,
 				Endpoint:    config.C.Api.Endpoint,
+				Method:      config.C.Api.Method,
 				Params:      params,
 				ExtraParams: extraParams,
 			},

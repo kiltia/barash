@@ -16,8 +16,8 @@ const (
 type RunnerHttpMethod string
 
 const (
-	GET  RunnerHttpMethod = "GET"
-	POST RunnerHttpMethod = "POST"
+	RunnerHttpMethodGet  RunnerHttpMethod = "GET"
+	RunnerHttpMethodPost RunnerHttpMethod = "POST"
 )
 
 type Config struct {

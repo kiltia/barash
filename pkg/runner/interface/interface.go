@@ -22,6 +22,7 @@ type (
 			params P,
 			attemptNumber int,
 			url string,
+			body map[string]any,
 			status int,
 			timeElapsed time.Duration,
 		) S

@@ -41,6 +41,7 @@ func (response VerifyResponse) IntoStored(
 	params VerifyParams,
 	n int,
 	url string,
+	body map[string]any,
 	status int,
 	timeElapsed time.Duration,
 ) VerifyResult {

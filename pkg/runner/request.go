@@ -4,31 +4,26 @@ import (
 	"fmt"
 	"net/url"
 
+	"orb/runner/pkg/config"
 	ri "orb/runner/pkg/runner/interface"
 	"orb/runner/pkg/util"
-)
-
-type RunnerHttpMethod string
-
-const (
-	GET  RunnerHttpMethod = "GET"
-	POST RunnerHttpMethod = "POST"
 )
 
 type ServiceRequest[P ri.StoredParams] struct {
 	Host        string
 	Port        string
 	Endpoint    string
-	Method      RunnerHttpMethod
+	Method      config.RunnerHttpMethod
 	Params      P
 	ExtraParams map[string]string
 
 	cachedRequestLink string
+	cachedRequestBody map[string]any
 }
 
-func (req *ServiceRequest[P]) GetRequestLink() (string, error) {
+func (req *ServiceRequest[P]) GetRequestLink() string {
 	if req.cachedRequestLink != "" {
-		return req.cachedRequestLink, nil
+		return req.cachedRequestLink
 	}
 
 	baseURL := &url.URL{
@@ -36,22 +31,31 @@ func (req *ServiceRequest[P]) GetRequestLink() (string, error) {
 		Host:   fmt.Sprintf("%s:%s", req.Host, req.Port),
 		Path:   req.Endpoint,
 	}
+
+	queryParams := util.ObjectToParams(req.Params)
+
 	params := url.Values{}
-	paramsMap, err := util.ObjectToMap(req.Params)
-	if err != nil {
-		return "", fmt.Errorf("unable to create request link, reason: %v", err)
-	}
-	for field, value := range paramsMap {
-		if value != nil && *value != "" {
-			params.Add(field, *value)
-		}
+	for field, value := range queryParams {
+		params.Add(field, value)
 	}
 	for field, value := range req.ExtraParams {
 		params.Add(field, value)
 	}
+
 	baseURL.RawQuery = params.Encode()
 	urlString := baseURL.String()
 
 	req.cachedRequestLink = urlString
-	return urlString, nil
+	return urlString
+}
+
+func (req *ServiceRequest[P]) GetRequestBody() map[string]any {
+	if req.cachedRequestBody != nil {
+		return req.cachedRequestBody
+	}
+
+	body := util.ObjectToBody(req.Params)
+
+	req.cachedRequestBody = body
+	return body
 }

@@ -26,6 +26,7 @@ func (resp CrawlerResponse) IntoStored(
 	params CrawlerParams,
 	n int,
 	url string,
+	body map[string]any,
 	status int,
 	timeElapsed time.Duration,
 ) CrawlerResult {

@@ -30,10 +30,12 @@ func (r *Runner[S, R, P, Q]) handleFetcherTask(
 	return resultList
 }
 
-func (r *Runner[S, R, P, Q]) sendGetRequest(
+func (r *Runner[S, R, P, Q]) sendServiceRequest(
 	ctx context.Context,
 	logObject log.LogObject,
+	method config.RunnerHttpMethod,
 	url string,
+	body map[string]any,
 ) *resty.Response {
 	log.S.Debug("Performing request to the subject API", logObject)
 	ctx = context.WithValue(
@@ -41,11 +43,23 @@ func (r *Runner[S, R, P, Q]) sendGetRequest(
 		ContextKeyUnsuccessfulResponses,
 		[]*resty.Response{},
 	)
-	lastResponse, err := r.httpClient.R().SetContext(ctx).Get(url)
+
+	var lastResponse *resty.Response
+	var err error
+
+	switch method {
+	case config.RunnerHttpMethodGet:
+		lastResponse, err = r.httpClient.R().SetContext(ctx).Get(url)
+	case config.RunnerHttpMethodPost:
+		lastResponse, err = r.httpClient.R().SetContext(ctx).
+			SetBody(body).
+			Post(url)
+	}
+
+	log.S.Debug("Finished request to the subject API", logObject)
 	if err != nil {
 		return lastResponse
 	}
-	log.S.Debug("Finished request to the subject API", logObject)
 
 	return lastResponse
 }
@@ -90,15 +104,14 @@ func (r *Runner[S, R, P, Q]) processResponse(
 		}
 	}
 
-	requestLink, err := req.GetRequestLink()
-	if err != nil {
-		return *new(S), err
-	}
+	requestLink := req.GetRequestLink()
+	requestBody := req.GetRequestBody()
 
 	storedValue := result.IntoStored(
 		req.Params,
 		attemptNumber+1,
 		requestLink,
+		requestBody,
 		statusCode,
 		resp.Time(),
 	)
@@ -115,18 +128,19 @@ func (r *Runner[S, R, P, Q]) performRequest(
 	logObject log.LogObject,
 	req ServiceRequest[P],
 ) ([]S, error) {
-	log.S.Debug("Creating request link", logObject)
-	requestUrl, err := req.GetRequestLink()
-	if err != nil {
-		log.S.Error("Failed to create request link", logObject.Error(err))
-		return nil, err
-	}
-	log.S.Debug(
-		"Request link successfully created",
-		logObject.Add("url", requestUrl),
-	)
+	requestUrl := req.GetRequestLink()
+	log.S.Debug("Request link created", logObject.Add("url", requestUrl))
 
-	lastResponse := r.sendGetRequest(ctx, logObject, requestUrl)
+	requestBody := req.GetRequestBody()
+	log.S.Debug("Request body constructed", logObject.Add("body", requestBody))
+
+	lastResponse := r.sendServiceRequest(
+		ctx,
+		logObject,
+		req.Method,
+		requestUrl,
+		requestBody,
+	)
 	lastStatus := lastResponse.StatusCode()
 
 	if lastStatus >= 400 && lastStatus < 500 {
