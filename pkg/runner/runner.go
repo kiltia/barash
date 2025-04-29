@@ -9,32 +9,30 @@ import (
 	"time"
 
 	"orb/runner/pkg/config"
-	dbclient "orb/runner/pkg/db/clients"
 	"orb/runner/pkg/log"
-	ri "orb/runner/pkg/runner/interface"
 
 	"github.com/avast/retry-go/v4"
 	"github.com/go-resty/resty/v2"
 )
 
-type Runner[S ri.StoredValue, R ri.Response[S, P], P ri.StoredParams, Q ri.QueryBuilder[S, P]] struct {
-	clickHouseClient dbclient.ClickHouseClient[S, P, Q]
+type Runner[S StoredResult, R Response[S, P], P StoredParams, Q QueryBuilder[S, P]] struct {
+	clickHouseClient ClickHouseClient[S, P, Q]
 	httpClient       *resty.Client
 	queryBuilder     Q
 }
 
 func New[
-	S ri.StoredValue,
-	R ri.Response[S, P],
-	P ri.StoredParams,
-	Q ri.QueryBuilder[S, P],
+	S StoredResult,
+	R Response[S, P],
+	P StoredParams,
+	Q QueryBuilder[S, P],
 ](
 	qb Q,
 ) (*Runner[S, R, P, Q], error) {
 	logObject := log.L().
 		Tag(log.LogTagRunner)
 
-	clickHouseClient, version, err := dbclient.NewClickHouseClient[S, P, Q](
+	clickHouseClient, version, err := NewClickHouseClient[S, P, Q](
 		config.C.ClickHouse.Host,
 		config.C.ClickHouse.Port,
 		config.C.ClickHouse.Database,
@@ -173,7 +171,6 @@ func (r *Runner[S, R, P, Q]) fetchParams(
 // file) and a set of request parameters fetched from the database.
 func (r *Runner[S, R, P, Q]) formRequests(
 	params []P,
-	extraParams map[string]string,
 ) (
 	requests []ServiceRequest[P],
 ) {
@@ -192,7 +189,7 @@ func (r *Runner[S, R, P, Q]) formRequests(
 				Endpoint:    config.C.Api.Endpoint,
 				Method:      config.C.Api.Method,
 				Params:      params,
-				ExtraParams: extraParams,
+				ExtraParams: config.C.Run.ExtraParams,
 			},
 		)
 	}

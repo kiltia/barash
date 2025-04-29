@@ -72,15 +72,13 @@ func (r *Runner[S, R, P, Q]) processResponse(
 ) (S, error) {
 	var result R
 	statusCode := resp.StatusCode()
-	url := req.Params.GetUrl()
 	if statusCode == 0 {
 		result = *new(R)
 		statusCode = 599
 		log.S.Debug(
 			"Timeout was reached while waiting for a response",
 			logObject.
-				Error(fmt.Errorf("timeout reached")).
-				Add("url", url),
+				Error(fmt.Errorf("timeout reached")),
 		)
 	} else if statusCode == 429 {
 		result = *new(R)
@@ -88,8 +86,7 @@ func (r *Runner[S, R, P, Q]) processResponse(
 		log.S.Debug(
 			`Subject API responded with "Too Many Requests"`,
 			logObject.
-				Error(fmt.Errorf("too many requests")).
-				Add("url", url),
+				Error(fmt.Errorf("too many requests")),
 		)
 	} else {
 		err := json.Unmarshal(resp.Body(), &result)

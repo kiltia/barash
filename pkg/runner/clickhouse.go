@@ -1,4 +1,4 @@
-package dbclient
+package runner
 
 import (
 	"context"
@@ -6,18 +6,17 @@ import (
 
 	"orb/runner/pkg/config"
 	"orb/runner/pkg/log"
-	ri "orb/runner/pkg/runner/interface"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 )
 
-type ClickHouseClient[S ri.StoredValue, P ri.StoredParams, Q ri.QueryBuilder[S, P]] struct {
+type ClickHouseClient[S StoredResult, P StoredParams, Q QueryBuilder[S, P]] struct {
 	Connection driver.Conn
 }
 
-func NewClickHouseClient[S ri.StoredValue, P ri.StoredParams, Q ri.QueryBuilder[S, P]](
+func NewClickHouseClient[S StoredResult, P StoredParams, Q QueryBuilder[S, P]](
 	host string,
 	port string,
 	database string,
@@ -134,7 +133,7 @@ func (client *ClickHouseClient[S, P, Q]) SelectNextBatch(
 			Tag(log.LogTagClickHouse).
 			Add("query", query),
 	)
-	for attempt := 0; attempt < config.C.SelectRetries.NumRetries; attempt++ {
+	for attempt := range config.C.SelectRetries.NumRetries {
 		if err = client.Connection.Select(ctx, &result, query); err != nil {
 			log.S.Error(
 				"Got an error while retrieving records from the database",

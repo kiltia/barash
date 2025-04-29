@@ -5,11 +5,9 @@ import (
 	"net/url"
 
 	"orb/runner/pkg/config"
-	ri "orb/runner/pkg/runner/interface"
-	"orb/runner/pkg/util"
 )
 
-type ServiceRequest[P ri.StoredParams] struct {
+type ServiceRequest[P StoredParams] struct {
 	Host        string
 	Port        string
 	Endpoint    string
@@ -32,12 +30,7 @@ func (req *ServiceRequest[P]) GetRequestLink() string {
 		Path:   req.Endpoint,
 	}
 
-	queryParams := util.ObjectToParams(req.Params)
-
-	params := url.Values{}
-	for field, value := range queryParams {
-		params.Add(field, value)
-	}
+	params := ObjectToParams(req.Params)
 	for field, value := range req.ExtraParams {
 		params.Add(field, value)
 	}
@@ -54,7 +47,7 @@ func (req *ServiceRequest[P]) GetRequestBody() map[string]any {
 		return req.cachedRequestBody
 	}
 
-	body := util.ObjectToBody(req.Params)
+	body := ObjectToBody(req.Params)
 
 	req.cachedRequestBody = body
 	return body

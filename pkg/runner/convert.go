@@ -1,7 +1,8 @@
-package util
+package runner
 
 import (
 	"fmt"
+	"net/url"
 	"reflect"
 	"strconv"
 )
@@ -14,10 +15,17 @@ const (
 // Converts an object to a map of query parameters.
 //
 // Can work with both concrete and pointer types.
+// If the object implements StoredParamsToQuery interface,
+// it will be used instead of the manual extraction using tags.
 func ObjectToParams(obj any) (
-	query map[string]string,
+	query url.Values,
 ) {
-	query = map[string]string{}
+	if p, ok := obj.(StoredParamsToQuery); ok {
+		query = p.GetQueryParams()
+		return
+	}
+
+	query = url.Values{}
 
 	val := reflect.ValueOf(obj)
 	if val.Kind() == reflect.Ptr {
@@ -38,7 +46,7 @@ func ObjectToParams(obj any) (
 			if strRepr == "" {
 				continue
 			}
-			query[queryKey] = strRepr
+			query.Add(queryKey, strRepr)
 		}
 	}
 
@@ -48,9 +56,16 @@ func ObjectToParams(obj any) (
 // Converts an object to a JSON body.
 //
 // Can work with both concrete and pointer types.
+// If the object implements StoredParamsToBody interface,
+// it will be used instead of the manual extraction using tags.
 func ObjectToBody(obj any) (
 	body map[string]any,
 ) {
+	if p, ok := obj.(StoredParamsToBody); ok {
+		body = p.GetBody()
+		return
+	}
+
 	body = map[string]any{}
 
 	val := reflect.ValueOf(obj)
