@@ -8,22 +8,22 @@ import (
 )
 
 type CrawlerResult struct {
-	Url               string    `json:"url"                 ch:"url"`
-	RequestLink       string    `json:"request_link"        ch:"request_link"`
-	CrawlerStatusCode uint16    `json:"crawler_status_code" ch:"crawler_status_code"`
-	SiteStatusCode    uint16    `json:"site_status_code"    ch:"site_status_code"`
-	Error             string    `json:"error"               ch:"error"`
-	ErrorType         string    `json:"error_type"          ch:"error_type"`
-	ErrorCode         string    `json:"error_code"          ch:"error_code"`
-	AttemptsNumber    uint8     `json:"attempts_number"     ch:"attempts_number"`
-	OriginalUrl       string    `json:"original_url"        ch:"original_url"`
-	FinalUrl          string    `json:"final_url"           ch:"final_url"`
-	ResponseSize      int64     `json:"response_size"       ch:"response_size"`
-	HeadlessUsed      bool      `json:"headless_used"       ch:"headless_used"`
-	Urls              []string  `json:"urls"                ch:"urls"`
-	TimeElapsed       float64   `json:"time_elapsed"        ch:"time_elapsed"`
-	Tag               string    `json:"tag"                 ch:"tag"`
-	Timestamp         time.Time `json:"ts"                  ch:"ts"`
+	Url               string    `ch:"url"`
+	RequestLink       string    `ch:"request_link"`
+	CrawlerStatusCode uint16    `ch:"crawler_status_code"`
+	SiteStatusCode    uint16    `ch:"site_status_code"`
+	Error             string    `ch:"error"`
+	ErrorType         string    `ch:"error_type"`
+	ErrorCode         string    `ch:"error_code"`
+	AttemptsNumber    uint8     `ch:"attempts_number"`
+	OriginalUrl       string    `ch:"original_url"`
+	FinalUrl          string    `ch:"final_url"`
+	ResponseSize      int64     `ch:"response_size"`
+	HeadlessUsed      bool      `ch:"headless_used"`
+	Urls              []string  `ch:"urls"`
+	TimeElapsed       float64   `ch:"time_elapsed"`
+	Tag               string    `ch:"tag"`
+	Timestamp         time.Time `ch:"ts"`
 }
 
 // Implement the [rinterface.StoredValue] interface.
