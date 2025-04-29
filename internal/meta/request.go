@@ -22,7 +22,3 @@ type VerifyParams struct {
 	LocCountry   *string   `query:"loc_country"   ch:"loc_country"`
 	Timestamp    time.Time `                      ch:"ts"`
 }
-
-func (p VerifyParams) GetUrl() string {
-	return p.Url
-}

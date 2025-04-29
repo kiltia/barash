@@ -7,7 +7,3 @@ type CrawlerParams struct {
 	HeadlessStrategy string    `query:"headless_browser"`
 	Fields           *[]string `query:"fields"`
 }
-
-func (p CrawlerParams) GetUrl() string {
-	return p.Url
-}
