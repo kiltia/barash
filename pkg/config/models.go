@@ -3,7 +3,7 @@ package config
 import (
 	"time"
 
-	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type RunnerMode string
@@ -79,6 +79,6 @@ type RunConfig struct {
 }
 
 type LogConfig struct {
-	Level    zap.AtomicLevel `yaml:"LEVEL, default=warn"`
-	Encoding string          `yaml:"ENCODING, default=console"`
+	Level    zapcore.Level `yaml:"LEVEL, default=warn"`
+	Encoding string        `yaml:"ENCODING, default=console"`
 }
