@@ -150,7 +150,9 @@ func (r *Runner[S, R, P, Q]) performRequest(
 		log.S.Warn(
 			"The subject API responded with 4xx. "+
 				"You should probably check your configuration.",
-			logObject.Add("status_code", lastStatus).Error(err),
+			logObject.Add("status_code", lastStatus).
+				Error(err).
+				Add("response", lastResponse.String()),
 		)
 	}
 
