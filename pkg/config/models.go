@@ -79,6 +79,6 @@ type RunConfig struct {
 }
 
 type LogConfig struct {
-	Level    zapcore.Level `yaml:"LEVEL, default=warn"`
-	Encoding string        `yaml:"ENCODING, default=console"`
+	Level    zapcore.Level `env:"LEVEL, default=warn"`
+	Encoding string        `env:"ENCODING, default=console"`
 }
