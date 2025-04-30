@@ -50,11 +50,12 @@ func (p LlmTaskParams) GetBody() map[string]any {
 		"",
 		"\t",
 	)
-
-	log.S.Error(
-		"Failed to marshal task data into the JSON representation",
-		log.L().Tag(log.LogTagDataProvider).Error(err).Add("data", p),
-	)
+	if err != nil {
+		log.S.Error(
+			"Failed to marshal task data into the JSON representation",
+			log.L().Tag(log.LogTagDataProvider).Error(err).Add("data", p),
+		)
+	}
 
 	return map[string]any{
 		"discovery_prompt": p.DiscoveryPrompt,
