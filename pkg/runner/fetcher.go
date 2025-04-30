@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"orb/runner/pkg/config"
 	"orb/runner/pkg/log"
@@ -176,10 +175,8 @@ func (r *Runner[S, R, P, Q]) fetcher(
 	input chan GetRequest[P],
 	output chan S,
 	fetcherNum int,
-	startupTime time.Duration,
 ) {
 	logObject := log.L().Tag(log.LogTagFetching).Add("fetcher_num", fetcherNum)
-	time.Sleep(startupTime)
 	log.S.Debug("A new fetcher instance is starting up", logObject)
 	ctx = context.WithValue(ctx, ContextKeyFetcherNum, fetcherNum)
 

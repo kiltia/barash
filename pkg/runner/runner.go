@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"orb/runner/pkg/config"
@@ -82,6 +83,8 @@ func (r *Runner[S, R, P, Q]) Run(
 	writerCh := make(chan S, 2*config.C.Run.InsertionBatchSize+1)
 	wg := sync.WaitGroup{}
 
+	fetcherCnt := atomic.Int32{}
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -89,8 +92,19 @@ func (r *Runner[S, R, P, Q]) Run(
 	}()
 
 	go func() {
-		time.Sleep(time.Duration(config.C.Run.WarmupTime) * time.Second)
-		log.S.Info("Warm up has ended", logObject)
+		for {
+			select {
+			case <-time.After(time.Second * 10):
+				log.S.Info(
+					"Warm up is in progress",
+					logObject.Add("fetcher_cnt", fetcherCnt.Load()),
+				)
+				if fetcherCnt.Load() >= int32(config.C.Run.MaxFetcherWorkers) {
+					log.S.Info("Warm up has ended", logObject)
+					return
+				}
+			}
+		}
 	}()
 
 	wg.Add(config.C.Run.MaxFetcherWorkers)
@@ -103,7 +117,9 @@ func (r *Runner[S, R, P, Q]) Run(
 		}
 		go func() {
 			defer wg.Done()
-			r.fetcher(ctx, fetcherCh, writerCh, i, rnd)
+			time.Sleep(rnd)
+			fetcherCnt.Add(1)
+			r.fetcher(ctx, fetcherCh, writerCh, i)
 		}()
 	}
 
