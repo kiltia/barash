@@ -57,10 +57,21 @@ func (p LlmTaskParams) GetBody() map[string]any {
 		)
 	}
 
+	var schema map[string]any
+	if err = json.Unmarshal([]byte(p.JsonSchema), &schema); err != nil {
+		log.S.Error(
+			"Failed to unmarshal schema string into the map",
+			log.L().
+				Tag(log.LogTagDataProvider).
+				Error(err).
+				Add("schema", p.JsonSchema),
+		)
+	}
+
 	return map[string]any{
 		"discovery_prompt": p.DiscoveryPrompt,
 		"task_prompt":      p.TaskPrompt,
-		"json_schema":      p.JsonSchema,
+		"json_schema":      schema,
 		"task_data":        string(inputDataRepr),
 	}
 }
