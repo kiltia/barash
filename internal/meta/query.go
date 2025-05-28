@@ -62,18 +62,17 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
             from %s
             group by duns, url
         ),
-        batch as (
+        ordered as (
             select duns, url, max_ts
             from last
             where max_ts < toDateTime64('%s', 6) - toIntervalDay(%d) and max_ts > toDateTime64('%s', 6)
             order by max_ts asc
-            limit %d
         ),
         final as (
             select
-                batch.duns as duns,
-                batch.url as url,
-                batch.max_ts as ts,
+                ordered.duns as duns,
+                ordered.url as url,
+                ordered.max_ts as ts,
                 gdmi.name,
                 gdmi.loc_address1, gdmi.loc_address2,
                 gdmi.loc_city, gdmi.loc_state,
@@ -83,9 +82,9 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
                 gdmi.mail_zip, gdmi.mail_country,
                 gdmi.dba
             from wv.gdmi_compact gdmi
-            inner join batch using (duns)
-            where gdmi.duns != '' and batch.url != ''
-            order by cityHash64(batch.duns, batch.url)
+            inner join ordered using (duns)
+            order by cityHash64(ordered.duns, ordered.url)
+			limit %d
         )
         select * from final
     `,
