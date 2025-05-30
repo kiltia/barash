@@ -66,7 +66,6 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
             select duns, url, max_ts
             from last
             where max_ts < toDateTime64('%s', 6) - toIntervalDay(%d) and max_ts > toDateTime64('%s', 6)
-            order by max_ts asc
         ),
         final as (
             select
@@ -83,7 +82,7 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
                 gdmi.dba
             from wv.gdmi_compact gdmi
             inner join ordered using (duns)
-            order by cityHash64(ordered.duns, ordered.url)
+            order by ordered.max_ts
 			limit %d
         )
         select * from final
