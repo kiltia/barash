@@ -59,16 +59,11 @@ func (r *Runner[S, R, P, Q]) writer(
 		)
 		defer cancel()
 		err := r.write(ctx, batch)
-		if err != nil {
-			log.S.Error(
-				"Failed to save processed batch to the database",
-				logObject.Error(err),
-			)
-			// TODO(nrydanov): Add reaction based on error returned
-			// For example, if connection is dropped, we need to automatically
-			// restore session
-			// Source: https://github.com/kiltia/runner/issues/15
-		} else {
+		// TODO(nrydanov): Add reaction based on error returned
+		// For example, if connection is dropped, we need to automatically
+		// restore session
+		// Source: https://github.com/kiltia/runner/issues/15
+		if err == nil {
 			batch = *new([]S)
 		}
 	}
