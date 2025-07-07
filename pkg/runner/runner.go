@@ -91,16 +91,14 @@ func (r *Runner[S, R, P, Q]) Run(
 
 	go func() {
 		for {
-			select {
-			case <-time.After(time.Second * 10):
-				log.S.Info(
-					"Warm up is in progress",
-					logObject.Add("fetcher_cnt", fetcherCnt.Load()),
-				)
-				if fetcherCnt.Load() >= int32(config.C.Run.MaxFetcherWorkers) {
-					log.S.Info("Warm up has ended", logObject)
-					return
-				}
+			time.Sleep(time.Second * 10)
+			log.S.Info(
+				"Warm up is in progress",
+				logObject.Add("fetcher_cnt", fetcherCnt.Load()),
+			)
+			if fetcherCnt.Load() >= int32(config.C.Run.MaxFetcherWorkers) {
+				log.S.Info("Warm up has ended", logObject)
+				return
 			}
 		}
 	}()
