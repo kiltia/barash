@@ -49,7 +49,7 @@ type ClickHouseConfig struct {
 type TimeoutConfig struct {
 	ApiTimeout      time.Duration `env:"API_TIMEOUT, default=3m"`
 	ShutdownTimeout time.Duration `env:"SHUTDOWN_TIMEOUT, default=10s"`
-	DbSaveTimeout   time.Duration `env:"DB_SAVE_TIMEOUT, default=10s"`
+	DbSaveTimeout   time.Duration `env:"DB_SAVE_TIMEOUT, default=30s"`
 }
 
 type HttpRetryConfig struct {
