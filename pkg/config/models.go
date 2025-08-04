@@ -63,19 +63,20 @@ type SelectRetryConfig struct {
 }
 
 type RunConfig struct {
-	MaxFetcherWorkers  int               `env:"MAX_FETCHER_WORKERS, default=800"`
-	MinFetcherWorkers  int               `env:"MIN_FETCHER_WORKERS, default=400"`
-	SelectionBatchSize int               `env:"SELECTION_BATCH_SIZE, default=40000"`
-	InsertionBatchSize int               `env:"INSERTION_BATCH_SIZE, default=10000"`
-	SelectionTableName string            `env:"SELECTION_TABLE, required"`
-	InsertionTableName string            `env:"INSERTION_TABLE"`
-	MaxCorrection      int               `env:"MAX_CORRECTION, default=21"` // days
-	Freshness          int               `env:"FRESHNESS, default=7"`       // days
-	SleepTime          time.Duration     `env:"SLEEP_TIME, default=1m"`
-	WarmupTime         time.Duration     `env:"WARMUP_TIME, default=3m"`
-	Tag                string            `env:"TAG"`
-	ExtraParams        map[string]string `env:"EXTRA_PARAMS"`
-	Mode               RunnerMode        `env:"MODE, required"`
+	MaxFetcherWorkers         int               `env:"MAX_FETCHER_WORKERS, default=800"`
+	MinFetcherWorkers         int               `env:"MIN_FETCHER_WORKERS, default=400"`
+	SelectionBatchSize        int               `env:"SELECTION_BATCH_SIZE, default=40000"`
+	InsertionBatchSize        int               `env:"INSERTION_BATCH_SIZE, default=10000"`
+	SelectionTableName        string            `env:"SELECTION_TABLE, required"`
+	InsertionTableName        string            `env:"INSERTION_TABLE"`
+	MaxCorrection             time.Duration     `env:"MAX_CORRECTION, default=21d"`
+	ServerErrorCorrectionDiff time.Duration     `env:"SERVER_ERROR_CORRECTION_DIFF, default=1d"`
+	Freshness                 time.Duration     `env:"FRESHNESS, default=7d"`
+	SleepTime                 time.Duration     `env:"SLEEP_TIME, default=1m"`
+	WarmupTime                time.Duration     `env:"WARMUP_TIME, default=3m"`
+	Tag                       string            `env:"TAG"`
+	ExtraParams               map[string]string `env:"EXTRA_PARAMS"`
+	Mode                      RunnerMode        `env:"MODE, required"`
 }
 
 type LogConfig struct {

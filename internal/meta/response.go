@@ -81,7 +81,7 @@ func (response VerifyResponse) IntoStored(
 	if strings.Contains(strings.ToLower(response.Error.Code), "timeout") {
 		// NOTE(nrydanov): This is a hack to avoid sitations when
 		// too many potential timeouts are present in batch.
-		seconds := rand.Intn(24 * 60 * 60 * config.C.Run.MaxCorrection)
+		seconds := rand.Intn(int(config.C.Run.MaxCorrection.Seconds()))
 		correctedTs = ts.Add(
 			time.Duration(
 				seconds,

@@ -58,9 +58,9 @@ func main() {
 		instance.Run(ctx, &wg)
 	case ApiNameMeta:
 		queryBuilder := meta.VerifyQueryBuilder{
-			DayInterval: config.C.Run.Freshness,
-			Limit:       config.C.Run.SelectionBatchSize,
-			Mode:        config.C.Run.Mode,
+			Interval: config.C.Run.Freshness,
+			Limit:    config.C.Run.SelectionBatchSize,
+			Mode:     config.C.Run.Mode,
 		}
 		queryBuilder.ResetState()
 		instance, err := runner.New[

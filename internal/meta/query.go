@@ -11,7 +11,7 @@ import (
 const DateFormat = "2006-01-02 15:04:05.999999"
 
 type VerifyQueryBuilder struct {
-	DayInterval    int
+	Interval       time.Duration
 	Limit          int
 	StartTimestamp time.Time
 	LastTimestamp  time.Time
@@ -65,7 +65,7 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
         ordered as (
             select duns, url, max_ts
             from last
-            where max_ts < toDateTime64('%s', 6) - toIntervalDay(%d) and max_ts > toDateTime64('%s', 6)
+            where max_ts < toDateTime64('%s', 6) - toIntervalSecond(%d) and max_ts > toDateTime64('%s', 6)
         ),
         final as (
             select
@@ -89,7 +89,7 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
     `,
 		config.C.Run.SelectionTableName,
 		qb.StartTimestamp.Format(DateFormat),
-		qb.DayInterval,
+		int(qb.Interval.Seconds()),
 		qb.LastTimestamp.Format(DateFormat),
 		qb.Limit,
 	)
