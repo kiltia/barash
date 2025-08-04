@@ -7,7 +7,7 @@ import (
 
 type (
 	StoredResult interface {
-		GetCreateQuery() string
+		GetCreateQuery(tableName string) string
 	}
 
 	StoredParams any
@@ -28,6 +28,7 @@ type (
 			body map[string]any,
 			status int,
 			timeElapsed time.Duration,
+			tag string,
 		) S
 	}
 

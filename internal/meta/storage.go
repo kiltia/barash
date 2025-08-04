@@ -3,8 +3,6 @@ package meta
 import (
 	"fmt"
 	"time"
-
-	"orb/runner/pkg/config"
 )
 
 type VerifyResult struct {
@@ -43,7 +41,7 @@ type VerifyResult struct {
 }
 
 // Implement the [rinterface.StoredValue] interface.
-func (r VerifyResult) GetCreateQuery() string {
+func (r VerifyResult) GetCreateQuery(tableName string) string {
 	query := fmt.Sprintf(
 		`
         CREATE TABLE %s
@@ -84,7 +82,7 @@ func (r VerifyResult) GetCreateQuery() string {
         ENGINE = MergeTree
         ORDER BY (duns, url)
     `,
-		config.C.Run.InsertionTableName,
+		tableName,
 	)
 	return query
 }

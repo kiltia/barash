@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"orb/runner/pkg/config"
-
 	sf "github.com/sa-/slicefunk"
 )
 
@@ -44,6 +42,7 @@ func (response VerifyResponse) IntoStored(
 	body map[string]any,
 	status int,
 	timeElapsed time.Duration,
+	tag string,
 ) VerifyResult {
 	debugInfo := response.DebugInfo
 	pageStats := response.DebugInfo.CrawlerDebug.PageStats
@@ -81,7 +80,9 @@ func (response VerifyResponse) IntoStored(
 	if strings.Contains(strings.ToLower(response.Error.Code), "timeout") {
 		// NOTE(nrydanov): This is a hack to avoid sitations when
 		// too many potential timeouts are present in batch.
-		seconds := rand.Intn(int(config.C.Run.MaxCorrection.Seconds()))
+		seconds := rand.Intn(
+			int(time.Hour * 504 / time.Second),
+		) // 504h in seconds
 		correctedTs = ts.Add(
 			time.Duration(
 				seconds,
@@ -128,7 +129,7 @@ func (response VerifyResponse) IntoStored(
 		ResponseTimes:          responseTimes,
 		ResponseCodes:          responseCodes,
 		Score:                  score,
-		Tag:                    config.C.Run.Tag,
+		Tag:                    tag,
 		Timestamp:              ts,
 		CorrTs:                 correctedTs,
 	}

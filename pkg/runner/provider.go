@@ -5,14 +5,14 @@ import (
 	"time"
 
 	"orb/runner/pkg/config"
-	"orb/runner/pkg/log"
+
+	"go.uber.org/zap"
 )
 
 func (r *Runner[S, R, P, Q]) dataProvider(
 	ctx context.Context,
 	fetchTasks chan ServiceRequest[P],
 ) {
-	logObject := log.L().Tag(log.LogTagDataProvider)
 	defer close(fetchTasks)
 
 	for {
@@ -20,41 +20,35 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 		case <-ctx.Done():
 			return
 		default:
-			log.S.Debug(
-				"Trying to get more tasks for fetchers",
-				logObject,
-			)
+			zap.S().Debug("Trying to get more tasks for fetchers")
 			params, err := r.fetchParams(
 				ctx,
 			)
 			r.queryBuilder.UpdateState(params)
 			if err != nil {
-				log.S.Error(
+				zap.S().Errorw(
 					"Failed to fetch request parameters from the database",
-					logObject.Error(
-						err,
-					),
+					"error", err,
 				)
 				return
 			}
 
 			if len(params) == 0 {
-				if config.C.Run.Mode == config.TwoTableMode &&
+				if r.cfg.Run.Mode == config.TwoTableMode &&
 					len(fetchTasks) == 0 {
-					log.S.Info("All data is processed, exiting", logObject)
+					zap.S().Infow("All data is processed, exiting")
 					return
 				} else {
 					r.queryBuilder.ResetState()
-					log.S.Info(
+					zap.S().Infow(
 						"The data provider has nothing to do, entering standby mode",
-						logObject.
-							Add("sleep_time", config.C.Run.SleepTime).
-							Add("tasks_left", len(fetchTasks)),
+						"sleep_time", r.cfg.Run.SleepTime,
+						"tasks_left", len(fetchTasks),
 					)
 					select {
 					case <-ctx.Done():
 						return
-					case <-time.After(config.C.Run.SleepTime):
+					case <-time.After(r.cfg.Run.SleepTime):
 						continue
 					}
 				}
@@ -63,10 +57,7 @@ func (r *Runner[S, R, P, Q]) dataProvider(
 				for _, r := range requests {
 					fetchTasks <- r
 				}
-				log.S.Debug(
-					"A batch was completely sent to fetchers",
-					logObject,
-				)
+				zap.S().Debug("A batch was completely sent to fetchers")
 			}
 		}
 	}

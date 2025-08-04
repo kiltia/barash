@@ -2,8 +2,6 @@ package crawler
 
 import (
 	"time"
-
-	"orb/runner/pkg/config"
 )
 
 type PartialErrorInfo struct {
@@ -29,6 +27,7 @@ func (resp CrawlerResponse) IntoStored(
 	body map[string]any,
 	status int,
 	timeElapsed time.Duration,
+	tag string,
 ) CrawlerResult {
 	var urls []string
 	for i := range resp.Parsed.Urls {
@@ -49,7 +48,7 @@ func (resp CrawlerResponse) IntoStored(
 		HeadlessUsed:      resp.HeadlessUsed,
 		Urls:              urls,
 		TimeElapsed:       timeElapsed.Seconds(),
-		Tag:               config.C.Run.Tag,
+		Tag:               tag,
 		Timestamp:         time.Now(),
 	}
 }

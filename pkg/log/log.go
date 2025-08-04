@@ -20,9 +20,8 @@ func Init(
 	cfg config.LogConfig,
 ) {
 	conf := zap.NewDevelopmentConfig()
-	conf.Level.SetLevel(cfg.Level)
-	conf.Encoding = cfg.Encoding
-	S = Logger{
-		internal: zap.Must(conf.Build()).Sugar(),
-	}
+
+	conf.Level = zap.NewAtomicLevelAt(cfg.Level)
+
+	zap.ReplaceGlobals(zap.Must(conf.Build()))
 }

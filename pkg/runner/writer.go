@@ -4,8 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"orb/runner/pkg/config"
-	"orb/runner/pkg/log"
+	"go.uber.org/zap"
 )
 
 // Writes a non-empty batch to the database.
@@ -13,33 +12,26 @@ func (r *Runner[S, R, P, Q]) write(
 	ctx context.Context,
 	batch []S,
 ) (err error) {
-	logObject := log.L().Tag(log.LogTagWriting)
-
-	log.S.Debug(
+	zap.S().Debugw(
 		"Saving processed batch to the database",
-		logObject.Add("batch_len", len(batch)),
+		"batch_len", len(batch),
 	)
 	err = r.clickHouseClient.InsertBatch(
 		ctx,
 		batch,
-		config.C.Run.Tag,
+		r.cfg.Run.Tag,
 	)
 	if err != nil {
-		log.S.Error(
+		zap.S().Errorw(
 			"Failed to save processed batch to the database",
-			logObject.Error(
-				err,
-			),
+			"error", err,
 		)
 		return err
 	}
 
-	log.S.Info(
+	zap.S().Infow(
 		"Saved processed batch to the database",
-		logObject.Add(
-			"batch_len",
-			len(batch),
-		),
+		"batch_len", len(batch),
 	)
 	return err
 }
@@ -49,13 +41,12 @@ func (r *Runner[S, R, P, Q]) writer(
 	writerCh chan S,
 	wg *sync.WaitGroup,
 ) {
-	logObject := log.L().Tag(log.LogTagWriting)
 	var batch []S
 
 	saveBatch := func() {
 		ctx, cancel := context.WithTimeout(
 			context.Background(),
-			config.C.Timeouts.DbSaveTimeout,
+			r.cfg.Timeouts.DBSaveTimeout,
 		)
 		defer cancel()
 		err := r.write(ctx, batch)
@@ -78,16 +69,13 @@ func (r *Runner[S, R, P, Q]) writer(
 	for {
 		select {
 		case <-ctx.Done():
-			log.S.Info(
-				"Context is cancelled. Saving the remaining batch",
-				logObject,
-			)
+			zap.S().Infow("Context is cancelled. Saving the remaining batch")
 			saveBatch()
-			log.S.Info("Batch is saved, writer is stopped", logObject)
+			zap.S().Infow("Batch is saved, writer is stopped")
 			return
 		case result, ok := <-writerCh:
 			if !ok {
-				log.S.Info("Channel is closed", logObject)
+				zap.S().Infow("Channel is closed")
 			}
 			batch = append(
 				batch,
@@ -95,22 +83,19 @@ func (r *Runner[S, R, P, Q]) writer(
 			)
 			if len(
 				batch,
-			) >= config.C.Run.InsertionBatchSize {
-				log.S.Info(
+			) >= r.cfg.Run.InsertionBatchSize {
+				zap.S().Infow(
 					"Have enough results, saving to the database",
-					logObject,
 				)
 				saveBatch()
 			}
 		default:
 			select {
 			case <-done:
-				log.S.Info(
-					"All workers are stopped. Saving the remaining batch",
-					logObject,
-				)
+				zap.S().
+					Infow("All workers are stopped. Saving the remaining batch")
 				saveBatch()
-				log.S.Info("Batch is saved, writer is stopped", logObject)
+				zap.S().Infow("Batch is saved, writer is stopped")
 				return
 			default:
 				continue

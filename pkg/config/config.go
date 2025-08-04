@@ -2,8 +2,6 @@ package config
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -11,8 +9,6 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/sethvargo/go-envconfig"
 )
-
-var C *Config
 
 const configFileEnvVar = "CONFIG_FILE"
 
@@ -23,25 +19,17 @@ func Init() {
 	// try to load the base configuration file.
 
 	var baseEnvPath string
-	if len(os.Args) > 1 {
-		log.Println(
-			"Loading the base configuration for the API from the CLI arguments",
+	if value, exists := os.LookupEnv(configFileEnvVar); exists {
+		log.Printf(
+			"Using the %s env variable to retrieve the config path\n",
+			configFileEnvVar,
 		)
-		parts := os.Args[1:]
-		baseEnvPath = fmt.Sprintf(
-			"config/base/%s.env",
-			strings.Join(parts, "."),
-		)
+		baseEnvPath = value
 	} else {
-		if value, exists := os.LookupEnv(configFileEnvVar); exists {
-			log.Printf("Using the %s env variable to retrieve the config path\n", configFileEnvVar)
-			baseEnvPath = value
-		} else {
-			log.Printf("Base configuration file haven't been specified. "+
-				"It will not be loaded. You can specify the path to the base configuration file "+
-				"via the %s env variable or using the CLI arguments.\n", configFileEnvVar)
-			return
-		}
+		log.Printf("Base configuration file haven't been specified. "+
+			"It will not be loaded. You can specify the path to the base configuration file "+
+			"via the %s env variable or using the CLI arguments.\n", configFileEnvVar)
+		return
 	}
 
 	if err := godotenv.Load(baseEnvPath); err != nil {
@@ -53,6 +41,22 @@ func Load(i *Config) {
 	if err := envconfig.Process(context.Background(), i); err != nil {
 		log.Fatal(err)
 	}
-	text, _ := json.MarshalIndent(i, "", "\t")
-	log.Println(string(text))
+
+	i.Run.ParsedExtraParams = parseExtraParams(i.Run.ExtraParams)
+}
+
+func parseExtraParams(extraParams string) map[string]string {
+	if extraParams == "" {
+		return nil
+	}
+
+	params := make(map[string]string)
+	for param := range strings.SplitSeq(extraParams, ";") {
+		parts := strings.SplitN(param, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		params[parts[0]] = parts[1]
+	}
+	return params
 }

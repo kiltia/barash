@@ -11,7 +11,7 @@ type ServiceRequest[P StoredParams] struct {
 	Host        string
 	Port        string
 	Endpoint    string
-	Method      config.RunnerHttpMethod
+	Method      config.RunnerHTTPMethod
 	Params      P
 	ExtraParams map[string]string
 

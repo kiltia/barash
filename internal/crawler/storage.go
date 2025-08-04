@@ -3,8 +3,6 @@ package crawler
 import (
 	"fmt"
 	"time"
-
-	"orb/runner/pkg/config"
 )
 
 type CrawlerResult struct {
@@ -27,7 +25,7 @@ type CrawlerResult struct {
 }
 
 // Implement the [rinterface.StoredValue] interface.
-func (r CrawlerResult) GetCreateQuery() string {
+func (r CrawlerResult) GetCreateQuery(tableName string) string {
 	query := fmt.Sprintf(
 		`
         CREATE TABLE %s
@@ -51,6 +49,6 @@ func (r CrawlerResult) GetCreateQuery() string {
         )
         ENGINE = MergeTree
         ORDER BY ts
-    `, config.C.Run.InsertionTableName)
+    `, tableName)
 	return query
 }

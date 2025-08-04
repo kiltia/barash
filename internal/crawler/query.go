@@ -7,9 +7,10 @@ import (
 )
 
 type CrawlerQueryBuilder struct {
-	LastId    int64
-	BatchSize int
-	Mode      config.RunnerMode
+	LastId             int64
+	BatchSize          int
+	Mode               config.RunnerMode
+	SelectionTableName string
 }
 
 func (qb *CrawlerQueryBuilder) UpdateState(batch []CrawlerParams) {
@@ -29,7 +30,7 @@ func (qb *CrawlerQueryBuilder) GetTwoTableSelectQuery() string {
             where id > %d
             order by id
             limit %d
-    `, config.C.Run.SelectionTableName, qb.LastId, qb.BatchSize)
+    `, qb.SelectionTableName, qb.LastId, qb.BatchSize)
 	return query
 }
 

@@ -6,18 +6,21 @@ import (
 
 	"orb/runner/pkg/config"
 	"orb/runner/pkg/log"
+
+	"go.uber.org/zap"
 )
 
 const DateFormat = "2006-01-02 15:04:05.999999"
 
 type VerifyQueryBuilder struct {
-	Interval       time.Duration
-	Limit          int
-	StartTimestamp time.Time
-	LastTimestamp  time.Time
-	LastUrl        string
-	LastDuns       string
-	Mode           config.RunnerMode
+	Interval           time.Duration
+	Limit              int
+	StartTimestamp     time.Time
+	LastTimestamp      time.Time
+	LastUrl            string
+	LastDuns           string
+	Mode               config.RunnerMode
+	SelectionTableName string
 }
 
 func (qb *VerifyQueryBuilder) UpdateState(
@@ -33,7 +36,7 @@ func (qb *VerifyQueryBuilder) UpdateState(
 		qb.LastDuns = p.Duns
 	}
 
-	log.S.Info(
+	zap.S().Info(
 		"QueryBuilder state was updated",
 		log.L().
 			Add("last_ts", qb.LastTimestamp.String()).
@@ -45,7 +48,7 @@ func (qb *VerifyQueryBuilder) UpdateState(
 func (qb *VerifyQueryBuilder) ResetState() {
 	qb.StartTimestamp = time.Now().UTC()
 	qb.LastTimestamp = time.Unix(0, 1).UTC()
-	log.S.Info(
+	zap.S().Info(
 		"QueryBuilder state reset",
 		log.L().
 			Add("last_ts", qb.LastTimestamp).
@@ -87,7 +90,7 @@ func (qb VerifyQueryBuilder) GetContinuousSelectQuery() string {
         )
         select * from final
     `,
-		config.C.Run.SelectionTableName,
+		qb.SelectionTableName,
 		qb.StartTimestamp.Format(DateFormat),
 		int(qb.Interval.Seconds()),
 		qb.LastTimestamp.Format(DateFormat),
@@ -110,7 +113,7 @@ func (qb VerifyQueryBuilder) GetTwoTableSelectQuery() string {
         ORDER BY (duns, url)
         LIMIT %d
         `,
-		config.C.Run.SelectionTableName,
+		qb.SelectionTableName,
 		qb.LastDuns,
 		qb.LastUrl,
 		qb.Limit,

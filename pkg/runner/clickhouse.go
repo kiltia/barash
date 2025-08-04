@@ -5,15 +5,17 @@ import (
 	"fmt"
 
 	"orb/runner/pkg/config"
-	"orb/runner/pkg/log"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
+	"go.uber.org/zap"
 )
 
 type ClickHouseClient[S StoredResult, P StoredParams, Q QueryBuilder[S, P]] struct {
-	Connection driver.Conn
+	Connection         driver.Conn
+	insertionTableName string
+	selectRetries      config.SelectRetryConfig
 }
 
 func NewClickHouseClient[S StoredResult, P StoredParams, Q QueryBuilder[S, P]](
@@ -22,17 +24,15 @@ func NewClickHouseClient[S StoredResult, P StoredParams, Q QueryBuilder[S, P]](
 	database string,
 	username string,
 	password string,
+	insertionTableName string,
+	selectRetries config.SelectRetryConfig,
 ) (
 	client *ClickHouseClient[S, P, Q],
 	version *proto.ServerHandshake,
 	err error,
 ) {
 	var conn driver.Conn
-	log.S.Debug(
-		"Opening connection to the ClickHouse",
-		log.L().
-			Tag(log.LogTagClickHouse),
-	)
+	zap.S().Debug("Opening connection to the ClickHouse")
 	conn, err = clickhouse.Open(
 		&clickhouse.Options{
 			Addr: []string{
@@ -50,31 +50,25 @@ func NewClickHouseClient[S StoredResult, P StoredParams, Q QueryBuilder[S, P]](
 		},
 	)
 	if err != nil {
-		log.S.Error(
+		zap.S().Errorw(
 			"Failed to open a connection to the ClickHouse",
-			log.L().
-				Tag(log.LogTagClickHouse).
-				Error(err),
+			"error", err,
 		)
 		return nil, nil, err
 	}
-	log.S.Debug(
-		"Retrieving server version",
-		log.L().
-			Tag(log.LogTagClickHouse),
-	)
+	zap.S().Debug("Retrieving server version")
 	version, err = conn.ServerVersion()
 	if err != nil {
-		log.S.Error(
+		zap.S().Errorw(
 			"Failed to retrieve ClickHouse server version",
-			log.L().
-				Tag(log.LogTagClickHouse).
-				Error(err),
+			"error", err,
 		)
 		return nil, nil, err
 	}
 	return &ClickHouseClient[S, P, Q]{
-		Connection: conn,
+		Connection:         conn,
+		insertionTableName: insertionTableName,
+		selectRetries:      selectRetries,
 	}, version, err
 }
 
@@ -83,23 +77,17 @@ func (client *ClickHouseClient[S, P, Q]) InsertBatch(
 	batch []S,
 	tag string,
 ) error {
-	log.S.Debug(
-		"Inserting a batch to the database",
-		log.L().
-			Tag(log.LogTagClickHouse),
-	)
-	query := fmt.Sprintf("INSERT INTO %s", config.C.Run.InsertionTableName)
-	log.S.Debug(
+	zap.S().Debug("Inserting a batch to the database")
+	query := fmt.Sprintf("INSERT INTO %s", client.insertionTableName)
+	zap.S().Debugw(
 		"Sending query to the database",
-		log.L().
-			Tag(log.LogTagClickHouse).
-			Add("query", query),
+		"query", query,
 	)
 	batchBuilder, err := client.Connection.PrepareBatch(ctx, query)
 	if err != nil {
 		return err
 	}
-	for i := 0; i < len(batch); i++ {
+	for i := range batch {
 		err := batchBuilder.AppendStruct(&batch[i])
 		if err != nil {
 			return err
@@ -109,11 +97,7 @@ func (client *ClickHouseClient[S, P, Q]) InsertBatch(
 		return err
 	}
 
-	log.S.Debug(
-		"Successfully saved batch to the database",
-		log.L().
-			Tag(log.LogTagClickHouse),
-	)
+	zap.S().Debug("Successfully saved batch to the database")
 	return nil
 }
 
@@ -121,54 +105,35 @@ func (client *ClickHouseClient[S, P, Q]) SelectNextBatch(
 	ctx context.Context,
 	queryBuilder Q,
 ) (result []P, err error) {
-	log.S.Debug(
-		"Retrieving a new batch from the database",
-		log.L().
-			Tag(log.LogTagClickHouse),
-	)
+	zap.S().Debug("Retrieving a new batch from the database")
 	query := queryBuilder.GetSelectQuery()
-	log.S.Debug(
-		"Sending query to the database",
-		log.L().
-			Tag(log.LogTagClickHouse).
-			Add("query", query),
+	zap.S().Debugw(
+		"Selecting a new batch from the database",
+		"query", query,
 	)
-	for attempt := range config.C.SelectRetries.NumRetries {
+	for attempt := range client.selectRetries.NumRetries {
 		if err = client.Connection.Select(ctx, &result, query); err != nil {
-			log.S.Error(
+			zap.S().Errorw(
 				"Got an error while retrieving records from the database",
-				log.L().
-					Tag(log.LogTagClickHouse).
-					Error(err),
+				"error", err,
 			)
-			if attempt < config.C.SelectRetries.NumRetries {
-				log.S.Warn(
+			if attempt < client.selectRetries.NumRetries {
+				zap.S().Warnw(
 					"Retrying query",
-					log.L().
-						Tag(log.LogTagClickHouse).
-						Add("attempt", attempt+1),
+					"retry_number", attempt,
 				)
-				continue
 			}
-			return nil, err
 		} else {
 			break
 		}
 	}
-	if err = client.Connection.Select(ctx, &result, query); err != nil {
-		log.S.Error(
-			"Got an error while retrieving records from the database",
-			log.L().
-				Tag(log.LogTagClickHouse).
-				Error(err),
-		)
+	if err != nil {
 		return nil, err
 	}
-	log.S.Debug(
-		"Successfully got records from the database",
-		log.L().
-			Tag(log.LogTagClickHouse).
-			Add("count", len(result)),
+
+	zap.S().Debugw(
+		"Successfully selected a batch from the database",
+		"batch_size", len(result),
 	)
 	return result, nil
 }
