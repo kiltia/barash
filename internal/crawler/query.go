@@ -15,8 +15,8 @@ type CrawlerQueryBuilder struct {
 
 func (qb *CrawlerQueryBuilder) UpdateState(batch []CrawlerParams) {
 	for _, e := range batch {
-		if e.Id > qb.LastID {
-			qb.LastID = e.Id
+		if e.ID > qb.LastID {
+			qb.LastID = e.ID
 		}
 	}
 }

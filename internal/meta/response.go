@@ -107,7 +107,7 @@ func (response VerifyResponse) IntoStored(
 	return VerifyResult{
 		Duns:            params.Duns,
 		IsActive:        true,
-		URL:             params.Url,
+		URL:             params.URL,
 		FinalURL:        response.FinalURL,
 		VerificationURL: url,
 		StatusCode:      int32(status),

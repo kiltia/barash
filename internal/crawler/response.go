@@ -11,8 +11,8 @@ type PartialErrorInfo struct {
 }
 
 type CrawlerResponse struct {
-	OriginalUrl  string            `json:"original_url"`
-	FinalUrl     string            `json:"final_url"`
+	OriginalURL  string            `json:"original_url"`
+	FinalURL     string            `json:"final_url"`
 	Status       int16             `json:"status"`
 	ResponseSize int64             `json:"response_size"`
 	HeadlessUsed bool              `json:"headless_used"`
@@ -34,7 +34,7 @@ func (resp CrawlerResponse) IntoStored(
 		urls = append(urls, resp.Parsed.Urls[i].URL)
 	}
 	return CrawlerResult{
-		Url:               params.Url,
+		URL:               params.URL,
 		RequestLink:       url,
 		CrawlerStatusCode: uint16(status),
 		SiteStatusCode:    uint16(resp.Status),
@@ -42,8 +42,8 @@ func (resp CrawlerResponse) IntoStored(
 		ErrorType:         resp.ErrorInfo.ErrorType,
 		ErrorCode:         resp.ErrorInfo.Code,
 		AttemptsNumber:    uint8(n),
-		OriginalUrl:       resp.OriginalUrl,
-		FinalUrl:          resp.FinalUrl,
+		OriginalURL:       resp.OriginalURL,
+		FinalURL:          resp.FinalURL,
 		ResponseSize:      resp.ResponseSize,
 		HeadlessUsed:      resp.HeadlessUsed,
 		Urls:              urls,

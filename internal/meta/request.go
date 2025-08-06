@@ -5,7 +5,7 @@ import "time"
 // Request query parameters for the Meta API endpoint.
 type VerifyParams struct {
 	Duns         string    `query:"duns"          ch:"duns"`
-	Url          string    `query:"url"           ch:"url"`
+	URL          string    `query:"url"           ch:"url"`
 	Dba          *string   `query:"dba"           ch:"dba"`
 	Name         *string   `query:"name"          ch:"name"`
 	LocAddress1  *string   `query:"loc_address1"  ch:"loc_address1"`

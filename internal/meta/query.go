@@ -16,7 +16,7 @@ type VerifyQueryBuilder struct {
 	Limit              int
 	StartTimestamp     time.Time
 	LastTimestamp      time.Time
-	LastUrl            string
+	LastURL            string
 	LastDuns           string
 	Mode               config.RunnerMode
 	SelectionTableName string
@@ -31,7 +31,7 @@ func (qb *VerifyQueryBuilder) UpdateState(
 		) {
 			qb.LastTimestamp = p.Timestamp
 		}
-		qb.LastUrl = p.Url
+		qb.LastURL = p.URL
 		qb.LastDuns = p.Duns
 	}
 
@@ -112,7 +112,7 @@ func (qb VerifyQueryBuilder) GetTwoTableSelectQuery() string {
         `,
 		qb.SelectionTableName,
 		qb.LastDuns,
-		qb.LastUrl,
+		qb.LastURL,
 		qb.Limit,
 	)
 	return query

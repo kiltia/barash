@@ -6,7 +6,7 @@ import (
 )
 
 type CrawlerResult struct {
-	Url               string    `ch:"url"`
+	URL               string    `ch:"url"`
 	RequestLink       string    `ch:"request_link"`
 	CrawlerStatusCode uint16    `ch:"crawler_status_code"`
 	SiteStatusCode    uint16    `ch:"site_status_code"`
@@ -14,8 +14,8 @@ type CrawlerResult struct {
 	ErrorType         string    `ch:"error_type"`
 	ErrorCode         string    `ch:"error_code"`
 	AttemptsNumber    uint8     `ch:"attempts_number"`
-	OriginalUrl       string    `ch:"original_url"`
-	FinalUrl          string    `ch:"final_url"`
+	OriginalURL       string    `ch:"original_url"`
+	FinalURL          string    `ch:"final_url"`
 	ResponseSize      int64     `ch:"response_size"`
 	HeadlessUsed      bool      `ch:"headless_used"`
 	Urls              []string  `ch:"urls"`
