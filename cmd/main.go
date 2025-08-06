@@ -1,8 +1,8 @@
 package main
 
 import (
-	"orb/runner/internal"
-	"orb/runner/pkg/config"
+	"github.com/kiltia/runner/internal"
+	"github.com/kiltia/runner/pkg/config"
 )
 
 func main() {

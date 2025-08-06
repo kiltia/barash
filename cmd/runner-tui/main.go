@@ -5,9 +5,9 @@ import (
 	"os"
 	"runtime/debug"
 
-	"orb/runner/internal"
-	"orb/runner/internal/tui"
-	"orb/runner/pkg/config"
+	"github.com/kiltia/runner/internal"
+	"github.com/kiltia/runner/internal/tui"
+	"github.com/kiltia/runner/pkg/config"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

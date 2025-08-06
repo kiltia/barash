@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"orb/runner/pkg/config"
+	"github.com/kiltia/runner/pkg/config"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"

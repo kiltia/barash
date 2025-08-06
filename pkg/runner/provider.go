@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"orb/runner/pkg/config"
+	"github.com/kiltia/runner/pkg/config"
 
 	"go.uber.org/zap"
 )

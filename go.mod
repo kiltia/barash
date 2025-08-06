@@ -1,4 +1,4 @@
-module orb/runner
+module github.com/kiltia/runner
 
 go 1.24.0
 

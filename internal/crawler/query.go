@@ -3,7 +3,7 @@ package crawler
 import (
 	"fmt"
 
-	"orb/runner/pkg/config"
+	"github.com/kiltia/runner/pkg/config"
 )
 
 type CrawlerQueryBuilder struct {

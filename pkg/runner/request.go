@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"orb/runner/pkg/config"
+	"github.com/kiltia/runner/pkg/config"
 )
 
 type ServiceRequest[P StoredParams] struct {

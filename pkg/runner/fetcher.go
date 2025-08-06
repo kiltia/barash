@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"orb/runner/pkg/config"
+	"github.com/kiltia/runner/pkg/config"
 
 	"github.com/go-resty/resty/v2"
 	"go.uber.org/zap"

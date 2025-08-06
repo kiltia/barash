@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"orb/runner/pkg/config"
+	"github.com/kiltia/runner/pkg/config"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"

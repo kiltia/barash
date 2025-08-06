@@ -7,11 +7,11 @@ import (
 	"syscall"
 	"time"
 
-	"orb/runner/internal/crawler"
-	"orb/runner/internal/meta"
-	"orb/runner/pkg/config"
-	"orb/runner/pkg/log"
-	"orb/runner/pkg/runner"
+	"github.com/kiltia/runner/internal/crawler"
+	"github.com/kiltia/runner/internal/meta"
+	"github.com/kiltia/runner/pkg/config"
+	"github.com/kiltia/runner/pkg/log"
+	"github.com/kiltia/runner/pkg/runner"
 
 	"go.uber.org/zap"
 )

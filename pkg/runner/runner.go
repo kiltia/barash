@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"orb/runner/pkg/config"
+	"github.com/kiltia/runner/pkg/config"
 
 	"github.com/avast/retry-go/v4"
 	"github.com/go-resty/resty/v2"
