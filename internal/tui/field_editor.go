@@ -22,6 +22,7 @@ func NewFieldEditorModel(
 	config *config.Config,
 	path []string,
 	navigation []ConfigItem,
+	cursor int,
 ) FieldEditorModel {
 	ti := textinput.New()
 	ti.Placeholder = "Enter new value"
@@ -32,9 +33,10 @@ func NewFieldEditorModel(
 		BaseModel: BaseModel{
 			Options: navigation,
 			Config:  config,
+			cursor:  cursor,
 		},
 		textInput:  ti,
-		EditField:  &navigation[0],
+		EditField:  &navigation[cursor],
 		Path:       path,
 		Navigation: navigation,
 	}

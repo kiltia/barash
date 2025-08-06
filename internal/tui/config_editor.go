@@ -104,7 +104,7 @@ func (m ConfigEditorModel) handleEnter() (tea.Model, tea.Cmd) {
 		m.Options = BuildNavigationForStruct(item.Value)
 		m.cursor = 0
 	} else {
-		return NewFieldEditorModel(m.Config, m.Path, m.Options), nil
+		return NewFieldEditorModel(m.Config, m.Path, m.Options, m.cursor), nil
 	}
 	return m, nil
 }
