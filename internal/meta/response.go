@@ -21,7 +21,7 @@ type ErrorDetails struct {
 type VerifyResponse struct {
 	Score     *float64     `json:"score"`
 	Error     ErrorDetails `json:"component_error"`
-	FinalUrl  string       `json:"final_url"`
+	FinalURL  string       `json:"final_url"`
 	MatchMask MatchMask    `json:"match_mask"`
 	DebugInfo DebugInfo    `json:"debug_info"`
 }
@@ -32,6 +32,29 @@ func serializeMap(m map[string]any) string {
 		return ""
 	}
 	return string(b)
+}
+
+func correctTime(
+	ts time.Time,
+	request VerifyParams,
+	response VerifyResponse,
+	status int,
+) time.Time {
+	if strings.Contains(strings.ToLower(response.Error.Code), "timeout") {
+		// NOTE(nrydanov): This is a hack to avoid sitations when
+		// too many potential timeouts are present in batch.
+		seconds := rand.Intn(
+			int(time.Hour * 504),
+		) // 504h in seconds
+		return ts.Add(
+			time.Duration(
+				seconds,
+			) * time.Second,
+		)
+	} else if status >= 500 {
+		return request.Timestamp.Add(time.Hour * 24)
+	}
+	return ts
 }
 
 // Implement the [rinterface.Response] interface.
@@ -57,7 +80,6 @@ func (response VerifyResponse) IntoStored(
 	}
 
 	ts := time.Now()
-	var correctedTs time.Time
 
 	convertMetrics := func(metrics MetricsDebug) (map[string]float32, map[string]uint16) {
 		responseTimes := make(map[string]float32)
@@ -75,29 +97,19 @@ func (response VerifyResponse) IntoStored(
 		response.DebugInfo.MetricsDebug,
 	)
 
-	// NOTE(nrydanov): Need to replace with certain error code when we'll
-	// determine it.
-	if strings.Contains(strings.ToLower(response.Error.Code), "timeout") {
-		// NOTE(nrydanov): This is a hack to avoid sitations when
-		// too many potential timeouts are present in batch.
-		seconds := rand.Intn(
-			int(time.Hour * 504 / time.Second),
-		) // 504h in seconds
-		correctedTs = ts.Add(
-			time.Duration(
-				seconds,
-			) * time.Second,
-		)
-	} else {
-		correctedTs = ts
-	}
+	corrTS := correctTime(
+		ts,
+		params,
+		response,
+		status,
+	)
 
 	return VerifyResult{
 		Duns:            params.Duns,
 		IsActive:        true,
-		Url:             params.Url,
-		FinalUrl:        response.FinalUrl,
-		VerificationUrl: url,
+		URL:             params.Url,
+		FinalURL:        response.FinalURL,
+		VerificationURL: url,
 		StatusCode:      int32(status),
 		Error:           response.Error.Reason,
 		ErrorCode:       response.Error.Code,
@@ -131,7 +143,7 @@ func (response VerifyResponse) IntoStored(
 		Score:                  score,
 		Tag:                    tag,
 		Timestamp:              ts,
-		CorrTs:                 correctedTs,
+		CorrTS:                 corrTS,
 	}
 }
 

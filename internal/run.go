@@ -38,7 +38,7 @@ func RunApplication(cfg *config.Config) {
 		queryBuilder := crawler.CrawlerQueryBuilder{
 			BatchSize:          cfg.Run.SelectionBatchSize,
 			Mode:               cfg.Run.Mode,
-			LastId:             0,
+			LastID:             0,
 			SelectionTableName: cfg.Run.SelectionTableName,
 		}
 		queryBuilder.ResetState()

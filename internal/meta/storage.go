@@ -8,8 +8,8 @@ import (
 type VerifyResult struct {
 	Duns                   string             `ch:"duns"`
 	IsActive               bool               `ch:"is_active"`
-	Url                    string             `ch:"url"`
-	VerificationUrl        string             `ch:"verification_url"`
+	URL                    string             `ch:"url"`
+	VerificationURL        string             `ch:"verification_url"`
 	StatusCode             int32              `ch:"status_code"`
 	Error                  string             `ch:"error"`
 	ErrorCode              string             `ch:"error_code"`
@@ -31,13 +31,13 @@ type VerifyResult struct {
 	MmState                string             `ch:"mm_state"`
 	MmCountry              string             `ch:"mm_country"`
 	MmDomainNameSimilarity float64            `ch:"mm_domain_name_similarity"`
-	FinalUrl               string             `ch:"final_url"`
+	FinalURL               string             `ch:"final_url"`
 	Score                  float64            `ch:"score"`
 	Tag                    string             `ch:"tag"`
 	ResponseTimes          map[string]float32 `ch:"service_response_times"`
 	ResponseCodes          map[string]uint16  `ch:"service_status_codes"`
 	Timestamp              time.Time          `ch:"ts"`
-	CorrTs                 time.Time          `ch:"corr_ts"`
+	CorrTS                 time.Time          `ch:"corr_ts"`
 }
 
 // Implement the [rinterface.StoredValue] interface.

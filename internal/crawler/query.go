@@ -7,7 +7,7 @@ import (
 )
 
 type CrawlerQueryBuilder struct {
-	LastId             int64
+	LastID             int64
 	BatchSize          int
 	Mode               config.RunnerMode
 	SelectionTableName string
@@ -15,8 +15,8 @@ type CrawlerQueryBuilder struct {
 
 func (qb *CrawlerQueryBuilder) UpdateState(batch []CrawlerParams) {
 	for _, e := range batch {
-		if e.Id > qb.LastId {
-			qb.LastId = e.Id
+		if e.Id > qb.LastID {
+			qb.LastID = e.Id
 		}
 	}
 }
@@ -30,7 +30,7 @@ func (qb *CrawlerQueryBuilder) GetTwoTableSelectQuery() string {
             where id > %d
             order by id
             limit %d
-    `, qb.SelectionTableName, qb.LastId, qb.BatchSize)
+    `, qb.SelectionTableName, qb.LastID, qb.BatchSize)
 	return query
 }
 
