@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"orb/runner/pkg/config"
-	"orb/runner/pkg/log"
 
 	"go.uber.org/zap"
 )
@@ -36,23 +35,21 @@ func (qb *VerifyQueryBuilder) UpdateState(
 		qb.LastDuns = p.Duns
 	}
 
-	zap.S().Info(
+	zap.S().Infow(
 		"QueryBuilder state was updated",
-		log.L().
-			Add("last_ts", qb.LastTimestamp.String()).
-			Add("start_ts", qb.StartTimestamp.String()).
-			Add("tasks_fetched", len(batch)),
+		"last_ts", qb.LastTimestamp.String(),
+		"start_ts", qb.StartTimestamp.String(),
+		"tasks_fetched", len(batch),
 	)
 }
 
 func (qb *VerifyQueryBuilder) ResetState() {
 	qb.StartTimestamp = time.Now().UTC()
 	qb.LastTimestamp = time.Unix(0, 1).UTC()
-	zap.S().Info(
+	zap.S().Infow(
 		"QueryBuilder state reset",
-		log.L().
-			Add("last_ts", qb.LastTimestamp).
-			Add("start_ts", qb.StartTimestamp),
+		"last_ts", qb.LastTimestamp.String(),
+		"start_ts", qb.StartTimestamp.String(),
 	)
 }
 
