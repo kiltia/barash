@@ -80,9 +80,9 @@ func renderMenu(
 ) *strings.Builder {
 	for i, option := range options {
 		if i == cursor {
-			s.WriteString(fmt.Sprintf("→ %s\n", Styles.Selected.Render(option)))
+			fmt.Fprintf(s, "→ %s\n", Styles.Selected.Render(option))
 		} else {
-			s.WriteString(fmt.Sprintf("  %s\n", Styles.Normal.Render(option)))
+			fmt.Fprintf(s, "  %s\n", Styles.Normal.Render(option))
 		}
 	}
 

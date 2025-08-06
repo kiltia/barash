@@ -21,7 +21,12 @@ func SelectFile(m tea.Model, action Action) (tea.Model, tea.Cmd) {
 		}
 	}
 	tmpPath := tmpFile.Name()
-	tmpFile.Close()
+	err = tmpFile.Close()
+	if err != nil {
+		return m, func() tea.Msg {
+			return FileSelectedMsg{Path: "", Action: action}
+		}
+	}
 	cmd := exec.Command("sh", "-c", "fzf --prompt='"+prompt+"' > "+tmpPath)
 
 	return m, tea.ExecProcess(cmd, func(err error) tea.Msg {
