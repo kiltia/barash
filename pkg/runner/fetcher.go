@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand/v2"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/kiltia/runner/pkg/config"
 
@@ -120,8 +124,8 @@ func (r *Runner[S, R, P, Q]) performRequest(
 	ctx context.Context,
 	req ServiceRequest[P],
 ) ([]S, error) {
-	requestUrl := req.GetRequestLink()
-	zap.S().Debugw("Request link created", "url", requestUrl)
+	requestURL := req.GetRequestLink()
+	zap.S().Debugw("Request link created", "url", requestURL)
 
 	requestBody := req.GetRequestBody()
 	zap.S().Debugw("Request body constructed", "body", requestBody)
@@ -129,7 +133,7 @@ func (r *Runner[S, R, P, Q]) performRequest(
 	lastResponse := r.sendServiceRequest(
 		ctx,
 		req.Method,
-		requestUrl,
+		requestURL,
 		requestBody,
 	)
 	lastStatus := lastResponse.StatusCode()
@@ -142,7 +146,15 @@ func (r *Runner[S, R, P, Q]) performRequest(
 			err = fmt.Errorf("client error from the subject API")
 		}
 		zap.S().
-			Warnw("The subject API responded with 4xx. You should probably check your configuration", "status_code", lastStatus, "error", err, "response", lastResponse.String())
+			Warnw(
+				"The subject API responded with 4xx. You should probably check your configuration",
+				"status_code",
+				lastStatus,
+				"error",
+				err,
+				"response",
+				lastResponse.String(),
+			)
 	}
 
 	var responses []*resty.Response
@@ -180,30 +192,87 @@ func (r *Runner[S, R, P, Q]) fetcher(
 ) {
 	zap.S().
 		Debugw("A new fetcher instance is starting up", "fetcher_num", fetcherNum)
-	ctx = context.WithValue(ctx, ContextKeyFetcherNum, fetcherNum)
+
+	innerCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	innerCtx = context.WithValue(innerCtx, ContextKeyFetcherNum, fetcherNum)
 
 	for {
 		select {
-		case task, opened := <-input:
-			if !opened {
-				zap.S().
-					Infow("Fetcher has no work left", "fetcher_num", fetcherNum)
-				return
-			}
-			zap.S().
-				Debugw("Pulling a new task", "task_count", len(input), "fetcher_num", fetcherNum)
-			storedValues := r.handleFetcherTask(ctx, task)
-			for _, value := range storedValues {
-				zap.S().
-					Debugw("Sending fetch result to writer", "fetcher_num", fetcherNum)
-				output <- value
-				zap.S().
-					Debugw("Result to writer was sent", "fetcher_num", fetcherNum)
-			}
-			zap.S().
-				Debugw("Finished sending results to writer", "fetcher_num", fetcherNum)
 		case <-ctx.Done():
 			return
+		default:
+			select {
+			case task, opened := <-input:
+				if !opened {
+					zap.S().
+						Infow("Fetcher has no work left", "fetcher_num", fetcherNum)
+					return
+				}
+				zap.S().
+					Debugw("Pulling a new task", "task_count", len(input), "fetcher_num", fetcherNum)
+				storedValues := r.handleFetcherTask(innerCtx, task)
+				for _, value := range storedValues {
+					zap.S().
+						Debugw("Sending fetch result to writer", "fetcher_num", fetcherNum)
+					output <- value
+					zap.S().
+						Debugw("Result to writer was sent", "fetcher_num", fetcherNum)
+				}
+				zap.S().
+					Debugw("Finished sending results to writer", "fetcher_num", fetcherNum)
+			case <-time.After(10 * time.Second):
+				zap.S().
+					Debugw("No tasks received for 10 seconds, exiting fetcher", "fetcher_num", fetcherNum)
+				return
+			}
 		}
 	}
+}
+
+func (r *Runner[S, R, P, Q]) startFetchers(
+	ctx context.Context,
+	input chan ServiceRequest[P],
+	globalWg *sync.WaitGroup,
+) chan S {
+	outputCh := make(chan S, 2*r.cfg.Run.InsertionBatchSize+1)
+	wg := sync.WaitGroup{}
+	wg.Add(r.cfg.Run.MaxFetcherWorkers)
+	fetcherCnt := atomic.Int32{}
+	for i := range r.cfg.Run.MaxFetcherWorkers {
+		var rnd time.Duration
+		if i < r.cfg.Run.MinFetcherWorkers {
+			rnd = 0
+		} else {
+			rnd = time.Duration(rand.IntN(int(r.cfg.Run.WarmupTime.Seconds())+1)) * time.Second
+		}
+		go func() {
+			defer wg.Done()
+			<-time.After(rnd)
+			fetcherCnt.Add(1)
+			r.fetcher(ctx, input, outputCh, i)
+		}()
+	}
+
+	go func() {
+		for {
+			time.Sleep(time.Second * 10)
+			zap.S().Infow(
+				"Warm up is in progress",
+				"fetcher_cnt", fetcherCnt.Load(),
+			)
+			if fetcherCnt.Load() >= int32(r.cfg.Run.MaxFetcherWorkers) {
+				zap.S().Infow("Warm up has ended")
+				return
+			}
+		}
+	}()
+
+	go func() {
+		defer globalWg.Done()
+		wg.Wait()
+	}()
+
+	return outputCh
 }

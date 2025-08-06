@@ -2,7 +2,6 @@ package runner
 
 import (
 	"context"
-	"sync"
 
 	"go.uber.org/zap"
 )
@@ -37,15 +36,16 @@ func (r *Runner[S, R, P, Q]) write(
 }
 
 func (r *Runner[S, R, P, Q]) writer(
-	ctx context.Context,
-	writerCh chan S,
-	wg *sync.WaitGroup,
+	resultsCh chan S,
 ) {
 	var batch []S
 
+	innerCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	saveBatch := func() {
 		ctx, cancel := context.WithTimeout(
-			context.Background(),
+			innerCtx,
 			r.cfg.Timeouts.DBSaveTimeout,
 		)
 		defer cancel()
@@ -59,47 +59,22 @@ func (r *Runner[S, R, P, Q]) writer(
 		}
 	}
 
-	done := make(chan struct{})
-
-	go func() {
-		wg.Wait()
-		done <- struct{}{}
-	}()
-
-	for {
-		select {
-		case <-ctx.Done():
-			zap.S().Infow("Context is cancelled. Saving the remaining batch")
-			saveBatch()
-			zap.S().Infow("Batch is saved, writer is stopped")
-			return
-		case result, ok := <-writerCh:
-			if !ok {
-				zap.S().Infow("Channel is closed")
-			}
-			batch = append(
-				batch,
-				result,
+	for result := range resultsCh {
+		batch = append(
+			batch,
+			result,
+		)
+		if len(
+			batch,
+		) >= r.cfg.Run.InsertionBatchSize {
+			zap.S().Infow(
+				"Have enough results, saving to the database",
 			)
-			if len(
-				batch,
-			) >= r.cfg.Run.InsertionBatchSize {
-				zap.S().Infow(
-					"Have enough results, saving to the database",
-				)
-				saveBatch()
-			}
-		default:
-			select {
-			case <-done:
-				zap.S().
-					Infow("All workers are stopped. Saving the remaining batch")
-				saveBatch()
-				zap.S().Infow("Batch is saved, writer is stopped")
-				return
-			default:
-				continue
-			}
+			saveBatch()
 		}
 	}
+
+	zap.S().
+		Infow("All results processed by Runner, saving the rest to the database and exiting")
+	saveBatch()
 }

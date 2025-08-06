@@ -67,7 +67,6 @@ func RunApplication(cfg *config.Config) {
 	default:
 		zap.S().Panic("Unexpected API name: ", cfg.API.Name)
 	}
-
 	timeout := cfg.Timeouts.ShutdownTimeout
 
 	done := make(chan struct{})
@@ -81,13 +80,21 @@ func RunApplication(cfg *config.Config) {
 	case <-ctx.Done():
 		zap.S().
 			Info("Shutting down gracefully, Ctrl+C to force. Timeout: ", timeout)
+		forceCtx, cancel := signal.NotifyContext(
+			context.Background(),
+			syscall.SIGINT,
+			syscall.SIGTERM,
+		)
+		defer cancel()
 		select {
 		case <-time.After(timeout):
-			zap.S().Info("Shutdown timeout reached, forcefully shutting down.")
+			zap.S().Info("Shutdown timeout reached, forcefully shutting down")
 		case <-done:
-			zap.S().Info("Shutdown completed.")
+			zap.S().Info("Graceful shutdown completed")
+		case <-forceCtx.Done():
+			zap.S().Info("Ctrl+C pressed, forcefully shutting down")
 		}
 	case <-done:
-		zap.S().Info("Writer is stopped. Shutting down the application")
+		zap.S().Info("All workers are stopped. Shutting down the application")
 	}
 }

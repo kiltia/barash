@@ -3,10 +3,7 @@ package runner
 import (
 	"context"
 	"fmt"
-	"math/rand/v2"
 	"sync"
-	"sync/atomic"
-	"time"
 
 	"github.com/kiltia/runner/pkg/config"
 
@@ -20,6 +17,9 @@ type Runner[S StoredResult, R Response[S, P], P StoredParams, Q QueryBuilder[S, 
 	httpClient       *resty.Client
 	queryBuilder     Q
 	cfg              *config.Config
+	stopProvider     chan struct{}
+	fetcherCh        chan ServiceRequest[P]
+	writerCh         chan S
 }
 
 func New[
@@ -58,6 +58,12 @@ func New[
 		httpClient:       initHTTPClient(cfg.HTTPRetries, cfg.Timeouts),
 		queryBuilder:     qb,
 		cfg:              cfg,
+		stopProvider:     make(chan struct{}),
+		fetcherCh: make(
+			chan ServiceRequest[P],
+			2*cfg.Run.SelectionBatchSize,
+		),
+		writerCh: make(chan S, 2*cfg.Run.InsertionBatchSize+1),
 	}
 	return &runner, nil
 }
@@ -70,52 +76,14 @@ func (r *Runner[S, R, P, Q]) Run(
 	// initialize storage in two-table mode
 	r.initTable(ctx)
 
-	fetcherCh := make(chan ServiceRequest[P], 2*r.cfg.Run.SelectionBatchSize)
-	writerCh := make(chan S, 2*r.cfg.Run.InsertionBatchSize+1)
-	wg := sync.WaitGroup{}
-
-	fetcherCnt := atomic.Int32{}
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		r.dataProvider(ctx, fetcherCh)
-	}()
-
-	go func() {
-		for {
-			time.Sleep(time.Second * 10)
-			zap.S().Infow(
-				"Warm up is in progress",
-				"fetcher_cnt", fetcherCnt.Load(),
-			)
-			if fetcherCnt.Load() >= int32(r.cfg.Run.MaxFetcherWorkers) {
-				zap.S().Infow("Warm up has ended")
-				return
-			}
-		}
-	}()
-
-	wg.Add(r.cfg.Run.MaxFetcherWorkers)
-	for i := range r.cfg.Run.MaxFetcherWorkers {
-		var rnd time.Duration
-		if i < r.cfg.Run.MinFetcherWorkers {
-			rnd = 0
-		} else {
-			rnd = time.Duration(rand.IntN(int(r.cfg.Run.WarmupTime.Seconds())+1)) * time.Second
-		}
-		go func() {
-			defer wg.Done()
-			time.Sleep(rnd)
-			fetcherCnt.Add(1)
-			r.fetcher(ctx, fetcherCh, writerCh, i)
-		}()
-	}
+	tasks := r.startProvider(ctx, globalWg)
+	results := r.startFetchers(ctx, tasks, globalWg)
 
 	globalWg.Add(1)
 	go func() {
 		defer globalWg.Done()
-		r.writer(ctx, writerCh, &wg)
+		r.writer(results)
+		zap.S().Info("Writer has been stopped")
 	}()
 }
 
