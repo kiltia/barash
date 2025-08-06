@@ -1,3 +1,0 @@
-[submodule "clickhouse"]
-	path = clickhouse
-	url = git@github.com:kiltia/clickhouse.git
