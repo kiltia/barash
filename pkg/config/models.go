@@ -74,6 +74,7 @@ type RunConfig struct {
 	Freshness                 time.Duration     `env:"FRESHNESS, default=168h"`
 	SleepTime                 time.Duration     `env:"SLEEP_TIME, default=1m"`
 	WarmupTime                time.Duration     `env:"WARMUP_TIME, default=3m"`
+	FetcherIdleTime           time.Duration     `env:"FETCHER_IDLE_TIME, default=10s"`
 	Tag                       string            `env:"TAG"`
 	ExtraParams               string            `env:"EXTRA_PARAMS"`
 	ParsedExtraParams         map[string]string `                                                display:"-"`

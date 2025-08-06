@@ -18,20 +18,20 @@ func main() {
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	finalModel, err := p.Run()
 	if err != nil {
-		fmt.Printf("Error: %v", err)
+		fmt.Printf("error: %v", err)
 		os.Exit(1)
 	}
 
 	// Check if we should run the application after exiting TUI
 	if m, ok := finalModel.(tui.ConfigPreviewModel); ok {
 		// Clear the screen and reset terminal
-		fmt.Println("Starting application...")
+		fmt.Println("starting application")
 
 		// Run the application in a way that doesn't block
 		defer func() {
 			if r := recover(); r != nil {
-				fmt.Printf("Application panicked: %v\n", r)
-				fmt.Println("Stack trace:")
+				fmt.Printf("application panicked: %v\n", r)
+				fmt.Println("stack trace:")
 				fmt.Println(string(debug.Stack()))
 			}
 		}()

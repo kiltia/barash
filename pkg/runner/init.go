@@ -14,7 +14,7 @@ func (r *Runner[S, R, P, Q]) initTable(
 ) {
 	if r.cfg.Run.Mode == config.ContinuousMode {
 		zap.S().
-			Infow("Running in continuous mode, skipping table initialization")
+			Infow("running in continuous mode, skipping table initialization")
 		return
 	}
 	var nilInstance S
@@ -24,9 +24,9 @@ func (r *Runner[S, R, P, Q]) initTable(
 	)
 
 	if err != nil {
-		zap.S().Warnw("Table creation script has failed", "error", err)
+		zap.S().Warnw("table creation script has failed", "error", err)
 	} else {
-		zap.S().Infow("Successfully initialized table for the Runner results")
+		zap.S().Infow("successfully initialized table for the Runner results")
 	}
 }
 

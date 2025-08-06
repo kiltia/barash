@@ -11,9 +11,10 @@ func (r *Runner[S, R, P, Q]) write(
 	ctx context.Context,
 	batch []S,
 ) (err error) {
-	zap.S().Debugw(
-		"Saving processed batch to the database",
-		"batch_len", len(batch),
+	logger := zap.S().
+		With("batch_len", len(batch))
+	logger.Debugw(
+		"saving processed batch to the database",
 	)
 	err = r.clickHouseClient.InsertBatch(
 		ctx,
@@ -21,18 +22,13 @@ func (r *Runner[S, R, P, Q]) write(
 		r.cfg.Run.Tag,
 	)
 	if err != nil {
-		zap.S().Errorw(
-			"Failed to save processed batch to the database",
-			"error", err,
-		)
 		return err
 	}
 
-	zap.S().Infow(
-		"Saved processed batch to the database",
-		"batch_len", len(batch),
+	logger.Infow(
+		"saved processed batch to the database",
 	)
-	return err
+	return nil
 }
 
 func (r *Runner[S, R, P, Q]) writer(
@@ -56,6 +52,11 @@ func (r *Runner[S, R, P, Q]) writer(
 		// Source: https://github.com/kiltia/runner/issues/15
 		if err == nil {
 			batch = *new([]S)
+		} else {
+			zap.S().Errorw(
+				"saving processed batch to the database",
+				"error", err,
+			)
 		}
 	}
 
@@ -64,17 +65,15 @@ func (r *Runner[S, R, P, Q]) writer(
 			batch,
 			result,
 		)
-		if len(
-			batch,
-		) >= r.cfg.Run.InsertionBatchSize {
+		if len(batch) >= r.cfg.Run.InsertionBatchSize {
 			zap.S().Infow(
-				"Have enough results, saving to the database",
+				"have enough results, saving to the database",
 			)
 			saveBatch()
 		}
 	}
 
 	zap.S().
-		Infow("All results processed by Runner, saving the rest to the database and exiting")
+		Infow("all results processed, saving the rest to the database and exiting")
 	saveBatch()
 }

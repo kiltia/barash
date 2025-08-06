@@ -17,34 +17,12 @@ import (
 
 // Performs requests to the target API and returns results.
 
-func (r *Runner[S, R, P, Q]) handleFetcherTask(
-	ctx context.Context,
-	task ServiceRequest[P],
-) []S {
-	zap.S().
-		Debugw("Sending request to the subject API", "fetcher_num", ctx.Value(ContextKeyFetcherNum))
-	resultList, err := r.performRequest(ctx, task)
-	if err != nil {
-		zap.S().
-			Errorw(
-				"There was an error while sending request to the subject API",
-				"error",
-				err,
-				"fetcher_num",
-				ctx.Value(ContextKeyFetcherNum),
-			)
-	}
-	zap.S().
-		Debugw("Finished request handling", "fetcher_num", ctx.Value(ContextKeyFetcherNum))
-	return resultList
-}
-
 func (r *Runner[S, R, P, Q]) sendServiceRequest(
 	ctx context.Context,
 	method config.RunnerHTTPMethod,
 	url string,
 	body map[string]any,
-) *resty.Response {
+) (*resty.Response, error) {
 	zap.S().Debugw("Performing request to the subject API", "url", url)
 	ctx = context.WithValue(
 		ctx,
@@ -64,18 +42,18 @@ func (r *Runner[S, R, P, Q]) sendServiceRequest(
 			Post(url)
 	}
 
-	zap.S().Debugw("Finished request to the subject API", "url", url)
 	if err != nil {
-		return lastResponse
+		return lastResponse, err
 	}
 
-	return lastResponse
+	return lastResponse, err
 }
 
 func (r *Runner[S, R, P, Q]) processResponse(
 	req ServiceRequest[P],
 	resp *resty.Response,
 	attemptNumber int,
+	logger *zap.SugaredLogger,
 ) (S, error) {
 	var result R
 	statusCode := resp.StatusCode()
@@ -83,18 +61,23 @@ func (r *Runner[S, R, P, Q]) processResponse(
 	case 0:
 		result = *new(R)
 		statusCode = 599
-		zap.S().
-			Debugw("Timeout was reached while waiting for a response", "status_code", statusCode)
 	case 429:
 		result = *new(R)
 		statusCode = 429
-		zap.S().
-			Debugw(`Subject API responded with "Too Many Requests"`, "status_code", statusCode)
 	default:
-		err := json.Unmarshal(resp.Body(), &result)
+		body := resp.Body()
+		err := json.Unmarshal(body, &result)
 		if err != nil {
-			zap.S().
-				Warnw("Failed to unmarshal response into a response object. Only saving the status code", "error", err, "status_code", resp.StatusCode())
+			logger.
+				Warnw(
+					"unmarshalling response into a response object failed, saving the status code",
+					"error",
+					err,
+					"status_code",
+					resp.StatusCode(),
+					"body",
+					body,
+				)
 			result = *new(R)
 			statusCode = resp.StatusCode()
 		}
@@ -123,14 +106,12 @@ func (r *Runner[S, R, P, Q]) processResponse(
 func (r *Runner[S, R, P, Q]) performRequest(
 	ctx context.Context,
 	req ServiceRequest[P],
+	logger *zap.SugaredLogger,
 ) ([]S, error) {
 	requestURL := req.GetRequestLink()
-	zap.S().Debugw("Request link created", "url", requestURL)
-
 	requestBody := req.GetRequestBody()
-	zap.S().Debugw("Request body constructed", "body", requestBody)
 
-	lastResponse := r.sendServiceRequest(
+	lastResponse, err := r.sendServiceRequest(
 		ctx,
 		req.Method,
 		requestURL,
@@ -139,22 +120,11 @@ func (r *Runner[S, R, P, Q]) performRequest(
 	lastStatus := lastResponse.StatusCode()
 
 	if lastStatus >= 400 && lastStatus < 500 {
-		var err error
 		if lastStatus == 429 {
 			err = fmt.Errorf("subject API is overloaded")
 		} else {
-			err = fmt.Errorf("client error from the subject API")
+			err = fmt.Errorf("client error from the subject API: %v", err)
 		}
-		zap.S().
-			Warnw(
-				"The subject API responded with 4xx. You should probably check your configuration",
-				"status_code",
-				lastStatus,
-				"error",
-				err,
-				"response",
-				lastResponse.String(),
-			)
 	}
 
 	var responses []*resty.Response
@@ -173,15 +143,15 @@ func (r *Runner[S, R, P, Q]) performRequest(
 	var results []S
 
 	for i, resp := range responses {
-		zap.S().Debugw("Processing response", "attempt", i)
-		storedValue, err := r.processResponse(req, resp, i)
+		zap.S().Debugw("processing response", "attempt", i)
+		storedValue, err := r.processResponse(req, resp, i, logger)
 		if err != nil {
 			return nil, err
 		}
 		results = append(results, storedValue)
-		zap.S().Debugw("Response processed", "attempt", i)
+		zap.S().Debugw("response processed", "attempt", i)
 	}
-	return results, nil
+	return results, err
 }
 
 func (r *Runner[S, R, P, Q]) fetcher(
@@ -190,8 +160,10 @@ func (r *Runner[S, R, P, Q]) fetcher(
 	output chan S,
 	fetcherNum int,
 ) {
-	zap.S().
-		Debugw("A new fetcher instance is starting up", "fetcher_num", fetcherNum)
+	logger := zap.S().
+		With("fetcher_num", fetcherNum)
+	logger.
+		Debugw("fetcher instance is starting up")
 
 	innerCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -206,25 +178,32 @@ func (r *Runner[S, R, P, Q]) fetcher(
 			select {
 			case task, opened := <-input:
 				if !opened {
-					zap.S().
-						Infow("Fetcher has no work left", "fetcher_num", fetcherNum)
+					logger.
+						Debugw("fetcher has no work left")
 					return
 				}
-				zap.S().
-					Debugw("Pulling a new task", "task_count", len(input), "fetcher_num", fetcherNum)
-				storedValues := r.handleFetcherTask(innerCtx, task)
+				logger.
+					Debugw("pulling a new task", "task_count", len(input))
+				storedValues, err := r.performRequest(innerCtx, task, logger)
+				// It's expected that err is ignored here
 				for _, value := range storedValues {
-					zap.S().
-						Debugw("Sending fetch result to writer", "fetcher_num", fetcherNum)
 					output <- value
-					zap.S().
-						Debugw("Result to writer was sent", "fetcher_num", fetcherNum)
 				}
-				zap.S().
-					Debugw("Finished sending results to writer", "fetcher_num", fetcherNum)
-			case <-time.After(10 * time.Second):
-				zap.S().
-					Debugw("No tasks received for 10 seconds, exiting fetcher", "fetcher_num", fetcherNum)
+				if err != nil {
+					zap.S().Error(
+						fmt.Errorf(
+							"performing request: %w",
+							err,
+						),
+					)
+				}
+			case <-time.After(r.cfg.Run.FetcherIdleTime):
+				logger.
+					Debugw(
+						"no tasks recieved in fetcher idle time, exiting fetcher",
+						"idle_time",
+						r.cfg.Run.FetcherIdleTime,
+					)
 				return
 			}
 		}
@@ -259,13 +238,9 @@ func (r *Runner[S, R, P, Q]) startFetchers(
 		for {
 			time.Sleep(time.Second * 10)
 			zap.S().Infow(
-				"Warm up is in progress",
+				"current fetcher count",
 				"fetcher_cnt", fetcherCnt.Load(),
 			)
-			if fetcherCnt.Load() >= int32(r.cfg.Run.MaxFetcherWorkers) {
-				zap.S().Infow("Warm up has ended")
-				return
-			}
 		}
 	}()
 

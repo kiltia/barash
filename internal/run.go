@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"fmt"
 	"os/signal"
 	"sync"
 	"syscall"
@@ -34,7 +35,6 @@ func RunApplication(cfg *config.Config) {
 
 	switch cfg.API.Name {
 	case APINameCrawler:
-		zap.S().Debug("Initializing a new Crawler instance")
 		queryBuilder := crawler.CrawlerQueryBuilder{
 			BatchSize:          cfg.Run.SelectionBatchSize,
 			Mode:               cfg.Run.Mode,
@@ -46,7 +46,7 @@ func RunApplication(cfg *config.Config) {
 			crawler.CrawlerResult, crawler.CrawlerResponse,
 		](cfg, &queryBuilder)
 		if err != nil {
-			zap.S().Fatalw("Error in runner initialization: ", "error", err)
+			zap.S().Fatal(fmt.Errorf("runner initialization: %w", err))
 		}
 		instance.Run(ctx, &wg)
 	case APINameMeta:
@@ -61,11 +61,11 @@ func RunApplication(cfg *config.Config) {
 			meta.VerifyResult, meta.VerifyResponse,
 		](cfg, &queryBuilder)
 		if err != nil {
-			zap.S().Fatal("Error in runner initialization: ", err)
+			zap.S().Fatal(fmt.Errorf("runner initialization: %w", err))
 		}
 		instance.Run(ctx, &wg)
 	default:
-		zap.S().Panic("Unexpected API name: ", cfg.API.Name)
+		zap.S().Panic("unexpected API name: ", cfg.API.Name)
 	}
 	timeout := cfg.Timeouts.ShutdownTimeout
 
@@ -79,7 +79,7 @@ func RunApplication(cfg *config.Config) {
 	select {
 	case <-ctx.Done():
 		zap.S().
-			Info("Shutting down gracefully, Ctrl+C to force. Timeout: ", timeout)
+			Infow("shutting down gracefully, ctrl+c to force", "timeout", timeout)
 		forceCtx, cancel := signal.NotifyContext(
 			context.Background(),
 			syscall.SIGINT,
@@ -88,13 +88,13 @@ func RunApplication(cfg *config.Config) {
 		defer cancel()
 		select {
 		case <-time.After(timeout):
-			zap.S().Info("Shutdown timeout reached, forcefully shutting down")
+			zap.S().Info("timeout reached, forcefully shutting down")
 		case <-done:
-			zap.S().Info("Graceful shutdown completed")
+			zap.S().Info("graceful shutdown completed")
 		case <-forceCtx.Done():
-			zap.S().Info("Ctrl+C pressed, forcefully shutting down")
+			zap.S().Info("ctrl+c pressed, forcefully shutting down")
 		}
 	case <-done:
-		zap.S().Info("All workers are stopped. Shutting down the application")
+		zap.S().Info("all workers are stopped gracefully, exiting")
 	}
 }

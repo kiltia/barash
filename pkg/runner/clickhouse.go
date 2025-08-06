@@ -32,7 +32,7 @@ func NewClickHouseClient[S StoredResult, P StoredParams, Q QueryBuilder[S, P]](
 	err error,
 ) {
 	var conn driver.Conn
-	zap.S().Debug("Opening connection to the ClickHouse")
+	zap.S().Debug("opening connection to the ClickHouse")
 	conn, err = clickhouse.Open(
 		&clickhouse.Options{
 			Addr: []string{
@@ -51,16 +51,15 @@ func NewClickHouseClient[S StoredResult, P StoredParams, Q QueryBuilder[S, P]](
 	)
 	if err != nil {
 		zap.S().Errorw(
-			"Failed to open a connection to the ClickHouse",
+			"opening connection to the ClickHouse",
 			"error", err,
 		)
 		return nil, nil, err
 	}
-	zap.S().Debug("Retrieving server version")
 	version, err = conn.ServerVersion()
 	if err != nil {
 		zap.S().Errorw(
-			"Failed to retrieve ClickHouse server version",
+			"retrieving ClickHouse server version",
 			"error", err,
 		)
 		return nil, nil, err
@@ -77,10 +76,10 @@ func (client *ClickHouseClient[S, P, Q]) InsertBatch(
 	batch []S,
 	tag string,
 ) error {
-	zap.S().Debug("Inserting a batch to the database")
+	zap.S().Debug("inserting a batch to the database")
 	query := fmt.Sprintf("INSERT INTO %s", client.insertionTableName)
 	zap.S().Debugw(
-		"Sending query to the database",
+		"sending query to the database",
 		"query", query,
 	)
 	batchBuilder, err := client.Connection.PrepareBatch(ctx, query)
@@ -97,7 +96,7 @@ func (client *ClickHouseClient[S, P, Q]) InsertBatch(
 		return err
 	}
 
-	zap.S().Debug("Successfully saved batch to the database")
+	zap.S().Debug("successfully saved batch to the database")
 	return nil
 }
 
@@ -105,21 +104,21 @@ func (client *ClickHouseClient[S, P, Q]) SelectNextBatch(
 	ctx context.Context,
 	queryBuilder Q,
 ) (result []P, err error) {
-	zap.S().Debug("Retrieving a new batch from the database")
+	zap.S().Debug("retrieving a new batch from the database")
 	query := queryBuilder.GetSelectQuery()
 	zap.S().Debugw(
-		"Selecting a new batch from the database",
+		"selecting a new batch from the database",
 		"query", query,
 	)
 	for attempt := range client.selectRetries.NumRetries {
 		if err = client.Connection.Select(ctx, &result, query); err != nil {
 			zap.S().Errorw(
-				"Got an error while retrieving records from the database",
+				"retrieving records from the database",
 				"error", err,
 			)
 			if attempt < client.selectRetries.NumRetries {
 				zap.S().Warnw(
-					"Retrying query",
+					"retrying query",
 					"retry_number", attempt,
 				)
 			}
