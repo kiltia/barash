@@ -22,10 +22,9 @@ type (
 
 	Response[S StoredResult, P StoredParams] interface {
 		IntoStored(
-			params P,
+			request ServiceRequest[P],
+			err error,
 			attemptNumber int,
-			url string,
-			body map[string]any,
 			status int,
 			timeElapsed time.Duration,
 			tag string,

@@ -8,6 +8,7 @@ import (
 	"github.com/kiltia/runner/pkg/config"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/sony/gobreaker/v2"
 	"go.uber.org/zap"
 )
 
@@ -16,6 +17,7 @@ type Runner[S StoredResult, R Response[S, P], P StoredParams, Q QueryBuilder[S, 
 	httpClient       *resty.Client
 	queryBuilder     Q
 	cfg              *config.Config
+	circuitBreaker   *gobreaker.CircuitBreaker[*resty.Response]
 }
 
 func New[
@@ -48,12 +50,45 @@ func New[
 		"created a new clickhouse client",
 		"version", fmt.Sprintf("%v", version),
 	)
+	httpRetries := cfg.HTTPRetries
+	httpClient := resty.New().
+		SetRetryCount(httpRetries.NumRetries).
+		SetTimeout(cfg.API.APITimeout).
+		SetRetryWaitTime(httpRetries.MinWaitTime).
+		SetRetryMaxWaitTime(httpRetries.MaxWaitTime).
+		AddRetryCondition(func(r *resty.Response, err error) bool {
+			ctx := r.Request.Context()
+			fetcherNum := ctx.Value(ContextKeyFetcherNum).(int)
+			if r.StatusCode() >= 500 {
+				zap.S().
+					Debugw("retrying request", "fetcher_num", fetcherNum, "status_code", r.StatusCode(), "url", r.Request.URL)
+				return true
+			}
+			return false
+		}).SetLogger(zap.S())
 
 	runner := Runner[S, R, P, Q]{
 		clickHouseClient: *clickHouseClient,
-		httpClient:       initHTTPClient(cfg.HTTPRetries, cfg.Timeouts),
+		httpClient:       httpClient,
 		queryBuilder:     qb,
 		cfg:              cfg,
+		circuitBreaker: gobreaker.NewCircuitBreaker[*resty.Response](
+			gobreaker.Settings{
+				Name: "outgoing_requests",
+				ReadyToTrip: func(counts gobreaker.Counts) bool {
+					tooManyTotal := counts.TotalFailures > uint32(
+						cfg.CircuitBreaker.TotalFailureRate*float64(
+							cfg.Run.MaxFetcherWorkers,
+						),
+					)
+					tooManyConsecutive := counts.ConsecutiveFailures > uint32(
+						cfg.CircuitBreaker.ConsecutiveFailureRate*float64(
+							cfg.Run.MaxFetcherWorkers,
+						),
+					)
+					return tooManyTotal || tooManyConsecutive
+				},
+			}),
 	}
 	return &runner, nil
 }

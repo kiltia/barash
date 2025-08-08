@@ -67,7 +67,7 @@ func RunApplication(cfg *config.Config) {
 	default:
 		zap.S().Panic("unexpected API name: ", cfg.API.Name)
 	}
-	timeout := cfg.Timeouts.ShutdownTimeout
+	timeout := cfg.Run.GracePeriod
 
 	done := make(chan struct{})
 

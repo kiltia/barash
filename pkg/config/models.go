@@ -21,21 +21,22 @@ const (
 )
 
 type Config struct {
-	API           APIConfig         `env:", prefix=API_"`
-	ClickHouse    ClickHouseConfig  `env:", prefix=CLICKHOUSE_"`
-	Timeouts      TimeoutConfig     `env:", prefix=TIMEOUTS_"`
-	HTTPRetries   HTTPRetryConfig   `env:", prefix=HTTP_RETRIES_"`
-	SelectRetries SelectRetryConfig `env:", prefix=SELECT_RETRIES_"`
-	Log           LogConfig         `env:", prefix=LOG_"`
-	Run           RunConfig         `env:", prefix=RUN_"`
+	API            APIConfig            `env:", prefix=API_"`
+	ClickHouse     ClickHouseConfig     `env:", prefix=CLICKHOUSE_"`
+	HTTPRetries    HTTPRetryConfig      `env:", prefix=HTTP_RETRIES_"`
+	SelectRetries  SelectRetryConfig    `env:", prefix=SELECT_RETRIES_"`
+	Log            LogConfig            `env:", prefix=LOG_"`
+	Run            RunConfig            `env:", prefix=RUN_"`
+	CircuitBreaker CircuitBreakerConfig `env:", prefix=CB_"`
 }
 
 type APIConfig struct {
-	Name     string           `env:"NAME"`
-	Host     string           `env:"HOST"`
-	Port     string           `env:"PORT, default=80"`
-	Endpoint string           `env:"ENDPOINT"`
-	Method   RunnerHTTPMethod `env:"METHOD, default=GET"`
+	Name       string           `env:"NAME"`
+	Host       string           `env:"HOST"`
+	Port       string           `env:"PORT, default=80"`
+	Endpoint   string           `env:"ENDPOINT"`
+	Method     RunnerHTTPMethod `env:"METHOD, default=GET"`
+	APITimeout time.Duration    `env:"TIMEOUT, default=3m"`
 }
 
 type ClickHouseConfig struct {
@@ -46,12 +47,6 @@ type ClickHouseConfig struct {
 	Port     string `env:"PORT, default=9000"`
 }
 
-type TimeoutConfig struct {
-	APITimeout      time.Duration `env:"API_TIMEOUT, default=3m"`
-	ShutdownTimeout time.Duration `env:"SHUTDOWN_TIMEOUT, default=10s"`
-	DBSaveTimeout   time.Duration `env:"DB_SAVE_TIMEOUT, default=30s"`
-}
-
 type HTTPRetryConfig struct {
 	NumRetries  int           `env:"NUMBER, default=3"`
 	MinWaitTime time.Duration `env:"MIN_WAIT_TIME, default=2s"`
@@ -60,6 +55,13 @@ type HTTPRetryConfig struct {
 
 type SelectRetryConfig struct {
 	NumRetries int `env:"NUMBER, default=5"`
+}
+
+type CircuitBreakerConfig struct {
+	MaxRequests            uint32        `env:"MAX_REQUESTS, default=100"`
+	ConsecutiveFailureRate float64       `env:"CONSECUTIVE_FAILURE_RATE, default=0.05"`
+	TotalFailureRate       float64       `env:"TOTAL_FAILURE_RATE, default=0.15"`
+	Timeout                time.Duration `env:"TIMEOUT, default=60s"`
 }
 
 type RunConfig struct {
@@ -79,6 +81,8 @@ type RunConfig struct {
 	ExtraParams               string            `env:"EXTRA_PARAMS"`
 	ParsedExtraParams         map[string]string `                                                display:"-"`
 	Mode                      RunnerMode        `env:"MODE"`
+	GracePeriod               time.Duration     `env:"GRACE_PERIOD, default=60s"`
+	DBSaveTimeout             time.Duration     `env:"DB_SAVE_TIMEOUT, default=30s"`
 }
 
 type LogConfig struct {

@@ -48,53 +48,43 @@ func (r *Runner[S, R, P, Q]) startProvider(
 		defer globalWg.Done()
 		for {
 			select {
-			case <-ctx.Done():
-				zap.S().Info("provider has been stopped by the context")
-				return
-			default:
+			case r := <-requestsCh:
 				select {
-				case r := <-requestsCh:
+				case out <- r:
+					// do nothing
+				case <-ctx.Done():
+					return
+				}
+			default:
+				var err error
+				requestsCh, err = r.gatherRequests(ctx)
+				if err != nil {
+					zap.S().Errorw("gathering requests", "error", err)
+					return
+				}
+
+				// If there're more tasks to be completed, we continue
+				if requestsCh != nil {
+					continue
+				}
+
+				// Otherwise, depending on the mode, we either exit or enter standby mode
+				switch r.cfg.Run.Mode {
+				case config.TwoTableMode:
+					zap.S().Infow("data is processed, exiting")
+					return
+				case config.ContinuousMode:
+					r.queryBuilder.ResetState()
+					zap.S().Infow(
+						"provider has nothing to do, entering standby mode",
+						"sleep_time", r.cfg.Run.SleepTime,
+						"tasks_left", len(out),
+					)
 					select {
-					case out <- r:
-						// do nothing
-					case <-time.After(TaskSendTimeout):
-						zap.S().Warnw(
-							"unable to send a request to fetcher in time, task will be skipped",
-							"time",
-							TaskSendTimeout,
-						)
-					}
-				default:
-					var err error
-					requestsCh, err = r.gatherRequests(ctx)
-					if err != nil {
-						zap.S().Errorw("gathering requests", "error", err)
+					case <-ctx.Done():
 						return
-					}
-
-					// If there're more tasks to be completed, we continue
-					if requestsCh != nil {
+					case <-time.After(r.cfg.Run.SleepTime):
 						continue
-					}
-
-					// Otherwise, depending on the mode, we either exit or enter standby mode
-					switch r.cfg.Run.Mode {
-					case config.TwoTableMode:
-						zap.S().Infow("data is processed, exiting")
-						return
-					case config.ContinuousMode:
-						r.queryBuilder.ResetState()
-						zap.S().Infow(
-							"provider has nothing to do, entering standby mode",
-							"sleep_time", r.cfg.Run.SleepTime,
-							"tasks_left", len(out),
-						)
-						select {
-						case <-ctx.Done():
-							return
-						case <-time.After(r.cfg.Run.SleepTime):
-							continue
-						}
 					}
 				}
 			}

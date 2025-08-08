@@ -2,6 +2,8 @@ package crawler
 
 import (
 	"time"
+
+	"github.com/kiltia/runner/pkg/runner"
 )
 
 type PartialErrorInfo struct {
@@ -21,10 +23,9 @@ type CrawlerResponse struct {
 }
 
 func (resp CrawlerResponse) IntoStored(
-	params CrawlerParams,
+	req runner.ServiceRequest[CrawlerParams],
+	err error,
 	n int,
-	url string,
-	body map[string]any,
 	status int,
 	timeElapsed time.Duration,
 	tag string,
@@ -33,9 +34,12 @@ func (resp CrawlerResponse) IntoStored(
 	for i := range resp.Parsed.Urls {
 		urls = append(urls, resp.Parsed.Urls[i].URL)
 	}
+	if err != nil && resp.ErrorInfo.Reason == "" {
+		resp.ErrorInfo.Reason = err.Error()
+	}
 	return CrawlerResult{
-		URL:               params.URL,
-		RequestLink:       url,
+		URL:               req.Params.URL,
+		RequestLink:       req.GetRequestLink(),
 		CrawlerStatusCode: uint16(status),
 		SiteStatusCode:    uint16(resp.Status),
 		Error:             resp.ErrorInfo.Reason,

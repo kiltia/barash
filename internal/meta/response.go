@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kiltia/runner/pkg/runner"
 	sf "github.com/sa-/slicefunk"
 )
 
@@ -59,10 +60,9 @@ func correctTime(
 
 // Implement the [rinterface.Response] interface.
 func (response VerifyResponse) IntoStored(
-	params VerifyParams,
+	req runner.ServiceRequest[VerifyParams],
+	err error,
 	n int,
-	url string,
-	body map[string]any,
 	status int,
 	timeElapsed time.Duration,
 	tag string,
@@ -71,6 +71,10 @@ func (response VerifyResponse) IntoStored(
 	pageStats := response.DebugInfo.CrawlerDebug.PageStats
 	crawlerDebug := debugInfo.CrawlerDebug
 	matchMaskSummary := response.MatchMask.MatchMaskSummary
+
+	if err != nil && response.Error.Reason == "" {
+		response.Error.Reason = err.Error()
+	}
 
 	var score float64
 	if response.Score == nil {
@@ -99,17 +103,17 @@ func (response VerifyResponse) IntoStored(
 
 	corrTS := correctTime(
 		ts,
-		params,
+		req.Params,
 		response,
 		status,
 	)
 
 	return VerifyResult{
-		Duns:            params.Duns,
+		Duns:            req.Params.Duns,
 		IsActive:        true,
-		URL:             params.URL,
+		URL:             req.Params.URL,
 		FinalURL:        response.FinalURL,
-		VerificationURL: url,
+		VerificationURL: req.GetRequestLink(),
 		StatusCode:      int32(status),
 		Error:           response.Error.Reason,
 		ErrorCode:       response.Error.Code,

@@ -42,7 +42,7 @@ func (r *Runner[S, R, P, Q]) writer(
 	saveBatch := func() {
 		ctx, cancel := context.WithTimeout(
 			innerCtx,
-			r.cfg.Timeouts.DBSaveTimeout,
+			r.cfg.Run.DBSaveTimeout,
 		)
 		defer cancel()
 		err := r.write(ctx, batch)

@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"sync"
@@ -10,63 +11,30 @@ import (
 	"time"
 
 	"github.com/kiltia/runner/pkg/config"
+	"github.com/sony/gobreaker/v2"
 
 	"github.com/go-resty/resty/v2"
 	"go.uber.org/zap"
 )
 
-// Performs requests to the target API and returns results.
-
-func (r *Runner[S, R, P, Q]) sendServiceRequest(
-	ctx context.Context,
-	method config.RunnerHTTPMethod,
-	url string,
-	body map[string]any,
-) (*resty.Response, error) {
-	zap.S().Debugw("Performing request to the subject API", "url", url)
-	ctx = context.WithValue(
-		ctx,
-		ContextKeyUnsuccessfulResponses,
-		[]*resty.Response{},
-	)
-
-	var lastResponse *resty.Response
-	var err error
-
-	switch method {
-	case config.RunnerHTTPMethodGet:
-		lastResponse, err = r.httpClient.R().SetContext(ctx).Get(url)
-	case config.RunnerHTTPMethodPost:
-		lastResponse, err = r.httpClient.R().SetContext(ctx).
-			SetBody(body).
-			Post(url)
-	}
-
-	if err != nil {
-		return lastResponse, err
-	}
-
-	return lastResponse, err
-}
-
-func (r *Runner[S, R, P, Q]) processResponse(
+func (r *Runner[S, R, P, Q]) convertToStored(
 	req ServiceRequest[P],
-	resp *resty.Response,
+	attempt AttemptData,
 	attemptNumber int,
 	logger *zap.SugaredLogger,
-) (S, error) {
+) S {
+	resp := attempt.Response
 	var result R
 	statusCode := resp.StatusCode()
 	switch statusCode {
 	case 0:
-		result = *new(R)
 		statusCode = 599
 	case 429:
-		result = *new(R)
-		statusCode = 429
+		// do nothing, but not default
 	default:
 		body := resp.Body()
-		err := json.Unmarshal(body, &result)
+		var tmpResult R
+		err := json.Unmarshal(body, &tmpResult)
 		if err != nil {
 			logger.
 				Warnw(
@@ -78,26 +46,28 @@ func (r *Runner[S, R, P, Q]) processResponse(
 					"body",
 					body,
 				)
-			result = *new(R)
 			statusCode = resp.StatusCode()
+		} else {
+			result = tmpResult
 		}
 	}
 
-	requestLink := req.GetRequestLink()
-	requestBody := req.GetRequestBody()
-
 	storedValue := result.IntoStored(
-		req.Params,
+		req,
+		attempt.Error,
 		attemptNumber+1,
-		requestLink,
-		requestBody,
 		statusCode,
 		resp.Time(),
 		r.cfg.Run.Tag,
 	)
 
-	return storedValue, nil
+	return storedValue
 }
+
+var (
+	ErrClientError = errors.New("client error from subject API")
+	ErrServerError = errors.New("server error from subject API")
+)
 
 // NOTE(nrydanov): This function is too complex, I've been thinking about it
 // for a while and I'm not sure how to simplify it, sooo...
@@ -111,47 +81,55 @@ func (r *Runner[S, R, P, Q]) performRequest(
 	requestURL := req.GetRequestLink()
 	requestBody := req.GetRequestBody()
 
-	lastResponse, err := r.sendServiceRequest(
-		ctx,
-		req.Method,
-		requestURL,
-		requestBody,
-	)
-	lastStatus := lastResponse.StatusCode()
+	processResp := func(resp *resty.Response, err error) error {
+		lastStatus := resp.StatusCode()
+		if lastStatus > 399 && lastStatus < 500 {
+			return fmt.Errorf("%w: %v", ErrClientError, err)
+		}
+		if lastStatus > 499 {
+			return fmt.Errorf("%w: %v", ErrServerError, err)
+		}
+		return err
+	}
 
-	if lastStatus >= 400 && lastStatus < 500 {
-		if lastStatus == 429 {
-			err = fmt.Errorf("subject API is overloaded")
-		} else {
-			err = fmt.Errorf("client error from the subject API: %v", err)
+	var tracker RetryTracker
+
+	client := r.httpClient.AddRetryHook(tracker.Add)
+
+	request := client.R().SetContext(ctx)
+	var toBeExecuted func() (*resty.Response, error)
+	switch req.Method {
+	case config.RunnerHTTPMethodGet:
+		toBeExecuted = func() (*resty.Response, error) {
+			resp, err := request.Get(requestURL)
+			return resp, processResp(resp, err)
+		}
+	case config.RunnerHTTPMethodPost:
+		toBeExecuted = func() (*resty.Response, error) {
+			resp, err := request.
+				SetBody(requestBody).
+				Post(requestURL)
+			return resp, processResp(resp, err)
 		}
 	}
-
-	var responses []*resty.Response
-	// NOTE(evgenymng): sorry, I know this is garbage
-	if lastResponse.IsSuccess() || r.cfg.HTTPRetries.NumRetries == 0 ||
-		lastResponse.StatusCode() == 0 || lastResponse.StatusCode() == 429 {
-		responses = append(responses, lastResponse)
+	lastResp, err := r.circuitBreaker.Execute(toBeExecuted)
+	if errors.Is(err, gobreaker.ErrOpenState) {
+		return nil, err
 	}
-
-	failed := lastResponse.
-		Request.
-		Context().
-		Value(ContextKeyUnsuccessfulResponses).([]*resty.Response)
-	responses = append(responses, failed...)
+	if lastResp != nil {
+		tracker.Add(lastResp, err)
+	} else {
+		zap.S().Warnw("unexpected nil response after error", "error", err)
+	}
 
 	var results []S
 
-	for i, resp := range responses {
-		zap.S().Debugw("processing response", "attempt", i)
-		storedValue, err := r.processResponse(req, resp, i, logger)
-		if err != nil {
-			return nil, err
-		}
+	for i, resp := range tracker.Attempts() {
+		storedValue := r.convertToStored(req, resp, i, logger)
 		results = append(results, storedValue)
-		zap.S().Debugw("response processed", "attempt", i)
+		zap.S().Debugw("response processed", "attempt", i+1)
 	}
-	return results, err
+	return results, nil
 }
 
 func (r *Runner[S, R, P, Q]) fetcher(
@@ -167,6 +145,10 @@ func (r *Runner[S, R, P, Q]) fetcher(
 
 	innerCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	context.AfterFunc(ctx, func() {
+		<-time.After(max(0*time.Second, r.cfg.Run.GracePeriod-time.Second*10))
+	})
 
 	innerCtx = context.WithValue(innerCtx, ContextKeyFetcherNum, fetcherNum)
 
@@ -185,6 +167,15 @@ func (r *Runner[S, R, P, Q]) fetcher(
 				logger.
 					Debugw("pulling a new task", "task_count", len(input))
 				storedValues, err := r.performRequest(innerCtx, task, logger)
+				if errors.Is(err, gobreaker.ErrOpenState) {
+					zap.S().
+						Warnw("fetcher is paused after too many client/server errors")
+					select {
+					case <-time.After(r.cfg.CircuitBreaker.Timeout):
+					case <-ctx.Done():
+						return
+					}
+				}
 				// It's expected that err is ignored here
 				for _, value := range storedValues {
 					output <- value
@@ -230,6 +221,7 @@ func (r *Runner[S, R, P, Q]) startFetchers(
 			defer wg.Done()
 			<-time.After(rnd)
 			fetcherCnt.Add(1)
+			defer fetcherCnt.Add(-1)
 			r.fetcher(ctx, input, outputCh, i)
 		}()
 	}

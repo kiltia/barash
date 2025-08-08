@@ -131,7 +131,7 @@ func (client *ClickHouseClient[S, P, Q]) SelectNextBatch(
 	}
 
 	zap.S().Debugw(
-		"Successfully selected a batch from the database",
+		"successfully selected a batch from the database",
 		"batch_size", len(result),
 	)
 	return result, nil
