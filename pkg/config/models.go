@@ -58,10 +58,11 @@ type SelectRetryConfig struct {
 }
 
 type CircuitBreakerConfig struct {
-	MaxRequests            uint32        `env:"MAX_REQUESTS, default=100"`
-	ConsecutiveFailureRate float64       `env:"CONSECUTIVE_FAILURE_RATE, default=0.05"`
-	TotalFailureRate       float64       `env:"TOTAL_FAILURE_RATE, default=0.15"`
-	Timeout                time.Duration `env:"TIMEOUT, default=60s"`
+	MaxRequests             uint32        `env:"MAX_REQUESTS, default=100"`
+	ConsecutiveFailureRate  float64       `env:"CONSECUTIVE_FAILURE_RATE, default=10"`
+	TotalFailurePerInterval uint32        `env:"TOTAL_FAILURE_PER_INTERVAL, default=900"`
+	Interval                time.Duration `env:"INTERVAL, default=60s"`
+	Timeout                 time.Duration `env:"TIMEOUT, default=60s"`
 }
 
 type RunConfig struct {

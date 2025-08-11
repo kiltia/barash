@@ -61,7 +61,15 @@ func New[
 			fetcherNum := ctx.Value(ContextKeyFetcherNum).(int)
 			if r.StatusCode() >= 500 {
 				zap.S().
-					Debugw("retrying request", "fetcher_num", fetcherNum, "status_code", r.StatusCode(), "url", r.Request.URL)
+					Debugw(
+						"retrying request",
+						"fetcher_num",
+						fetcherNum,
+						"status_code",
+						r.StatusCode(),
+						"url",
+						r.Request.URL,
+					)
 				return true
 			}
 			return false
@@ -74,13 +82,10 @@ func New[
 		cfg:              cfg,
 		circuitBreaker: gobreaker.NewCircuitBreaker[*resty.Response](
 			gobreaker.Settings{
-				Name: "outgoing_requests",
+				Name:     "outgoing_requests",
+				Interval: cfg.CircuitBreaker.Interval,
 				ReadyToTrip: func(counts gobreaker.Counts) bool {
-					tooManyTotal := counts.TotalFailures > uint32(
-						cfg.CircuitBreaker.TotalFailureRate*float64(
-							cfg.Run.MaxFetcherWorkers,
-						),
-					)
+					tooManyTotal := counts.TotalFailures > cfg.CircuitBreaker.TotalFailurePerInterval
 					tooManyConsecutive := counts.ConsecutiveFailures > uint32(
 						cfg.CircuitBreaker.ConsecutiveFailureRate*float64(
 							cfg.Run.MaxFetcherWorkers,
