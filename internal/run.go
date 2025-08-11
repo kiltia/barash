@@ -36,10 +36,10 @@ func RunApplication(cfg *config.Config) {
 	switch cfg.API.Name {
 	case APINameCrawler:
 		queryBuilder := crawler.CrawlerQueryBuilder{
-			BatchSize:          cfg.Run.SelectionBatchSize,
-			Mode:               cfg.Run.Mode,
+			BatchSize:          cfg.Storage.SelectionBatchSize,
+			Mode:               cfg.Mode,
 			LastID:             0,
-			SelectionTableName: cfg.Run.SelectionTableName,
+			SelectionTableName: cfg.Storage.SelectionTableName,
 		}
 		queryBuilder.ResetState()
 		instance, err := runner.New[
@@ -51,10 +51,10 @@ func RunApplication(cfg *config.Config) {
 		instance.Run(ctx, &wg)
 	case APINameMeta:
 		queryBuilder := meta.VerifyQueryBuilder{
-			Interval:           cfg.Run.Freshness,
-			Limit:              cfg.Run.SelectionBatchSize,
-			Mode:               cfg.Run.Mode,
-			SelectionTableName: cfg.Run.SelectionTableName,
+			Interval:           cfg.ContinuousMode.Freshness,
+			Limit:              cfg.Storage.SelectionBatchSize,
+			Mode:               cfg.Mode,
+			SelectionTableName: cfg.Storage.SelectionTableName,
 		}
 		queryBuilder.ResetState()
 		instance, err := runner.New[
@@ -67,7 +67,7 @@ func RunApplication(cfg *config.Config) {
 	default:
 		zap.S().Panic("unexpected API name: ", cfg.API.Name)
 	}
-	timeout := cfg.Run.GracePeriod
+	timeout := cfg.Shutdown.GracePeriod
 
 	done := make(chan struct{})
 

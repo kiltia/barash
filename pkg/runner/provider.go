@@ -39,7 +39,7 @@ func (r *Runner[S, R, P, Q]) startProvider(
 	ctx context.Context,
 	globalWg *sync.WaitGroup,
 ) chan ServiceRequest[P] {
-	out := make(chan ServiceRequest[P], 2*r.cfg.Run.SelectionBatchSize)
+	out := make(chan ServiceRequest[P], 2*r.cfg.Storage.SelectionBatchSize)
 
 	var requestsCh chan ServiceRequest[P]
 	go func() {
@@ -68,7 +68,7 @@ func (r *Runner[S, R, P, Q]) startProvider(
 				}
 
 				// Otherwise, depending on the mode, we either exit or enter standby mode
-				switch r.cfg.Run.Mode {
+				switch r.cfg.Mode {
 				case config.TwoTableMode:
 					zap.S().Infow("data is processed, exiting")
 					return
@@ -76,13 +76,13 @@ func (r *Runner[S, R, P, Q]) startProvider(
 					r.queryBuilder.ResetState()
 					zap.S().Infow(
 						"provider has nothing to do, entering standby mode",
-						"sleep_time", r.cfg.Run.SleepTime,
+						"sleep_time", r.cfg.Provider.SleepTime,
 						"tasks_left", len(out),
 					)
 					select {
 					case <-ctx.Done():
 						return
-					case <-time.After(r.cfg.Run.SleepTime):
+					case <-time.After(r.cfg.Provider.SleepTime):
 						continue
 					}
 				}
@@ -106,7 +106,7 @@ func (r *Runner[S, R, P, Q]) createRequestStream(
 			Endpoint:    r.cfg.API.Endpoint,
 			Method:      r.cfg.API.Method,
 			Params:      p,
-			ExtraParams: r.cfg.Run.ParsedExtraParams,
+			ExtraParams: r.cfg.API.ParsedExtraParams,
 		}
 	}
 	return ch
@@ -138,7 +138,7 @@ func (r *Runner[S, R, P, Q]) fetchParams(
 		},
 		retry.Attempts(
 			uint(
-				r.cfg.SelectRetries.NumRetries,
+				r.cfg.Storage.SelectRetries,
 			)+1,
 		),
 	)

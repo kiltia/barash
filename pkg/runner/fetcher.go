@@ -57,7 +57,7 @@ func (r *Runner[S, R, P, Q]) convertToStored(
 		attemptNumber+1,
 		statusCode,
 		resp.Duration(),
-		r.cfg.Run.Tag,
+		r.cfg.Storage.Tag,
 	)
 
 	return storedValue
@@ -146,7 +146,7 @@ func (r *Runner[S, R, P, Q]) fetcher(
 	defer cancel()
 
 	context.AfterFunc(ctx, func() {
-		<-time.After(max(0*time.Second, r.cfg.Run.GracePeriod-time.Second*10))
+		<-time.After(max(0*time.Second, r.cfg.Shutdown.GracePeriod-time.Second*10))
 	})
 
 	innerCtx = context.WithValue(innerCtx, ContextKeyFetcherNum, fetcherNum)
@@ -187,12 +187,12 @@ func (r *Runner[S, R, P, Q]) fetcher(
 						),
 					)
 				}
-			case <-time.After(r.cfg.Run.FetcherIdleTime):
+			case <-time.After(r.cfg.Fetcher.IdleTime):
 				logger.
 					Debugw(
 						"no tasks recieved in fetcher idle time, exiting fetcher",
 						"idle_time",
-						r.cfg.Run.FetcherIdleTime,
+						r.cfg.Fetcher.IdleTime,
 					)
 				return
 			}
@@ -205,16 +205,16 @@ func (r *Runner[S, R, P, Q]) startFetchers(
 	input chan ServiceRequest[P],
 	globalWg *sync.WaitGroup,
 ) chan S {
-	outputCh := make(chan S, 2*r.cfg.Run.InsertionBatchSize+1)
+	outputCh := make(chan S, 2*r.cfg.Storage.InsertionBatchSize+1)
 	wg := sync.WaitGroup{}
-	wg.Add(r.cfg.Run.MaxFetcherWorkers)
+	wg.Add(r.cfg.Fetcher.MaxFetcherWorkers)
 	fetcherCnt := atomic.Int32{}
-	for i := range r.cfg.Run.MaxFetcherWorkers {
+	for i := range r.cfg.Fetcher.MaxFetcherWorkers {
 		var rnd time.Duration
-		if i < r.cfg.Run.MinFetcherWorkers {
+		if i < r.cfg.Fetcher.MinFetcherWorkers {
 			rnd = 0
 		} else {
-			rnd = time.Duration(rand.IntN(int(r.cfg.Run.WarmupTime.Seconds())+1)) * time.Second
+			rnd = time.Duration(rand.IntN(int(r.cfg.Fetcher.Duration.Seconds())+1)) * time.Second
 		}
 		go func() {
 			defer wg.Done()
@@ -228,7 +228,8 @@ func (r *Runner[S, R, P, Q]) startFetchers(
 	go func() {
 		for {
 			<-time.After(time.Second * 10)
-			zap.S().Debugf("%d fetchers are currently running", fetcherCnt.Load())
+			zap.S().
+				Debugf("%d fetchers are currently running", fetcherCnt.Load())
 		}
 	}()
 

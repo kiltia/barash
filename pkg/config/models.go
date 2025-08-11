@@ -23,20 +23,34 @@ const (
 type Config struct {
 	API            APIConfig            `env:", prefix=API_"`
 	ClickHouse     ClickHouseConfig     `env:", prefix=CLICKHOUSE_"`
-	HTTPRetries    HTTPRetryConfig      `env:", prefix=HTTP_RETRIES_"`
-	SelectRetries  SelectRetryConfig    `env:", prefix=SELECT_RETRIES_"`
 	Log            LogConfig            `env:", prefix=LOG_"`
-	Run            RunConfig            `env:", prefix=RUN_"`
 	CircuitBreaker CircuitBreakerConfig `env:", prefix=CB_"`
+	Storage        StorageConfig        `env:", prefix=STORAGE_"`
+	ContinuousMode ContinuousModeConfig `env:", prefix=CONTINUOUS_"`
+	Shutdown       ShutdownConfig       `env:", prefix=SHUTDOWN_"`
+
+	Provider   ProviderConfig   `env:", prefix=PROVIDER_"`
+	Fetcher    FetcherConfig    `env:", prefix=FETCHER_"`
+	Correction CorrectionConfig `env:", prefix=CORRECTION_"`
+
+	Mode RunnerMode `env:"RUN_MODE"`
 }
 
 type APIConfig struct {
-	Name       string           `env:"NAME"`
-	Host       string           `env:"HOST"`
-	Port       string           `env:"PORT, default=80"`
-	Endpoint   string           `env:"ENDPOINT"`
-	Method     RunnerHTTPMethod `env:"METHOD, default=GET"`
-	APITimeout time.Duration    `env:"TIMEOUT, default=3m"`
+	// Connection data
+	Name     string           `env:"NAME"`
+	Host     string           `env:"HOST"`
+	Port     string           `env:"PORT, default=80"`
+	Endpoint string           `env:"ENDPOINT"`
+	Method   RunnerHTTPMethod `env:"METHOD, default=GET"`
+	// Timeout
+	APITimeout time.Duration `env:"TIMEOUT, default=3m"`
+	// Retries
+	NumRetries        int               `env:"N_RETRIES, default=3"`
+	MinWaitTime       time.Duration     `env:"MIN_WAIT_TIME, default=2s"`
+	MaxWaitTime       time.Duration     `env:"MAX_WAIT_TIME, default=16s"`
+	ExtraParams       string            `env:"EXTRA_PARAMS"`
+	ParsedExtraParams map[string]string `                                     display:"-"`
 }
 
 type ClickHouseConfig struct {
@@ -47,43 +61,50 @@ type ClickHouseConfig struct {
 	Port     string `env:"PORT, default=9000"`
 }
 
-type HTTPRetryConfig struct {
-	NumRetries  int           `env:"NUMBER, default=3"`
-	MinWaitTime time.Duration `env:"MIN_WAIT_TIME, default=2s"`
-	MaxWaitTime time.Duration `env:"MAX_WAIT_TIME, default=16s"`
-}
-
-type SelectRetryConfig struct {
-	NumRetries int `env:"NUMBER, default=5"`
-}
-
 type CircuitBreakerConfig struct {
 	MaxRequests             uint32        `env:"MAX_REQUESTS, default=100"`
-	ConsecutiveFailureRate  float64       `env:"CONSECUTIVE_FAILURE_RATE, default=10"`
+	ConsecutiveFailure      uint32        `env:"CONSECUTIVE_FAILURE, default=10"`
 	TotalFailurePerInterval uint32        `env:"TOTAL_FAILURE_PER_INTERVAL, default=900"`
 	Interval                time.Duration `env:"INTERVAL, default=60s"`
 	Timeout                 time.Duration `env:"TIMEOUT, default=60s"`
 }
 
-type RunConfig struct {
-	MaxFetcherWorkers         int               `env:"MAX_FETCHER_WORKERS, default=800"`
-	MinFetcherWorkers         int               `env:"MIN_FETCHER_WORKERS, default=400"`
-	SelectionBatchSize        int               `env:"SELECTION_BATCH_SIZE, default=40000"`
-	InsertionBatchSize        int               `env:"INSERTION_BATCH_SIZE, default=10000"`
-	SelectionTableName        string            `env:"SELECTION_TABLE"`
-	InsertionTableName        string            `env:"INSERTION_TABLE"`
-	MaxCorrection             time.Duration     `env:"MAX_CORRECTION, default=504h"`
-	ServerErrorCorrectionDiff time.Duration     `env:"SERVER_ERROR_CORRECTION_DIFF, default=24h"`
-	Freshness                 time.Duration     `env:"FRESHNESS, default=168h"`
-	SleepTime                 time.Duration     `env:"SLEEP_TIME, default=1m"`
-	WarmupTime                time.Duration     `env:"WARMUP_TIME, default=3m"`
-	FetcherIdleTime           time.Duration     `env:"FETCHER_IDLE_TIME, default=10s"`
-	Tag                       string            `env:"TAG"`
-	ExtraParams               string            `env:"EXTRA_PARAMS"`
-	ParsedExtraParams         map[string]string `                                                display:"-"`
-	Mode                      RunnerMode        `env:"MODE"`
-	GracePeriod               time.Duration     `env:"GRACE_PERIOD, default=60s"`
-	DBSaveTimeout             time.Duration     `env:"DB_SAVE_TIMEOUT, default=30s"`
+type FetcherConfig struct {
+	MinFetcherWorkers int `env:"START_FETCHER_WORKERS, default=400"`
+	MaxFetcherWorkers int `env:"FETCHER_WORKERS, default=800"`
+	// Warmup parameters
+	Duration time.Duration `env:"WARMUP_TIME, default=60s"`
+	Enabled  bool          `env:"ENABLE_WARMUP, default=false"`
+	IdleTime time.Duration `env:"FETCHER_IDLE_TIME, default=10s"`
+}
+
+type CorrectionConfig struct {
+	EnableErrorsCorrection   bool          `env:"ENABLE_ERRORS, default=false"`
+	ErrorCorrection          time.Duration `env:"ERRORS, default=24h"`
+	EnableTimeoutsCorrection bool          `env:"ENABLE_TIMEOUTS, default=true"`
+	MaxTimeoutCorrection     time.Duration `env:"TIMEOUTS, default=504h"`
+}
+
+type StorageConfig struct {
+	SelectionBatchSize int    `env:"SELECTION_BATCH_SIZE, default=40000"`
+	InsertionBatchSize int    `env:"INSERTION_BATCH_SIZE, default=10000"`
+	SelectionTableName string `env:"SELECTION_TABLE"`
+	InsertionTableName string `env:"INSERTION_TABLE"`
+	SelectRetries      int    `env:"SELECT_RETRIES, default=5"`
+	Tag                string `env:"TAG"`
+}
+
+type ContinuousModeConfig struct {
+	Freshness time.Duration `env:"FRESHNESS, default=168h"`
+}
+
+type ShutdownConfig struct {
+	GracePeriod   time.Duration `env:"GRACE_PERIOD, default=60s"`
+	DBSaveTimeout time.Duration `env:"DB_SAVE_TIMEOUT, default=30s"`
+}
+
+type ProviderConfig struct {
+	SleepTime time.Duration `env:"SLEEP_TIME, default=1m"`
 }
 
 type LogConfig struct {

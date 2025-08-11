@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kiltia/runner/pkg/config"
-
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
@@ -15,7 +13,6 @@ import (
 type ClickHouseClient[S StoredResult, P StoredParams, Q QueryBuilder[S, P]] struct {
 	Connection         driver.Conn
 	insertionTableName string
-	selectRetries      config.SelectRetryConfig
 }
 
 func NewClickHouseClient[S StoredResult, P StoredParams, Q QueryBuilder[S, P]](
@@ -25,7 +22,6 @@ func NewClickHouseClient[S StoredResult, P StoredParams, Q QueryBuilder[S, P]](
 	username string,
 	password string,
 	insertionTableName string,
-	selectRetries config.SelectRetryConfig,
 ) (
 	client *ClickHouseClient[S, P, Q],
 	version *proto.ServerHandshake,
@@ -67,7 +63,6 @@ func NewClickHouseClient[S StoredResult, P StoredParams, Q QueryBuilder[S, P]](
 	return &ClickHouseClient[S, P, Q]{
 		Connection:         conn,
 		insertionTableName: insertionTableName,
-		selectRetries:      selectRetries,
 	}, version, err
 }
 
@@ -109,29 +104,6 @@ func (client *ClickHouseClient[S, P, Q]) SelectNextBatch(
 		"selecting a new batch from the database",
 		"query", query,
 	)
-	for attempt := range client.selectRetries.NumRetries {
-		if err = client.Connection.Select(ctx, &result, query); err != nil {
-			zap.S().Errorw(
-				"retrieving records from the database",
-				"error", err,
-			)
-			if attempt < client.selectRetries.NumRetries {
-				zap.S().Warnw(
-					"retrying query",
-					"retry_number", attempt,
-				)
-			}
-		} else {
-			break
-		}
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	zap.S().Debugw(
-		"successfully selected a batch from the database",
-		"batch_size", len(result),
-	)
-	return result, nil
+	err = client.Connection.Select(ctx, &result, query)
+	return result, err
 }

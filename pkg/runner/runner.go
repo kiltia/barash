@@ -35,8 +35,7 @@ func New[
 		cfg.ClickHouse.Database,
 		cfg.ClickHouse.Username,
 		cfg.ClickHouse.Password,
-		cfg.Run.InsertionTableName,
-		cfg.SelectRetries,
+		cfg.Storage.InsertionTableName,
 	)
 	if err != nil {
 		zap.S().Errorw(
@@ -50,12 +49,11 @@ func New[
 		"created a new clickhouse client",
 		"version", fmt.Sprintf("%v", version),
 	)
-	httpRetries := cfg.HTTPRetries
 	httpClient := resty.New().
-		SetRetryCount(httpRetries.NumRetries).
+		SetRetryCount(cfg.API.NumRetries).
 		SetTimeout(cfg.API.APITimeout).
-		SetRetryWaitTime(httpRetries.MinWaitTime).
-		SetRetryMaxWaitTime(httpRetries.MaxWaitTime).
+		SetRetryWaitTime(cfg.API.MinWaitTime).
+		SetRetryMaxWaitTime(cfg.API.MaxWaitTime).
 		AddRetryConditions(func(r *resty.Response, err error) bool {
 			ctx := r.Request.Context()
 			fetcherNum := ctx.Value(ContextKeyFetcherNum).(int)
@@ -86,11 +84,7 @@ func New[
 				Interval: cfg.CircuitBreaker.Interval,
 				ReadyToTrip: func(counts gobreaker.Counts) bool {
 					tooManyTotal := counts.TotalFailures > cfg.CircuitBreaker.TotalFailurePerInterval
-					tooManyConsecutive := counts.ConsecutiveFailures > uint32(
-						cfg.CircuitBreaker.ConsecutiveFailureRate*float64(
-							cfg.Run.MaxFetcherWorkers,
-						),
-					)
+					tooManyConsecutive := counts.ConsecutiveFailures > cfg.CircuitBreaker.ConsecutiveFailure
 					return tooManyTotal || tooManyConsecutive
 				},
 			}),

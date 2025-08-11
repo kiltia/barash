@@ -11,7 +11,7 @@ import (
 func (r *Runner[S, R, P, Q]) initTable(
 	ctx context.Context,
 ) {
-	if r.cfg.Run.Mode == config.ContinuousMode {
+	if r.cfg.Mode == config.ContinuousMode {
 		zap.S().
 			Infow("running in continuous mode, skipping table initialization")
 		return
@@ -19,7 +19,7 @@ func (r *Runner[S, R, P, Q]) initTable(
 	var nilInstance S
 	err := r.clickHouseClient.Connection.Exec(
 		ctx,
-		nilInstance.GetCreateQuery(r.cfg.Run.InsertionTableName),
+		nilInstance.GetCreateQuery(r.cfg.Storage.InsertionTableName),
 	)
 
 	if err != nil {
