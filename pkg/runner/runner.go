@@ -7,9 +7,9 @@ import (
 
 	"github.com/kiltia/runner/pkg/config"
 
-	"github.com/go-resty/resty/v2"
 	"github.com/sony/gobreaker/v2"
 	"go.uber.org/zap"
+	"resty.dev/v3"
 )
 
 type Runner[S StoredResult, R Response[S, P], P StoredParams, Q QueryBuilder[S, P]] struct {
@@ -56,7 +56,7 @@ func New[
 		SetTimeout(cfg.API.APITimeout).
 		SetRetryWaitTime(httpRetries.MinWaitTime).
 		SetRetryMaxWaitTime(httpRetries.MaxWaitTime).
-		AddRetryCondition(func(r *resty.Response, err error) bool {
+		AddRetryConditions(func(r *resty.Response, err error) bool {
 			ctx := r.Request.Context()
 			fetcherNum := ctx.Value(ContextKeyFetcherNum).(int)
 			if r.StatusCode() >= 500 {
@@ -101,10 +101,10 @@ func (r *Runner[S, R, P, Q]) Run(
 	// initialize storage in two-table mode
 	r.initTable(ctx)
 
+	globalWg.Add(3)
 	tasks := r.startProvider(ctx, globalWg)
 	results := r.startFetchers(ctx, tasks, globalWg)
 
-	globalWg.Add(1)
 	go func() {
 		defer globalWg.Done()
 		r.writer(results)

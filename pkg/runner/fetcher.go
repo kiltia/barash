@@ -13,8 +13,8 @@ import (
 	"github.com/kiltia/runner/pkg/config"
 	"github.com/sony/gobreaker/v2"
 
-	"github.com/go-resty/resty/v2"
 	"go.uber.org/zap"
+	"resty.dev/v3"
 )
 
 func (r *Runner[S, R, P, Q]) convertToStored(
@@ -32,7 +32,7 @@ func (r *Runner[S, R, P, Q]) convertToStored(
 	case 429:
 		// do nothing, but not default
 	default:
-		body := resp.Body()
+		body := resp.Bytes()
 		var tmpResult R
 		err := json.Unmarshal(body, &tmpResult)
 		if err != nil {
@@ -42,11 +42,10 @@ func (r *Runner[S, R, P, Q]) convertToStored(
 					"error",
 					err,
 					"status_code",
-					resp.StatusCode(),
+					statusCode,
 					"body",
 					body,
 				)
-			statusCode = resp.StatusCode()
 		} else {
 			result = tmpResult
 		}
@@ -57,7 +56,7 @@ func (r *Runner[S, R, P, Q]) convertToStored(
 		attempt.Error,
 		attemptNumber+1,
 		statusCode,
-		resp.Time(),
+		resp.Duration(),
 		r.cfg.Run.Tag,
 	)
 
@@ -94,7 +93,7 @@ func (r *Runner[S, R, P, Q]) performRequest(
 
 	var tracker RetryTracker
 
-	client := r.httpClient.AddRetryHook(tracker.Add)
+	client := r.httpClient.AddRetryHooks(tracker.Add)
 
 	request := client.R().SetContext(ctx)
 	var toBeExecuted func() (*resty.Response, error)
@@ -228,16 +227,15 @@ func (r *Runner[S, R, P, Q]) startFetchers(
 
 	go func() {
 		for {
-			time.Sleep(time.Second * 10)
-			zap.S().Infow(
-				"current fetcher count",
-				"fetcher_cnt", fetcherCnt.Load(),
-			)
+			<-time.After(time.Second * 10)
+			zap.S().Debugf("%d fetchers are currently running", fetcherCnt.Load())
 		}
 	}()
 
 	go func() {
 		defer globalWg.Done()
+		defer close(outputCh)
+		defer zap.S().Info("all fetchers have been stopped")
 		wg.Wait()
 	}()
 

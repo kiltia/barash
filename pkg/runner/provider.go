@@ -40,7 +40,6 @@ func (r *Runner[S, R, P, Q]) startProvider(
 	globalWg *sync.WaitGroup,
 ) chan ServiceRequest[P] {
 	out := make(chan ServiceRequest[P], 2*r.cfg.Run.SelectionBatchSize)
-	globalWg.Add(1)
 
 	var requestsCh chan ServiceRequest[P]
 	go func() {

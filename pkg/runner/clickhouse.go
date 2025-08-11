@@ -96,7 +96,6 @@ func (client *ClickHouseClient[S, P, Q]) InsertBatch(
 		return err
 	}
 
-	zap.S().Debug("successfully saved batch to the database")
 	return nil
 }
 
