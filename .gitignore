@@ -1,3 +1,5 @@
 clickhouse/data
 *.DS_Store
 .env
+configs/*
+!configs/base
