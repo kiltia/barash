@@ -26,10 +26,12 @@ const (
 type FileSelectedMsg struct {
 	Path   string
 	Action Action
+	Error  error
 }
 
 type ConfigItem struct {
 	Name     string
 	Value    any
 	IsStruct bool
+	Default  string
 }

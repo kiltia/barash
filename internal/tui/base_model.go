@@ -13,10 +13,11 @@ type BaseModel struct {
 	Config  *config.Config
 	Options []ConfigItem
 
-	cursor  int
-	title   string
-	message string
-	err     error
+	cursor    int
+	oldCursor int
+	title     string
+	message   string
+	err       error
 }
 
 func (m BaseModel) Init() tea.Cmd {
@@ -51,11 +52,12 @@ func (m BaseModel) renderInner(
 		s.WriteString(Styles.Title.Render(m.title) + "\n\n")
 	}
 
-	if m.err != nil {
-		s.WriteString(Styles.Error.Render(m.err.Error()))
-	}
 	if m.message != "" {
 		s.WriteString(Styles.Success.Render(m.message) + "\n\n")
+	}
+
+	if m.err != nil {
+		s.WriteString(Styles.Error.Render(m.err.Error()) + "\n\n")
 	}
 
 	s = *f(&s)
@@ -69,4 +71,10 @@ func (m BaseModel) renderInner(
 
 func (m BaseModel) getMaxCursor() int {
 	return len(m.Options) - 1
+}
+
+func reset(m *BaseModel) {
+	m.cursor = 0
+	m.oldCursor = 0
+	m.message = ""
 }

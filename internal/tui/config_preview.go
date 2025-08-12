@@ -28,11 +28,6 @@ func (m ConfigPreviewModel) Init() tea.Cmd {
 }
 
 func (m ConfigPreviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	model, cmd := m.BaseModel.Update(msg)
-	if cmd != nil {
-		return model, cmd
-	}
-
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"os"
 	"strings"
 
 	"github.com/kiltia/runner/pkg/config"
@@ -28,11 +29,6 @@ func (m ConfigMenuModel) Init() tea.Cmd {
 }
 
 func (m ConfigMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	model, cmd := m.BaseModel.Update(msg)
-	if cmd != nil {
-		return model, cmd
-	}
-
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -66,19 +62,30 @@ func (m ConfigMenuModel) View() string {
 func (m ConfigMenuModel) HandleFileSelected(
 	msg FileSelectedMsg,
 ) (tea.Model, tea.Cmd) {
+
+	if msg.Error != nil {
+		m.err = msg.Error
+		m.message = ""
+		return m, nil
+	}
+
 	if msg.Path == "" {
 		return m, nil
 	}
 
 	switch msg.Action {
 	case ActionLoad:
+		os.Unsetenv("CONFIG_FILE")
+		m.Config = &config.Config{}
 		if err := LoadConfig(m.Config, msg.Path); err != nil {
 			m.err = err
 		} else {
+			m.err = nil
 			m.message = "Config loaded"
 		}
 	case ActionSave:
 		if err := SaveConfig(m.Config, msg.Path); err != nil {
+			m.err = nil
 			m.err = err
 		} else {
 			m.message = "Config saved"
@@ -90,7 +97,7 @@ func (m ConfigMenuModel) HandleFileSelected(
 func (m ConfigMenuModel) handleEnter() (tea.Model, tea.Cmd) {
 	switch m.cursor {
 	case 0: // Manual change
-		return NewConfigEditorModel(m.Config), nil
+		return NewConfigEditorModel(m.Config, m.BaseModel), nil
 	case 1: // Load file
 		return SelectFile(m, ActionLoad)
 	case 2: // Save file

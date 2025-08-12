@@ -19,7 +19,7 @@ func (r *Runner[S, R, P, Q]) initTable(
 	var nilInstance S
 	err := r.clickHouseClient.Connection.Exec(
 		ctx,
-		nilInstance.GetCreateQuery(r.cfg.Storage.InsertionTableName),
+		nilInstance.GetCreateQuery(r.cfg.Writer.InsertionTableName),
 	)
 
 	if err != nil {

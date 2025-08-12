@@ -57,7 +57,7 @@ func (r *Runner[S, R, P, Q]) convertToStored(
 		attemptNumber+1,
 		statusCode,
 		resp.Duration(),
-		r.cfg.Storage.Tag,
+		r.cfg.Writer.InsertTag,
 	)
 
 	return storedValue
@@ -205,7 +205,7 @@ func (r *Runner[S, R, P, Q]) startFetchers(
 	input chan ServiceRequest[P],
 	globalWg *sync.WaitGroup,
 ) chan S {
-	outputCh := make(chan S, 2*r.cfg.Storage.InsertionBatchSize+1)
+	outputCh := make(chan S, 2*r.cfg.Writer.InsertionBatchSize+1)
 	wg := sync.WaitGroup{}
 	wg.Add(r.cfg.Fetcher.MaxFetcherWorkers)
 	fetcherCnt := atomic.Int32{}

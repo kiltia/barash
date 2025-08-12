@@ -29,10 +29,21 @@ func buildNavigationForValue(v reflect.Value) []ConfigItem {
 			continue
 		}
 
+		envValue := fieldType.Tag.Get("env")
+
+		envParts := strings.Split(envValue, ",")
+		hasDefault := len(envParts) > 1 && strings.Contains(envParts[1], "default=")
+
+		var d string
+		if hasDefault {
+			d = strings.TrimPrefix(envParts[1], "default=")
+		}
+
 		items = append(items, ConfigItem{
 			Name:     fieldType.Name,
 			Value:    field.Interface(),
 			IsStruct: field.Kind() == reflect.Struct,
+			Default:  d,
 		})
 	}
 
@@ -104,7 +115,7 @@ func FormatValue(value any) string {
 		return v.String()
 	case string:
 		if v == "" {
-			return `""`
+			return ``
 		}
 		return v
 	case int, int64:

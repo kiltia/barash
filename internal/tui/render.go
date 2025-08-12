@@ -23,9 +23,14 @@ func renderConfigEdit(
 
 		if i == m.cursor {
 			fmt.Fprintf(s,
-				"→ %s\n", Styles.Selected.Render(display))
+				"→ %s %s\n", Styles.Selected.Render(display), Styles.ConfigVar.Render(item.Default))
 		} else {
-			fmt.Fprintf(s, "  %s\n", Styles.Normal.Render(display))
+			fmt.Fprintf(
+				s,
+				"  %s %s \n",
+				Styles.Normal.Render(display),
+				Styles.ConfigVar.Render(item.Default),
+			)
 		}
 	}
 

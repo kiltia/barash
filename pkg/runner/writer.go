@@ -19,7 +19,7 @@ func (r *Runner[S, R, P, Q]) write(
 	err = r.clickHouseClient.InsertBatch(
 		ctx,
 		batch,
-		r.cfg.Storage.Tag,
+		r.cfg.Writer.InsertTag,
 	)
 	if err != nil {
 		return err
@@ -65,7 +65,7 @@ func (r *Runner[S, R, P, Q]) writer(
 			batch,
 			result,
 		)
-		if len(batch) >= r.cfg.Storage.InsertionBatchSize {
+		if len(batch) >= r.cfg.Writer.InsertionBatchSize {
 			zap.S().Infow(
 				"have enough results, saving to the database",
 			)

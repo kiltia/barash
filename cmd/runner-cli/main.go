@@ -14,6 +14,7 @@ import (
 
 func main() {
 	cfg := config.Config{}
+	config.Load(&cfg)
 	model := tui.NewMainMenuModel(&cfg)
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	finalModel, err := p.Run()

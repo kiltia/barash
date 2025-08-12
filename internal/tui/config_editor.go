@@ -13,11 +13,12 @@ type ConfigEditorModel struct {
 	Path []string
 }
 
-func NewConfigEditorModel(config *config.Config) ConfigEditorModel {
+func NewConfigEditorModel(config *config.Config, old BaseModel) ConfigEditorModel {
 	model := ConfigEditorModel{
 		BaseModel: BaseModel{
-			Options: BuildNavigationForStruct(*config),
-			Config:  config,
+			Options:   BuildNavigationForStruct(*config),
+			Config:    config,
+			oldCursor: old.cursor,
 		},
 		Path: []string{},
 	}
@@ -41,17 +42,13 @@ func (m ConfigEditorModel) FromFieldEditor(
 		Path:      model.Path,
 		BaseModel: model.BaseModel,
 	}
+	newModel.cursor = model.oldCursor
 	newModel.Options = options
 	newModel.title = "Config Editor"
 	return newModel
 }
 
 func (m ConfigEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	model, cmd := m.BaseModel.Update(msg)
-	if cmd != nil {
-		return model, cmd
-	}
-
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -87,7 +84,7 @@ func (m ConfigEditorModel) goBack() tea.Model {
 		return NewConfigMenuModel(m.Config)
 	}
 
-	m.cursor = 0
+	m.cursor = m.oldCursor
 	m.err = nil
 	m.message = ""
 	return m
@@ -102,6 +99,7 @@ func (m ConfigEditorModel) handleEnter() (tea.Model, tea.Cmd) {
 	if item.IsStruct {
 		m.Path = append(m.Path, item.Name)
 		m.Options = BuildNavigationForStruct(item.Value)
+		m.oldCursor = m.cursor
 		m.cursor = 0
 	} else {
 		return NewFieldEditorModel(m.Config, m.Path, m.Options, m.cursor), nil

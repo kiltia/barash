@@ -13,11 +13,6 @@ import (
 const configFileEnvVar = "CONFIG_FILE"
 
 func Init() {
-	_ = godotenv.Load() // load the user-defined `.env` file
-	// NOTE(evgenymng): godotenv.Load() does not override environment variables,
-	// if they are already set. So, we first read the `.env` file and then
-	// try to load the base configuration file.
-
 	var baseEnvPath string
 	if value, exists := os.LookupEnv(configFileEnvVar); exists {
 		log.Printf(
@@ -33,11 +28,12 @@ func Init() {
 	}
 
 	if err := godotenv.Load(baseEnvPath); err != nil {
-		log.Fatalf("Failed to read the base configuration file: %v", err)
+		log.Fatalf("reading the base configuration file: %v", err)
 	}
 }
 
 func Load(i *Config) {
+	_ = godotenv.Load() // load the user-defined `.env` file
 	if err := envconfig.Process(context.Background(), i); err != nil {
 		log.Fatal(err)
 	}

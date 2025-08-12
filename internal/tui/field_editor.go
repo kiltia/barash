@@ -26,6 +26,7 @@ func NewFieldEditorModel(
 ) FieldEditorModel {
 	ti := textinput.New()
 	ti.Placeholder = "Enter new value"
+	ti.SetValue(FormatValue(navigation[cursor].Value))
 	ti.Width = 50
 	ti.Prompt = ">"
 	ti.Focus() // ВАЖНО: устанавливаем фокус

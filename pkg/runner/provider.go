@@ -39,7 +39,7 @@ func (r *Runner[S, R, P, Q]) startProvider(
 	ctx context.Context,
 	globalWg *sync.WaitGroup,
 ) chan ServiceRequest[P] {
-	out := make(chan ServiceRequest[P], 2*r.cfg.Storage.SelectionBatchSize)
+	out := make(chan ServiceRequest[P], 2*r.cfg.Provider.SelectionBatchSize)
 
 	var requestsCh chan ServiceRequest[P]
 	go func() {
@@ -138,7 +138,7 @@ func (r *Runner[S, R, P, Q]) fetchParams(
 		},
 		retry.Attempts(
 			uint(
-				r.cfg.Storage.SelectRetries,
+				r.cfg.Provider.SelectRetries,
 			)+1,
 		),
 	)

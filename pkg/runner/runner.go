@@ -35,7 +35,7 @@ func New[
 		cfg.ClickHouse.Database,
 		cfg.ClickHouse.Username,
 		cfg.ClickHouse.Password,
-		cfg.Storage.InsertionTableName,
+		cfg.Writer.InsertionTableName,
 	)
 	if err != nil {
 		zap.S().Errorw(
@@ -78,7 +78,10 @@ func New[
 		httpClient:       httpClient,
 		queryBuilder:     qb,
 		cfg:              cfg,
-		circuitBreaker: gobreaker.NewCircuitBreaker[*resty.Response](
+	}
+
+	if cfg.CircuitBreaker.Enabled {
+		runner.circuitBreaker = gobreaker.NewCircuitBreaker[*resty.Response](
 			gobreaker.Settings{
 				Name:     "outgoing_requests",
 				Interval: cfg.CircuitBreaker.Interval,
@@ -87,7 +90,7 @@ func New[
 					tooManyConsecutive := counts.ConsecutiveFailures > cfg.CircuitBreaker.ConsecutiveFailure
 					return tooManyTotal || tooManyConsecutive
 				},
-			}),
+			})
 	}
 	return &runner, nil
 }
