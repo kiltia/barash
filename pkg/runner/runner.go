@@ -12,6 +12,12 @@ import (
 	"resty.dev/v3"
 )
 
+type ContextKey int
+
+const (
+	ContextKeyFetcherNum ContextKey = iota
+)
+
 type Runner[S StoredResult, R Response[S, P], P StoredParams, Q QueryBuilder[S, P]] struct {
 	clickHouseClient ClickHouseClient[S, P, Q]
 	httpClient       *resty.Client

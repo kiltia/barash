@@ -6,31 +6,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// Writes a non-empty batch to the database.
-func (r *Runner[S, R, P, Q]) write(
-	ctx context.Context,
-	batch []S,
-) (err error) {
-	logger := zap.S().
-		With("batch_len", len(batch))
-	logger.Debugw(
-		"saving processed batch to the database",
-	)
-	err = r.clickHouseClient.InsertBatch(
-		ctx,
-		batch,
-		r.cfg.Writer.InsertTag,
-	)
-	if err != nil {
-		return err
-	}
-
-	logger.Infow(
-		"saved processed batch to the database",
-	)
-	return nil
-}
-
 func (r *Runner[S, R, P, Q]) writer(
 	resultsCh chan S,
 ) {
@@ -76,4 +51,29 @@ func (r *Runner[S, R, P, Q]) writer(
 	zap.S().
 		Infow("all results processed, saving the rest to the database and exiting")
 	saveBatch()
+}
+
+// Writes a non-empty batch to the database.
+func (r *Runner[S, R, P, Q]) write(
+	ctx context.Context,
+	batch []S,
+) (err error) {
+	logger := zap.S().
+		With("batch_len", len(batch))
+	logger.Debugw(
+		"saving processed batch to the database",
+	)
+	err = r.clickHouseClient.InsertBatch(
+		ctx,
+		batch,
+		r.cfg.Writer.InsertTag,
+	)
+	if err != nil {
+		return err
+	}
+
+	logger.Infow(
+		"saved processed batch to the database",
+	)
+	return nil
 }

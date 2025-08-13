@@ -13,6 +13,7 @@ import (
 const configFileEnvVar = "CONFIG_FILE"
 
 func Init() {
+	_ = godotenv.Load() // load the user-defined `.env` file
 	var baseEnvPath string
 	if value, exists := os.LookupEnv(configFileEnvVar); exists {
 		log.Printf(
@@ -33,7 +34,6 @@ func Init() {
 }
 
 func Load(i *Config) {
-	_ = godotenv.Load() // load the user-defined `.env` file
 	if err := envconfig.Process(context.Background(), i); err != nil {
 		log.Fatal(err)
 	}

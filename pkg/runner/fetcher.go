@@ -17,6 +17,112 @@ import (
 	"resty.dev/v3"
 )
 
+func (r *Runner[S, R, P, Q]) fetcher(
+	ctx context.Context,
+	input chan ServiceRequest[P],
+	output chan S,
+	fetcherNum int,
+) {
+	logger := zap.S().
+		With("fetcher_num", fetcherNum)
+	logger.
+		Debugw("fetcher instance is starting up")
+
+	ctx = context.WithValue(ctx, ContextKeyFetcherNum, fetcherNum)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			select {
+			case task, opened := <-input:
+				if !opened {
+					logger.
+						Debugw("fetcher has no work left")
+					return
+				}
+				logger := logger.With("request", task.GetRequestLink())
+				logger.
+					Debugw("pulling a new task", "task_count", len(input))
+				storedValues, err := r.performRequest(ctx, task, logger)
+				if errors.Is(err, gobreaker.ErrOpenState) {
+					zap.S().
+						Warnw("fetcher is paused after too many client/server errors")
+					select {
+					case <-time.After(r.cfg.CircuitBreaker.Timeout):
+					case <-ctx.Done():
+						return
+					}
+				}
+				// It's expected that err is ignored here
+				for _, value := range storedValues {
+					output <- value
+				}
+				if err != nil {
+					zap.S().Error(
+						fmt.Errorf(
+							"performing request: %w",
+							err,
+						),
+					)
+				}
+			case <-time.After(r.cfg.Fetcher.IdleTime):
+				logger.
+					Debugw(
+						"no tasks recieved in fetcher idle time, exiting fetcher",
+						"idle_time",
+						r.cfg.Fetcher.IdleTime,
+					)
+				return
+			}
+		}
+	}
+}
+
+func (r *Runner[S, R, P, Q]) startFetchers(
+	ctx context.Context,
+	input chan ServiceRequest[P],
+	globalWg *sync.WaitGroup,
+) chan S {
+	outputCh := make(chan S, 2*r.cfg.Writer.InsertionBatchSize+1)
+	wg := sync.WaitGroup{}
+	wg.Add(r.cfg.Fetcher.MaxFetcherWorkers)
+	fetcherCnt := atomic.Int32{}
+	for i := range r.cfg.Fetcher.MaxFetcherWorkers {
+		var rnd time.Duration
+		if i < r.cfg.Fetcher.MinFetcherWorkers || !r.cfg.Fetcher.EnableWarmup {
+			rnd = 0
+		} else {
+			rnd = time.Duration(rand.IntN(int(r.cfg.Fetcher.Duration.Seconds())+1)) * time.Second
+		}
+		go func() {
+			defer wg.Done()
+			<-time.After(rnd)
+			fetcherCnt.Add(1)
+			defer fetcherCnt.Add(-1)
+			r.fetcher(ctx, input, outputCh, i)
+		}()
+	}
+
+	go func() {
+		for {
+			<-time.After(time.Second * 10)
+			zap.S().
+				Debugf("%d fetchers are currently running", fetcherCnt.Load())
+		}
+	}()
+
+	go func() {
+		defer globalWg.Done()
+		defer close(outputCh)
+		defer zap.S().Info("all fetchers have been stopped")
+		wg.Wait()
+	}()
+
+	return outputCh
+}
+
 func (r *Runner[S, R, P, Q]) convertToStored(
 	req ServiceRequest[P],
 	attempt AttemptData,
@@ -132,109 +238,4 @@ func (r *Runner[S, R, P, Q]) performRequest(
 		logger.Debugw("response processed", "attempt", i+1)
 	}
 	return results, nil
-}
-
-func (r *Runner[S, R, P, Q]) fetcher(
-	ctx context.Context,
-	input chan ServiceRequest[P],
-	output chan S,
-	fetcherNum int,
-) {
-	logger := zap.S().
-		With("fetcher_num", fetcherNum)
-	logger.
-		Debugw("fetcher instance is starting up")
-
-	ctx = context.WithValue(ctx, ContextKeyFetcherNum, fetcherNum)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			select {
-			case task, opened := <-input:
-				if !opened {
-					logger.
-						Debugw("fetcher has no work left")
-					return
-				}
-				logger.
-					Debugw("pulling a new task", "task_count", len(input))
-				storedValues, err := r.performRequest(ctx, task, logger)
-				if errors.Is(err, gobreaker.ErrOpenState) {
-					zap.S().
-						Warnw("fetcher is paused after too many client/server errors")
-					select {
-					case <-time.After(r.cfg.CircuitBreaker.Timeout):
-					case <-ctx.Done():
-						return
-					}
-				}
-				// It's expected that err is ignored here
-				for _, value := range storedValues {
-					output <- value
-				}
-				if err != nil {
-					zap.S().Error(
-						fmt.Errorf(
-							"performing request: %w",
-							err,
-						),
-					)
-				}
-			case <-time.After(r.cfg.Fetcher.IdleTime):
-				logger.
-					Debugw(
-						"no tasks recieved in fetcher idle time, exiting fetcher",
-						"idle_time",
-						r.cfg.Fetcher.IdleTime,
-					)
-				return
-			}
-		}
-	}
-}
-
-func (r *Runner[S, R, P, Q]) startFetchers(
-	ctx context.Context,
-	input chan ServiceRequest[P],
-	globalWg *sync.WaitGroup,
-) chan S {
-	outputCh := make(chan S, 2*r.cfg.Writer.InsertionBatchSize+1)
-	wg := sync.WaitGroup{}
-	wg.Add(r.cfg.Fetcher.MaxFetcherWorkers)
-	fetcherCnt := atomic.Int32{}
-	for i := range r.cfg.Fetcher.MaxFetcherWorkers {
-		var rnd time.Duration
-		if i < r.cfg.Fetcher.MinFetcherWorkers {
-			rnd = 0
-		} else {
-			rnd = time.Duration(rand.IntN(int(r.cfg.Fetcher.Duration.Seconds())+1)) * time.Second
-		}
-		go func() {
-			defer wg.Done()
-			<-time.After(rnd)
-			fetcherCnt.Add(1)
-			defer fetcherCnt.Add(-1)
-			r.fetcher(ctx, input, outputCh, i)
-		}()
-	}
-
-	go func() {
-		for {
-			<-time.After(time.Second * 10)
-			zap.S().
-				Debugf("%d fetchers are currently running", fetcherCnt.Load())
-		}
-	}()
-
-	go func() {
-		defer globalWg.Done()
-		defer close(outputCh)
-		defer zap.S().Info("all fetchers have been stopped")
-		wg.Wait()
-	}()
-
-	return outputCh
 }

@@ -18,14 +18,6 @@ func (r *RetryTracker) Add(resp *resty.Response, err error) {
 	})
 }
 
-func (r *RetryTracker) Responses() []*resty.Response {
-	responses := make([]*resty.Response, len(r.attempts))
-	for i, attempt := range r.attempts {
-		responses[i] = attempt.Response
-	}
-	return responses
-}
-
 func (r *RetryTracker) Attempts() []AttemptData {
 	attempts := make([]AttemptData, len(r.attempts))
 	copy(attempts, r.attempts)

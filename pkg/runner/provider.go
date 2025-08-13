@@ -11,30 +11,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	TaskSendTimeout = 5 * time.Second
-)
-
-func (r *Runner[S, R, P, Q]) gatherRequests(
-	ctx context.Context,
-) (chan ServiceRequest[P], error) {
-	zap.S().Debug("trying to get more tasks for fetchers")
-	params, err := r.fetchParams(
-		ctx,
-	)
-	r.queryBuilder.UpdateState(params)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(params) > 0 {
-		requestsCh := r.createRequestStream(params)
-		return requestsCh, nil
-	}
-
-	return nil, nil
-}
-
 func (r *Runner[S, R, P, Q]) startProvider(
 	ctx context.Context,
 	globalWg *sync.WaitGroup,
@@ -91,6 +67,26 @@ func (r *Runner[S, R, P, Q]) startProvider(
 	}()
 
 	return out
+}
+
+func (r *Runner[S, R, P, Q]) gatherRequests(
+	ctx context.Context,
+) (chan ServiceRequest[P], error) {
+	zap.S().Debug("trying to get more tasks for fetchers")
+	params, err := r.fetchParams(
+		ctx,
+	)
+	r.queryBuilder.UpdateState(params)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(params) > 0 {
+		requestsCh := r.createRequestStream(params)
+		return requestsCh, nil
+	}
+
+	return nil, nil
 }
 
 // Forms requests using runner's configuration ([api] section in the config
