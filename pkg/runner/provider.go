@@ -100,6 +100,7 @@ func (r *Runner[S, R, P, Q]) createRequestStream(
 			Host:        r.cfg.API.Host,
 			Port:        r.cfg.API.Port,
 			Endpoint:    r.cfg.API.Endpoint,
+			Scheme:      r.cfg.API.Scheme,
 			Method:      r.cfg.API.Method,
 			Params:      p,
 			ExtraParams: r.cfg.API.ParsedExtraParams,

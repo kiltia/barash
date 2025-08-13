@@ -11,6 +11,7 @@ type ServiceRequest[P StoredParams] struct {
 	Host        string
 	Port        string
 	Endpoint    string
+	Scheme      string
 	Method      config.RunnerHTTPMethod
 	Params      P
 	ExtraParams map[string]string
@@ -25,7 +26,7 @@ func (req *ServiceRequest[P]) GetRequestLink() string {
 	}
 
 	baseURL := &url.URL{
-		Scheme: "http",
+		Scheme: req.Scheme,
 		Host:   fmt.Sprintf("%s:%s", req.Host, req.Port),
 		Path:   req.Endpoint,
 	}

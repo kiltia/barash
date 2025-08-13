@@ -111,6 +111,6 @@ type WriterConfig struct {
 }
 
 type LogConfig struct {
-	Level    zapcore.Level `env:"LEVEL, default=warn"`
+	Level    zapcore.Level `env:"LEVEL, default=debug"`
 	Encoding string        `env:"ENCODING, default=console"`
 }
