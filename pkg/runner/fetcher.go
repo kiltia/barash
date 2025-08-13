@@ -129,7 +129,7 @@ func (r *Runner[S, R, P, Q]) performRequest(
 	for i, resp := range tracker.Attempts() {
 		storedValue := r.convertToStored(req, resp, i, logger)
 		results = append(results, storedValue)
-		zap.S().Debugw("response processed", "attempt", i+1)
+		logger.Debugw("response processed", "attempt", i+1)
 	}
 	return results, nil
 }
@@ -145,14 +145,7 @@ func (r *Runner[S, R, P, Q]) fetcher(
 	logger.
 		Debugw("fetcher instance is starting up")
 
-	innerCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	context.AfterFunc(ctx, func() {
-		<-time.After(max(0*time.Second, r.cfg.Shutdown.GracePeriod-time.Second*10))
-	})
-
-	innerCtx = context.WithValue(innerCtx, ContextKeyFetcherNum, fetcherNum)
+	ctx = context.WithValue(ctx, ContextKeyFetcherNum, fetcherNum)
 
 	for {
 		select {
@@ -168,7 +161,7 @@ func (r *Runner[S, R, P, Q]) fetcher(
 				}
 				logger.
 					Debugw("pulling a new task", "task_count", len(input))
-				storedValues, err := r.performRequest(innerCtx, task, logger)
+				storedValues, err := r.performRequest(ctx, task, logger)
 				if errors.Is(err, gobreaker.ErrOpenState) {
 					zap.S().
 						Warnw("fetcher is paused after too many client/server errors")
