@@ -107,9 +107,13 @@ func (r *Runner[S, R, P, Q]) startFetchers(
 
 	go func() {
 		for {
-			<-time.After(time.Second * 10)
-			zap.S().
-				Debugf("%d fetchers are currently running", fetcherCnt.Load())
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(time.Second * 10):
+				zap.S().
+					Debugf("%d fetchers are currently running", fetcherCnt.Load())
+			}
 		}
 	}()
 
