@@ -95,7 +95,7 @@ func (r *Runner[S, R, P, Q]) performRequest(
 
 	client := r.httpClient.AddRetryHooks(tracker.Add)
 
-	request := client.R().SetContext(ctx)
+	request := client.R().WithContext(ctx)
 	var toBeExecuted func() (*resty.Response, error)
 	switch req.Method {
 	case config.RunnerHTTPMethodGet:
