@@ -50,6 +50,7 @@ type APIConfig struct {
 	MinWaitTime       time.Duration     `env:"MIN_WAIT_TIME, default=2s"`
 	MaxWaitTime       time.Duration     `env:"MAX_WAIT_TIME, default=16s"`
 	ExtraParams       string            `env:"EXTRA_PARAMS"`
+	// Display tag is workaround for not displaying this field in CLI configurator
 	ParsedExtraParams map[string]string `                                     display:"-"`
 }
 
@@ -71,12 +72,13 @@ type CircuitBreakerConfig struct {
 }
 
 type FetcherConfig struct {
-	MinFetcherWorkers int `env:"START_FETCHER_WORKERS, default=400"`
-	MaxFetcherWorkers int `env:"FETCHER_WORKERS, default=800"`
+	MinFetcherWorkers int `env:"N_WORKERS, default=400"`
+	MaxFetcherWorkers int `env:"MAX_WORKERS, default=800"`
 	// Warmup parameters
 	Duration     time.Duration `env:"WARMUP_TIME, default=60s"`
 	EnableWarmup bool          `env:"ENABLE_WARMUP, default=false"`
-	IdleTime     time.Duration `env:"FETCHER_IDLE_TIME, default=10s"`
+	IdleTime     time.Duration `env:"IDLE_TIME, default=10s"`
+	Timeout      time.Duration `env:"TIMEOUT, default=40s"`
 }
 
 type CorrectionConfig struct {
