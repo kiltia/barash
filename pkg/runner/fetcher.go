@@ -121,7 +121,7 @@ func (r *Runner[S, R, P, Q]) performRequest(
 	if lastResp != nil {
 		tracker.Add(lastResp, err)
 	} else {
-		zap.S().Warnw("unexpected nil response after error", "error", err)
+		logger.Warnw("unexpected nil response after error", "error", err)
 	}
 
 	var results []S
