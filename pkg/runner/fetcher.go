@@ -112,8 +112,11 @@ func (r *Runner[S, R, P, Q]) performRequest(
 		}
 	}
 	lastResp, err := r.circuitBreaker.Execute(toBeExecuted)
-	if errors.Is(err, gobreaker.ErrOpenState) {
-		return nil, err
+	if err != nil {
+		zap.S().Warnw("request is finished with error", "error", err)
+		if errors.Is(err, gobreaker.ErrOpenState) {
+			return nil, err
+		}
 	}
 	if lastResp != nil {
 		tracker.Add(lastResp, err)
