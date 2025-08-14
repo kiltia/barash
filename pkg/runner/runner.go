@@ -111,13 +111,8 @@ func (r *Runner[S, R, P, Q]) Run(
 	// initialize storage in two-table mode
 	r.initTable(ctx)
 
-	globalWg.Add(3)
-	tasks := r.startProvider(ctx, globalWg)
-	results := r.startFetchers(ctx, tasks, globalWg)
+	tasks := r.startProvider(globalWg, ctx)
+	results := r.startFetchers(globalWg, ctx, tasks)
+	r.startWriter(globalWg, results)
 
-	go func() {
-		defer globalWg.Done()
-		r.writer(results)
-		zap.S().Info("writer has been stopped")
-	}()
 }

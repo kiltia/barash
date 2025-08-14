@@ -81,13 +81,12 @@ func (r *Runner[S, R, P, Q]) fetcher(
 }
 
 func (r *Runner[S, R, P, Q]) startFetchers(
+	globalWg *sync.WaitGroup,
 	ctx context.Context,
 	input chan ServiceRequest[P],
-	globalWg *sync.WaitGroup,
 ) chan S {
 	outputCh := make(chan S, 2*r.cfg.Writer.InsertionBatchSize+1)
 	wg := sync.WaitGroup{}
-	wg.Add(r.cfg.Fetcher.MaxFetcherWorkers)
 	fetcherCnt := atomic.Int32{}
 	for i := range r.cfg.Fetcher.MaxFetcherWorkers {
 		var rnd time.Duration
@@ -96,13 +95,12 @@ func (r *Runner[S, R, P, Q]) startFetchers(
 		} else {
 			rnd = time.Duration(rand.IntN(int(r.cfg.Fetcher.Duration.Seconds())+1)) * time.Second
 		}
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-time.After(rnd)
 			fetcherCnt.Add(1)
 			defer fetcherCnt.Add(-1)
 			r.fetcher(ctx, input, outputCh, i)
-		}()
+		})
 	}
 
 	go func() {
@@ -117,12 +115,11 @@ func (r *Runner[S, R, P, Q]) startFetchers(
 		}
 	}()
 
-	go func() {
-		defer globalWg.Done()
+	globalWg.Go(func() {
 		defer close(outputCh)
 		defer zap.S().Info("all fetchers have been stopped")
 		wg.Wait()
-	}()
+	})
 
 	return outputCh
 }

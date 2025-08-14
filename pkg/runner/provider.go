@@ -12,8 +12,8 @@ import (
 )
 
 func (r *Runner[S, R, P, Q]) startProvider(
+	wg *sync.WaitGroup,
 	ctx context.Context,
-	globalWg *sync.WaitGroup,
 ) chan ServiceRequest[P] {
 	out := make(chan ServiceRequest[P], 2*r.cfg.Provider.SelectionBatchSize)
 
@@ -24,9 +24,8 @@ func (r *Runner[S, R, P, Q]) startProvider(
 	}
 
 	var requestsCh chan ServiceRequest[P]
-	go func() {
+	wg.Go(func() {
 		defer close(out)
-		defer globalWg.Done()
 		for {
 			select {
 			case r := <-requestsCh:
@@ -70,7 +69,7 @@ func (r *Runner[S, R, P, Q]) startProvider(
 				}
 			}
 		}
-	}()
+	})
 
 	return out
 }

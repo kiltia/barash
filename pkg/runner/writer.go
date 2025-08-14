@@ -2,9 +2,19 @@ package runner
 
 import (
 	"context"
+	"sync"
 
 	"go.uber.org/zap"
 )
+
+func (r *Runner[S, R, P, Q]) startWriter(
+	wg *sync.WaitGroup,
+	resultsCh chan S,
+) {
+	wg.Go(func() {
+		r.writer(resultsCh)
+	})
+}
 
 func (r *Runner[S, R, P, Q]) writer(
 	resultsCh chan S,
