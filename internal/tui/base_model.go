@@ -3,7 +3,7 @@ package tui
 import (
 	"strings"
 
-	"github.com/kiltia/runner/pkg/config"
+	"github.com/kiltia/barash/pkg/config"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

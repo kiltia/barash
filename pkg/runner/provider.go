@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/avast/retry-go/v4"
-	"github.com/kiltia/runner/pkg/config"
+	"github.com/kiltia/barash/pkg/config"
 
 	"go.uber.org/zap"
 )

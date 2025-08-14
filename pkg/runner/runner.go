@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/kiltia/runner/pkg/config"
+	"github.com/kiltia/barash/pkg/config"
 
 	"github.com/sony/gobreaker/v2"
 	"go.uber.org/zap"

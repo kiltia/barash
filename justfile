@@ -23,12 +23,3 @@ pre-commit: format lint vet test
 hook-setup:
     echo "just pre-commit" > .git/hooks/pre-commit
     chmod u+x .git/hooks/pre-commit
-
-run-meta:
-    @go run ./cmd meta prod
-
-run-dev:
-    @go run ./cmd meta dev
-
-run-crawler:
-    @go run ./cmd crawler prod

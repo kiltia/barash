@@ -1,4 +1,4 @@
-module github.com/kiltia/runner
+module github.com/kiltia/barash
 
 go 1.24.0
 

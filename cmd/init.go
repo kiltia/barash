@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/kiltia/runner/pkg/config"
+	"github.com/kiltia/barash/pkg/config"
 )
 
 func init() {

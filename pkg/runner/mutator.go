@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/kiltia/runner/pkg/config"
+	"github.com/kiltia/barash/pkg/config"
 )
 
 type IncludeBodyFromFile interface {

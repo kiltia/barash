@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kiltia/runner/pkg/config"
+	"github.com/kiltia/barash/pkg/config"
 
 	"go.uber.org/zap/zapcore"
 )
