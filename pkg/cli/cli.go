@@ -24,7 +24,6 @@ func Run() (*config.Config, error) {
 	if m, ok := finalModel.(tui.ConfigPreviewModel); ok {
 		// Clear the screen and reset terminal
 		return m.Config, nil
-
 	} else {
 		return nil, fmt.Errorf("unexpected model type: %T", finalModel)
 	}

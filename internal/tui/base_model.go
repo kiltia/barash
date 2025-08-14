@@ -72,9 +72,3 @@ func (m BaseModel) renderInner(
 func (m BaseModel) getMaxCursor() int {
 	return len(m.Options) - 1
 }
-
-func reset(m *BaseModel) {
-	m.cursor = 0
-	m.oldCursor = 0
-	m.message = ""
-}

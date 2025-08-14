@@ -74,7 +74,7 @@ func (m ConfigMenuModel) HandleFileSelected(
 
 	switch msg.Action {
 	case ActionLoad:
-		os.Unsetenv("CONFIG_FILE")
+		_ = os.Unsetenv("CONFIG_FILE")
 		m.Config = &config.Config{}
 		if err := LoadConfig(m.Config, msg.Path); err != nil {
 			m.err = err
