@@ -86,18 +86,20 @@ func New[
 		cfg:              cfg,
 	}
 
-	if cfg.CircuitBreaker.Enabled {
-		runner.circuitBreaker = gobreaker.NewCircuitBreaker[*resty.Response](
-			gobreaker.Settings{
-				Name:     "outgoing_requests",
-				Interval: cfg.CircuitBreaker.Interval,
-				ReadyToTrip: func(counts gobreaker.Counts) bool {
+	runner.circuitBreaker = gobreaker.NewCircuitBreaker[*resty.Response](
+		gobreaker.Settings{
+			Name:     "outgoing_requests",
+			Interval: cfg.CircuitBreaker.Interval,
+			ReadyToTrip: func(counts gobreaker.Counts) bool {
+				if cfg.CircuitBreaker.Enabled {
 					tooManyTotal := counts.TotalFailures > cfg.CircuitBreaker.TotalFailurePerInterval
 					tooManyConsecutive := counts.ConsecutiveFailures > cfg.CircuitBreaker.ConsecutiveFailure
 					return tooManyTotal || tooManyConsecutive
-				},
-			})
-	}
+				} else {
+					return false
+				}
+			},
+		})
 	return &runner, nil
 }
 
