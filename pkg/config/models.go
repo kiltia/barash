@@ -75,7 +75,7 @@ type APIConfig struct {
 
 	BodyFilePath string `env:"BODY_FILE_PATH"`
 	// Display tag is workaround for not displaying this field in CLI configurator
-	ParsedExtraParams map[string]string `                                     display:"-"`
+	ParsedExtraParams map[string]string `                     display:"-"`
 }
 
 type ClickHouseConfig struct {

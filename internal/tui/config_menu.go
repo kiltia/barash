@@ -62,7 +62,6 @@ func (m ConfigMenuModel) View() string {
 func (m ConfigMenuModel) HandleFileSelected(
 	msg FileSelectedMsg,
 ) (tea.Model, tea.Cmd) {
-
 	if msg.Error != nil {
 		m.err = msg.Error
 		m.message = ""

@@ -32,7 +32,8 @@ func buildNavigationForValue(v reflect.Value) []ConfigItem {
 		envValue := fieldType.Tag.Get("env")
 
 		envParts := strings.Split(envValue, ",")
-		hasDefault := len(envParts) > 1 && strings.Contains(envParts[1], "default=")
+		hasDefault := len(envParts) > 1 &&
+			strings.Contains(envParts[1], "default=")
 
 		var d string
 		if hasDefault {

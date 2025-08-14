@@ -28,7 +28,11 @@ func SelectFile(m tea.Model, action Action) (tea.Model, tea.Cmd) {
 			return FileSelectedMsg{Path: "", Action: action, Error: err}
 		}
 	}
-	cmd := exec.Command("sh", "-c", "fzf --print-query --prompt='"+prompt+"' > "+tmpPath)
+	cmd := exec.Command(
+		"sh",
+		"-c",
+		"fzf --print-query --prompt='"+prompt+"' > "+tmpPath,
+	)
 
 	return m, tea.ExecProcess(cmd, func(err error) tea.Msg {
 		defer func() {
@@ -36,7 +40,8 @@ func SelectFile(m tea.Model, action Action) (tea.Model, tea.Cmd) {
 		}()
 
 		var exitError *exec.ExitError
-		if err != nil && errors.As(err, &exitError) && (action == ActionLoad || exitError.ExitCode() == 2) {
+		if err != nil && errors.As(err, &exitError) &&
+			(action == ActionLoad || exitError.ExitCode() == 2) {
 			return FileSelectedMsg{Path: "", Action: action, Error: err}
 		}
 

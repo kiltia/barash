@@ -6,13 +6,15 @@ import (
 	"github.com/kiltia/runner/pkg/runner"
 )
 
-var _ runner.IncludeBodyFromFile = (*ExecutorParams)(nil)
-var _ runner.StoredParams = (*ExecutorParams)(nil)
-var _ runner.StoredParamsToBody = (*ExecutorParams)(nil)
+var (
+	_ runner.IncludeBodyFromFile = (*ExecutorParams)(nil)
+	_ runner.StoredParams        = (*ExecutorParams)(nil)
+	_ runner.StoredParamsToBody  = (*ExecutorParams)(nil)
+)
 
 type ExecutorParams struct {
-	URL     string `query:"url"              ch:"url"`
-	ID      int64  `query:"-"                ch:"id"`
+	URL     string `query:"url" ch:"url"`
+	ID      int64  `query:"-"   ch:"id"`
 	RawBody json.RawMessage
 }
 

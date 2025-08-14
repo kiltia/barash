@@ -13,7 +13,10 @@ type ConfigEditorModel struct {
 	Path []string
 }
 
-func NewConfigEditorModel(config *config.Config, old BaseModel) ConfigEditorModel {
+func NewConfigEditorModel(
+	config *config.Config,
+	old BaseModel,
+) ConfigEditorModel {
 	model := ConfigEditorModel{
 		BaseModel: BaseModel{
 			Options:   BuildNavigationForStruct(*config),
