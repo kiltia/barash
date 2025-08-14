@@ -2,6 +2,9 @@
 
 This is command line tool for creating workload on different HTTP servers.
 
+**Note**: This project is in early stage of development and probably not ready
+for production use.
+
 ## Features
 
 Basic features:
