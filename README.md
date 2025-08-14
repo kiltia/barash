@@ -1,6 +1,6 @@
 # Barash
 
-This is command line tool for creating workload on different HTTP servers.
+This is a library for creating workload on different HTTP servers. Just implement interfaces, create `Runner` instance and you're ready to go.
 
 **Note**: This project is in early stage of development and probably not ready
 for production use.
