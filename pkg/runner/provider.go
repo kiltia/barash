@@ -18,9 +18,9 @@ func (r *Runner[S, R, P, Q]) startProvider(
 	out := make(chan ServiceRequest[P], 2*r.cfg.Provider.SelectionBatchSize)
 
 	var p *P
-	var mutator BodyMutator[IncludeBodyFromFile]
+	var mutator BodyMutator
 	if _, ok := any(p).(IncludeBodyFromFile); ok {
-		mutator = NewBodyMutator[IncludeBodyFromFile](r.cfg)
+		mutator = NewBodyMutator(r.cfg)
 	}
 
 	var requestsCh chan ServiceRequest[P]
@@ -77,7 +77,7 @@ func (r *Runner[S, R, P, Q]) startProvider(
 
 func (r *Runner[S, R, P, Q]) gatherRequests(
 	ctx context.Context,
-	mutator BodyMutator[IncludeBodyFromFile],
+	mutator BodyMutator,
 ) (chan ServiceRequest[P], error) {
 	zap.S().Debug("trying to get more tasks for fetchers")
 	params, err := r.fetchParams(

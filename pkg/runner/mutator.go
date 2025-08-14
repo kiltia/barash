@@ -11,13 +11,13 @@ type IncludeBodyFromFile interface {
 	SetBody(body json.RawMessage)
 }
 
-type BodyMutator[P IncludeBodyFromFile] struct {
+type BodyMutator struct {
 	body json.RawMessage
 }
 
-func NewBodyMutator[P IncludeBodyFromFile](
+func NewBodyMutator(
 	cfg *config.Config,
-) BodyMutator[P] {
+) BodyMutator {
 	filePath := cfg.API.BodyFilePath
 	// read the file
 
@@ -25,11 +25,11 @@ func NewBodyMutator[P IncludeBodyFromFile](
 	if err != nil {
 		panic(err)
 	}
-	return BodyMutator[P]{
+	return BodyMutator{
 		body: json.RawMessage(file),
 	}
 }
 
-func (m *BodyMutator[P]) Mutate(params P) {
-	params.SetBody(m.body)
+func (m *BodyMutator) Mutate(obj IncludeBodyFromFile) {
+	obj.SetBody(m.body)
 }
