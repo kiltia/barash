@@ -6,8 +6,6 @@ require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.32.0
 	github.com/charmbracelet/bubbles v0.21.0
 	github.com/charmbracelet/lipgloss v1.1.0
-	github.com/go-resty/resty/v2 v2.16.5
-	github.com/sa-/slicefunk v0.1.4
 	github.com/sony/gobreaker/v2 v2.1.0
 	go.uber.org/zap v1.27.0
 	resty.dev/v3 v3.0.0-beta.3
