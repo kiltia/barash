@@ -21,18 +21,39 @@ const (
 )
 
 type Config struct {
-	API            APIConfig            `env:", prefix=API_"`
-	ClickHouse     ClickHouseConfig     `env:", prefix=CLICKHOUSE_"`
-	Log            LogConfig            `env:", prefix=LOG_"`
+	// Configuration of interaction between the runner and the API
+	API APIConfig `env:", prefix=API_"`
+	// Clickhouse connection settings (currently used to store the results)
+	ClickHouse ClickHouseConfig `env:", prefix=CLICKHOUSE_"`
+	// Logger configuration
+	Log LogConfig `env:", prefix=LOG_"`
+	// Circuit breaker can be configured to prevent Runner from overloading
+	// the API or sending too much bad responses to Clickhouse.
 	CircuitBreaker CircuitBreakerConfig `env:", prefix=CB_"`
+	// Continuous mode specific configuration
 	ContinuousMode ContinuousModeConfig `env:", prefix=CONTINUOUS_"`
-	Shutdown       ShutdownConfig       `env:", prefix=SHUTDOWN_"`
-
-	Provider   ProviderConfig   `env:", prefix=PROVIDER_"`
-	Fetcher    FetcherConfig    `env:", prefix=FETCHER_"`
-	Writer     WriterConfig     `env:", prefix=WRITER_"`
+	// Graceful shutdown logic configuration
+	Shutdown ShutdownConfig `env:", prefix=SHUTDOWN_"`
+	// Settings related to the provider - the component that retrieves data
+	// from database
+	Provider ProviderConfig `env:", prefix=PROVIDER_"`
+	// Settings related to the fetcher - the component that fetches data
+	// from the API
+	Fetcher FetcherConfig `env:", prefix=FETCHER_"`
+	// Settings related to the writer - the component that saves results to
+	// the database
+	Writer WriterConfig `env:", prefix=WRITER_"`
+	// Runner uses corr_ts to generate "virtual" timestamp for the results.
+	// This can be used to postpone, shuffle, retry new requests with the
+	// same data. This is useful for the continuous mode.
 	Correction CorrectionConfig `env:", prefix=CORRECTION_"`
 
+	// It can be two-table or continuous mode.
+	// Two-table mode allows to get data from one table and save it to another.
+	// It's expected that after draining all the data from the first table,
+	// runner will be stopped.
+	// Continuous mode allows to get data from the table and save it to the
+	// same table.
 	Mode RunnerMode `env:"RUN_MODE"`
 }
 
@@ -41,15 +62,18 @@ type APIConfig struct {
 	Type     string           `env:"TYPE"`
 	Host     string           `env:"HOST"`
 	Port     string           `env:"PORT, default=80"`
+	Scheme   string           `env:"SCHEME, default=http"`
 	Endpoint string           `env:"ENDPOINT"`
 	Method   RunnerHTTPMethod `env:"METHOD, default=GET"`
 	// Timeout
 	APITimeout time.Duration `env:"TIMEOUT, default=3m"`
 	// Retries
-	NumRetries        int               `env:"N_RETRIES, default=3"`
-	MinWaitTime       time.Duration     `env:"MIN_WAIT_TIME, default=2s"`
-	MaxWaitTime       time.Duration     `env:"MAX_WAIT_TIME, default=16s"`
-	ExtraParams       string            `env:"EXTRA_PARAMS"`
+	NumRetries  int           `env:"N_RETRIES, default=3"`
+	MinWaitTime time.Duration `env:"MIN_WAIT_TIME, default=2s"`
+	MaxWaitTime time.Duration `env:"MAX_WAIT_TIME, default=16s"`
+	ExtraParams string        `env:"EXTRA_PARAMS"`
+
+	BodyFilePath string `env:"BODY_FILE_PATH"`
 	// Display tag is workaround for not displaying this field in CLI configurator
 	ParsedExtraParams map[string]string `                                     display:"-"`
 }

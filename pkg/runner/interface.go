@@ -17,7 +17,7 @@ type (
 	}
 
 	StoredParamsToBody interface {
-		GetBody() map[string]any
+		GetBody() []byte
 	}
 
 	Response[S StoredResult, P StoredParams] interface {

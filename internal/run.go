@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/kiltia/runner/internal/crawler"
+	"github.com/kiltia/runner/internal/executor"
 	"github.com/kiltia/runner/internal/meta"
 	"github.com/kiltia/runner/pkg/config"
 	"github.com/kiltia/runner/pkg/log"
@@ -18,8 +19,9 @@ import (
 )
 
 const (
-	APINameCrawler string = "crawler"
-	APINameMeta    string = "meta"
+	APINameCrawler  string = "crawler"
+	APINameMeta     string = "meta"
+	APINameExecutor string = "executor"
 )
 
 func RunApplication(cfg *config.Config) {
@@ -59,6 +61,21 @@ func RunApplication(cfg *config.Config) {
 		queryBuilder.ResetState()
 		instance, err := runner.New[
 			meta.VerifyResult, meta.VerifyResponse,
+		](cfg, &queryBuilder)
+		if err != nil {
+			zap.S().Fatal(fmt.Errorf("runner initialization: %w", err))
+		}
+		instance.Run(ctx, &wg)
+	case APINameExecutor:
+		queryBuilder := executor.ExecutorQueryBuilder{
+			BatchSize:          cfg.Provider.SelectionBatchSize,
+			Mode:               cfg.Mode,
+			LastID:             0,
+			SelectionTableName: cfg.Provider.SelectionTableName,
+		}
+		queryBuilder.ResetState()
+		instance, err := runner.New[
+			executor.ExecutorResult, executor.ExecutorResponse,
 		](cfg, &queryBuilder)
 		if err != nil {
 			zap.S().Fatal(fmt.Errorf("runner initialization: %w", err))

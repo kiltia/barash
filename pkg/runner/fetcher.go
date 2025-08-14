@@ -154,7 +154,7 @@ func (r *Runner[S, R, P, Q]) convertToStored(
 					"status_code",
 					statusCode,
 					"body",
-					body,
+					string(body[min(100, len(body)):]),
 				)
 		} else {
 			result = tmpResult
@@ -223,7 +223,7 @@ func (r *Runner[S, R, P, Q]) performRequest(
 	}
 	lastResp, err := r.circuitBreaker.Execute(toBeExecuted)
 	if err != nil {
-		zap.S().Warnw("request is finished with error", "error", err)
+		zap.S().Warn(fmt.Printf("request is finished with error: %v", err))
 		if errors.Is(err, gobreaker.ErrOpenState) {
 			return nil, err
 		}

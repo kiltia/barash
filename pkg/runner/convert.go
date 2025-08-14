@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"reflect"
@@ -59,17 +60,17 @@ func ObjectToParams(obj any) (
 // If the object implements StoredParamsToBody interface,
 // it will be used instead of the manual extraction using tags.
 func ObjectToBody(obj any) (
-	body map[string]any,
+	body []byte,
 ) {
 	if p, ok := obj.(StoredParamsToBody); ok {
 		body = p.GetBody()
 		return
 	}
 
-	body = map[string]any{}
+	m := map[string]any{}
 
 	val := reflect.ValueOf(obj)
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		val = val.Elem()
 	}
 	typ := val.Type()
@@ -80,11 +81,13 @@ func ObjectToBody(obj any) (
 		fieldValue := val.Field(i)
 
 		if jsonKey != "" && jsonKey != "-" {
-			body[jsonKey] = fieldValue.Interface()
+			m[jsonKey] = fieldValue.Interface()
 		}
 	}
 
-	return
+	bytes, _ := json.Marshal(m)
+
+	return bytes
 }
 
 func isValueNil(v reflect.Value) bool {

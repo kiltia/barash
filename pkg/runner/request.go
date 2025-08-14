@@ -17,7 +17,7 @@ type ServiceRequest[P StoredParams] struct {
 	ExtraParams map[string]string
 
 	cachedRequestLink string
-	cachedRequestBody map[string]any
+	cachedRequestBody []byte
 }
 
 func (req *ServiceRequest[P]) GetRequestLink() string {
@@ -43,12 +43,12 @@ func (req *ServiceRequest[P]) GetRequestLink() string {
 	return urlString
 }
 
-func (req *ServiceRequest[P]) GetRequestBody() map[string]any {
+func (req *ServiceRequest[P]) GetRequestBody() []byte {
 	if req.cachedRequestBody != nil {
 		return req.cachedRequestBody
 	}
 
-	body := ObjectToBody(req.Params)
+	body := ObjectToBody(&req.Params)
 
 	req.cachedRequestBody = body
 	return body

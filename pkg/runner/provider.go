@@ -17,6 +17,12 @@ func (r *Runner[S, R, P, Q]) startProvider(
 ) chan ServiceRequest[P] {
 	out := make(chan ServiceRequest[P], 2*r.cfg.Provider.SelectionBatchSize)
 
+	var p *P
+	var mutator BodyMutator[IncludeBodyFromFile]
+	if _, ok := any(p).(IncludeBodyFromFile); ok {
+		mutator = NewBodyMutator[IncludeBodyFromFile](r.cfg)
+	}
+
 	var requestsCh chan ServiceRequest[P]
 	go func() {
 		defer close(out)
@@ -32,7 +38,7 @@ func (r *Runner[S, R, P, Q]) startProvider(
 				}
 			default:
 				var err error
-				requestsCh, err = r.gatherRequests(ctx)
+				requestsCh, err = r.gatherRequests(ctx, mutator)
 				if err != nil {
 					zap.S().Errorw("gathering requests", "error", err)
 					return
@@ -71,11 +77,17 @@ func (r *Runner[S, R, P, Q]) startProvider(
 
 func (r *Runner[S, R, P, Q]) gatherRequests(
 	ctx context.Context,
+	mutator BodyMutator[IncludeBodyFromFile],
 ) (chan ServiceRequest[P], error) {
 	zap.S().Debug("trying to get more tasks for fetchers")
 	params, err := r.fetchParams(
 		ctx,
 	)
+	for i := range params {
+		if p, ok := any(&params[i]).(IncludeBodyFromFile); ok {
+			mutator.Mutate(p)
+		}
+	}
 	r.queryBuilder.UpdateState(params)
 	if err != nil {
 		return nil, err
@@ -95,16 +107,18 @@ func (r *Runner[S, R, P, Q]) createRequestStream(
 	params []P,
 ) chan ServiceRequest[P] {
 	ch := make(chan ServiceRequest[P], len(params))
-	for _, p := range params {
+	for i := range params {
+		p := &params[i]
 		ch <- ServiceRequest[P]{
 			Host:        r.cfg.API.Host,
 			Port:        r.cfg.API.Port,
 			Endpoint:    r.cfg.API.Endpoint,
 			Scheme:      r.cfg.API.Scheme,
 			Method:      r.cfg.API.Method,
-			Params:      p,
+			Params:      *p,
 			ExtraParams: r.cfg.API.ParsedExtraParams,
 		}
+
 	}
 	return ch
 }
