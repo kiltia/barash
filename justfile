@@ -1,22 +1,17 @@
 format:
-    @goimports -l -w ./cmd ./pkg ./internal
-    @gofumpt -l -w ./cmd ./pkg ./internal
-    @golines -w -m 80 ./cmd ./pkg ./internal
-
-check-format:
-    @goimports -d ./cmd ./pkg ./internal
-    @gofumpt -d ./cmd ./pkg ./internal
-    @golines --dry-run -m 80 ./cmd ./pkg ./internal
+    goimports -l -w ./...
+    gofumpt -l -w ./...
+    golines -w -m 80 ./...
 
 lint:
-    @golangci-lint run ./cmd/... ./pkg/... ./internal/...
-    @gocyclo -over 10 .
+    golangci-lint run ./...
+    gocyclo -over 10 .
 
 test:
-    @go test ./cmd/... ./pkg/... ./internal/... -v
+    go test ./...
 
-vet:
-    @go vet ./cmd/... ./pkg/... ./internal/...
+unit-test:
+    go test ./internal/... ./pkg/... ./cmd/...
 
 pre-commit: format lint vet test
 
