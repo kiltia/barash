@@ -38,7 +38,6 @@ func Load(i *Config) {
 		log.Fatal(err)
 	}
 
-	i.API.ParsedExtraParams = parseExtraParams(i.API.ExtraParams)
 }
 
 func parseExtraParams(extraParams string) map[string]string {

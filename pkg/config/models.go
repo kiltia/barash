@@ -68,14 +68,12 @@ type APIConfig struct {
 	// Timeout
 	APITimeout time.Duration `env:"TIMEOUT, default=3m"`
 	// Retries
-	NumRetries  int           `env:"N_RETRIES, default=3"`
-	MinWaitTime time.Duration `env:"MIN_WAIT_TIME, default=2s"`
-	MaxWaitTime time.Duration `env:"MAX_WAIT_TIME, default=16s"`
-	ExtraParams string        `env:"EXTRA_PARAMS"`
+	NumRetries  int               `env:"N_RETRIES, default=3"`
+	MinWaitTime time.Duration     `env:"MIN_WAIT_TIME, default=2s"`
+	MaxWaitTime time.Duration     `env:"MAX_WAIT_TIME, default=16s"`
+	ExtraParams map[string]string `env:"EXTRA_PARAMS"`
 
 	BodyFilePath string `env:"BODY_FILE_PATH"`
-	// Display tag is workaround for not displaying this field in CLI configurator
-	ParsedExtraParams map[string]string `                     display:"-"`
 }
 
 type ClickHouseConfig struct {
@@ -126,6 +124,7 @@ type ProviderConfig struct {
 	SelectionBatchSize int           `env:"SELECTION_BATCH_SIZE, default=40000"`
 	SelectionTableName string        `env:"SELECTION_TABLE"`
 	SelectRetries      int           `env:"SELECT_RETRIES, default=5"`
+	Sinks              []string      `env:"SINKS"`
 }
 
 type WriterConfig struct {

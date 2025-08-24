@@ -115,7 +115,7 @@ func (r *Runner[S, R, P, Q]) createRequestStream(
 			Scheme:      r.cfg.API.Scheme,
 			Method:      r.cfg.API.Method,
 			Params:      *p,
-			ExtraParams: r.cfg.API.ParsedExtraParams,
+			ExtraParams: r.cfg.API.ExtraParams,
 		}
 
 	}
