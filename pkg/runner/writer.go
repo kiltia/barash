@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"go.uber.org/zap"
@@ -73,17 +74,16 @@ func (r *Runner[S, R, P, Q]) write(
 	logger.Debugw(
 		"saving processed batch to the database",
 	)
-	err = r.clickHouseClient.InsertBatch(
-		ctx,
-		batch,
-		r.cfg.Writer.InsertTag,
-	)
-	if err != nil {
-		return err
+	var errs []error
+	for _, sink := range r.sinks {
+		errs = append(errs, sink.InsertBatch(
+			ctx,
+			batch,
+		))
 	}
 
 	logger.Infow(
 		"saved processed batch to the database",
 	)
-	return nil
+	return errors.Join(errs...)
 }

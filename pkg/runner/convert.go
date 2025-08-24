@@ -23,7 +23,7 @@ func ObjectToParams(obj any) (
 ) {
 	if p, ok := obj.(StoredParamsToQuery); ok {
 		query = p.GetQueryParams()
-		return
+		return query
 	}
 
 	query = url.Values{}
@@ -51,7 +51,7 @@ func ObjectToParams(obj any) (
 		}
 	}
 
-	return
+	return query
 }
 
 // Converts an object to a JSON body.
@@ -64,7 +64,7 @@ func ObjectToBody(obj any) (
 ) {
 	if p, ok := obj.(StoredParamsToBody); ok {
 		body = p.GetBody()
-		return
+		return body
 	}
 
 	m := map[string]any{}

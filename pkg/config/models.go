@@ -23,8 +23,6 @@ const (
 type Config struct {
 	// Configuration of interaction between the runner and the API
 	API APIConfig `env:", prefix=API_"`
-	// Clickhouse connection settings (currently used to store the results)
-	ClickHouse ClickHouseConfig `env:", prefix=CLICKHOUSE_"`
 	// Logger configuration
 	Log LogConfig `env:", prefix=LOG_"`
 	// Circuit breaker can be configured to prevent Runner from overloading
@@ -68,17 +66,15 @@ type APIConfig struct {
 	// Timeout
 	APITimeout time.Duration `env:"TIMEOUT, default=3m"`
 	// Retries
-	NumRetries  int           `env:"N_RETRIES, default=3"`
-	MinWaitTime time.Duration `env:"MIN_WAIT_TIME, default=2s"`
-	MaxWaitTime time.Duration `env:"MAX_WAIT_TIME, default=16s"`
-	ExtraParams string        `env:"EXTRA_PARAMS"`
+	NumRetries  int               `env:"N_RETRIES, default=3"`
+	MinWaitTime time.Duration     `env:"MIN_WAIT_TIME, default=2s"`
+	MaxWaitTime time.Duration     `env:"MAX_WAIT_TIME, default=16s"`
+	ExtraParams map[string]string `env:"EXTRA_PARAMS"`
 
 	BodyFilePath string `env:"BODY_FILE_PATH"`
-	// Display tag is workaround for not displaying this field in CLI configurator
-	ParsedExtraParams map[string]string `                     display:"-"`
 }
 
-type ClickHouseConfig struct {
+type DatabaseConfig struct {
 	Database string `env:"DB"`
 	Username string `env:"USER"`
 	Password string `env:"PASSWORD"`
@@ -121,17 +117,44 @@ type ShutdownConfig struct {
 	DBSaveTimeout time.Duration `env:"DB_SAVE_TIMEOUT, default=30s"`
 }
 
+type SourceBackend = string
+
+const (
+	SourceBackendClickhouse SourceBackend = "ch"
+	SourceBackendPostgres   SourceBackend = "pg"
+)
+
+type SourceConfig struct {
+	Backend     SourceBackend  `env:"BACKEND"`
+	Credentials DatabaseConfig `env:"CREDENTIALS"`
+}
+
 type ProviderConfig struct {
 	SleepTime          time.Duration `env:"SLEEP_TIME, default=1m"`
 	SelectionBatchSize int           `env:"SELECTION_BATCH_SIZE, default=40000"`
 	SelectionTableName string        `env:"SELECTION_TABLE"`
 	SelectRetries      int           `env:"SELECT_RETRIES, default=5"`
+	SelectSQLPath      string        `env:"SELECT_SQL, default=select.sql"`
+
+	Source SourceConfig `env:"SOURCE"`
+}
+
+type SinkBackend = string
+
+const (
+	SinkBackendClickhouse SinkBackend = "ch"
+	SinkBackendPostgres   SinkBackend = "postgres"
+)
+
+type SinkConfig struct {
+	Backend SinkBackend `env:"BACKEND"`
 }
 
 type WriterConfig struct {
-	InsertionBatchSize int    `env:"INSERT_BATCH_SIZE, default=10000"`
-	InsertionTableName string `env:"INSERT_TABLE"`
-	InsertTag          string `env:"TAG"`
+	InsertionBatchSize int        `env:"INSERT_BATCH_SIZE, default=10000"`
+	InsertionTableName string     `env:"INSERT_TABLE"`
+	Sink               SinkConfig `env:"SINK"`
+	InsertSQLPath      string     `env:"INSERT_SQL, default=insert.sql"`
 }
 
 type LogConfig struct {

@@ -102,6 +102,18 @@ func parseValue(value string, kind reflect.Kind) reflect.Value {
 	case reflect.Bool:
 		boolVal, _ := strconv.ParseBool(value)
 		return reflect.ValueOf(boolVal)
+	case reflect.Slice:
+		slice := strings.Split(value, ";")
+		return reflect.ValueOf(slice)
+	case reflect.Map:
+		parts := strings.Split(value, ";")
+		m := make(map[string]string)
+		for _, part := range parts {
+			pair := strings.Split(part, "=")
+			m[pair[0]] = pair[1]
+
+		}
+		return reflect.ValueOf(m)
 	default:
 		return reflect.ValueOf(value)
 	}

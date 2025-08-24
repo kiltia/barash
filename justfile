@@ -1,11 +1,11 @@
 format:
-    goimports -l -w ./...
-    gofumpt -l -w ./...
-    golines -w -m 80 ./...
+    goimports -l -w .
+    gofumpt -l -w .
+    golines -w -m 80 .
 
 lint:
     golangci-lint run ./...
-    gocyclo -over 10 .
+    go vet ./...
 
 test:
     go test ./...
@@ -13,7 +13,7 @@ test:
 unit-test:
     go test ./internal/... ./pkg/... ./cmd/...
 
-pre-commit: format lint vet test
+pre-commit: format lint test
 
 hook-setup:
     echo "just pre-commit" > .git/hooks/pre-commit

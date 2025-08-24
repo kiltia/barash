@@ -2,7 +2,9 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"sync"
 
 	"github.com/kiltia/barash/pkg/config"
@@ -18,30 +20,31 @@ const (
 	ContextKeyFetcherNum ContextKey = iota
 )
 
-type Runner[S StoredResult, R Response[S, P], P StoredParams, Q QueryBuilder[S, P]] struct {
-	clickHouseClient ClickHouseClient[S, P, Q]
-	httpClient       *resty.Client
-	queryBuilder     Q
-	cfg              *config.Config
-	circuitBreaker   *gobreaker.CircuitBreaker[*resty.Response]
+var _ Sink[StoredResult] = &Clickhouse[StoredResult, StoredParams, QueryBuilder[StoredParams]]{}
+
+type Runner[S StoredResult, R Response[S, P], P StoredParams, Q QueryBuilder[P]] struct {
+	sinks          []Sink[S]
+	src            Source[P]
+	httpClient     *resty.Client
+	cfg            *config.Config
+	circuitBreaker *gobreaker.CircuitBreaker[*resty.Response]
+	queryBuilder   Q
+
+	selectSQL string
+	insertSQL string
 }
 
 func New[
 	S StoredResult,
 	R Response[S, P],
 	P StoredParams,
-	Q QueryBuilder[S, P],
+	Q QueryBuilder[P],
 ](
 	cfg *config.Config,
 	qb Q,
 ) (*Runner[S, R, P, Q], error) {
-	clickHouseClient, version, err := NewClickHouseClient[S, P, Q](
-		cfg.ClickHouse.Host,
-		cfg.ClickHouse.Port,
-		cfg.ClickHouse.Database,
-		cfg.ClickHouse.Username,
-		cfg.ClickHouse.Password,
-		cfg.Writer.InsertionTableName,
+	ch, version, err := NewClickHouseClient[S, P, Q](
+		cfg.Provider.Source.Credentials,
 	)
 	if err != nil {
 		zap.S().Errorw(
@@ -79,11 +82,22 @@ func New[
 			return false
 		}).SetLogger(zap.S())
 
+	selectSQL, err := os.ReadFile(cfg.Provider.SelectSQLPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading select sql statement: %w", err)
+	}
+	insertSQL, err := os.ReadFile(cfg.Writer.InsertSQLPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading insert sql statement: %w", err)
+	}
+
 	runner := Runner[S, R, P, Q]{
-		clickHouseClient: *clickHouseClient,
-		httpClient:       httpClient,
-		queryBuilder:     qb,
-		cfg:              cfg,
+		httpClient: httpClient,
+		cfg:        cfg,
+		sinks:      []Sink[S]{ch},
+		selectSQL:  string(selectSQL),
+		insertSQL:  string(insertSQL),
+		queryBuilder: qb,
 	}
 
 	runner.circuitBreaker = gobreaker.NewCircuitBreaker[*resty.Response](
@@ -109,10 +123,34 @@ func (r *Runner[S, R, P, Q]) Run(
 	globalWg *sync.WaitGroup,
 ) {
 	// initialize storage in two-table mode
-	r.initTable(ctx)
+	err := r.initTable(ctx)
+	if err != nil {
+		zap.S().
+			Warnw("one or more table creation scripts have failed", "error", err)
+	} else {
+		zap.S().Infow("successfully initialized table for the Runner results")
+	}
 
 	tasks := r.startProvider(globalWg, ctx)
 	results := r.startFetchers(globalWg, ctx, tasks)
 	r.startWriter(globalWg, results)
+}
 
+func (r *Runner[S, R, P, Q]) initTable(
+	ctx context.Context,
+) error {
+	if r.cfg.Mode == config.ContinuousMode {
+		zap.S().
+			Infow("running in continuous mode, skipping table initialization")
+		return nil
+	}
+	var errs []error
+	for _, sink := range r.sinks {
+		err := sink.InitTable(
+			ctx,
+		)
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }

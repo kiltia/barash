@@ -164,7 +164,6 @@ func (r *Runner[S, R, P, Q]) convertToStored(
 		attemptNumber+1,
 		statusCode,
 		resp.Duration(),
-		r.cfg.Writer.InsertTag,
 	)
 
 	return storedValue

@@ -20,7 +20,7 @@ func (r *Runner[S, R, P, Q]) startProvider(
 	var p *P
 	var mutator BodyMutator
 	if _, ok := any(p).(IncludeBodyFromFile); ok {
-		mutator = NewBodyMutator(r.cfg)
+		mutator = NewBodyMutator(r.cfg.API.BodyFilePath)
 	}
 
 	var requestsCh chan ServiceRequest[P]
@@ -115,7 +115,7 @@ func (r *Runner[S, R, P, Q]) createRequestStream(
 			Scheme:      r.cfg.API.Scheme,
 			Method:      r.cfg.API.Method,
 			Params:      *p,
-			ExtraParams: r.cfg.API.ParsedExtraParams,
+			ExtraParams: r.cfg.API.ExtraParams,
 		}
 
 	}
@@ -133,7 +133,7 @@ func (r *Runner[S, R, P, Q]) fetchParams(
 			case <-ctx.Done():
 				return ctx.Err()
 			default:
-				params, err = r.clickHouseClient.SelectNextBatch(
+				params, err = r.src.GetNextBatch(
 					ctx,
 					r.queryBuilder,
 				)

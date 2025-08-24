@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/sethvargo/go-envconfig"
@@ -37,22 +36,4 @@ func Load(i *Config) {
 	if err := envconfig.Process(context.Background(), i); err != nil {
 		log.Fatal(err)
 	}
-
-	i.API.ParsedExtraParams = parseExtraParams(i.API.ExtraParams)
-}
-
-func parseExtraParams(extraParams string) map[string]string {
-	if extraParams == "" {
-		return nil
-	}
-
-	params := make(map[string]string)
-	for param := range strings.SplitSeq(extraParams, ";") {
-		parts := strings.SplitN(param, "=", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		params[parts[0]] = parts[1]
-	}
-	return params
 }
