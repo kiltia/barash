@@ -31,7 +31,7 @@ type (
 		) S
 	}
 
-	QueryBuilder[S StoredResult, P StoredParams] interface {
+	QueryBuilder[P StoredParams] interface {
 		GetSelectQuery() string
 
 		UpdateState(

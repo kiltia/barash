@@ -133,7 +133,7 @@ func (r *Runner[S, R, P, Q]) fetchParams(
 			case <-ctx.Done():
 				return ctx.Err()
 			default:
-				params, err = r.clickHouseClient.SelectNextBatch(
+				params, err = r.src.GetNextBatch(
 					ctx,
 					r.queryBuilder,
 				)

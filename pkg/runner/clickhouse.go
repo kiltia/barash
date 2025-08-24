@@ -7,24 +7,23 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
-	"github.com/kiltia/barash/pkg/config"
 	"go.uber.org/zap"
 )
 
-type ClickHouseClient[S StoredResult, P StoredParams, Q QueryBuilder[S, P]] struct {
-	Connection         driver.Conn
-	insertionTableName string
+type Clickhouse[S StoredResult, P StoredParams, Q QueryBuilder[P]] struct {
+	Conn            driver.Conn
+	insertTableName string
 }
 
-func NewClickHouseClient[S StoredResult, P StoredParams, Q QueryBuilder[S, P]](
+func NewClickHouseClient[S StoredResult, P StoredParams, Q QueryBuilder[P]](
 	host string,
 	port string,
 	database string,
 	username string,
 	password string,
-	insertionTableName string,
+	insertTableName string,
 ) (
-	client *ClickHouseClient[S, P, Q],
+	client *Clickhouse[S, P, Q],
 	version *proto.ServerHandshake,
 	err error,
 ) {
@@ -61,24 +60,24 @@ func NewClickHouseClient[S StoredResult, P StoredParams, Q QueryBuilder[S, P]](
 		)
 		return nil, nil, err
 	}
-	return &ClickHouseClient[S, P, Q]{
-		Connection:         conn,
-		insertionTableName: insertionTableName,
+	return &Clickhouse[S, P, Q]{
+		Conn:            conn,
+		insertTableName: insertTableName,
 	}, version, err
 }
 
-func (client *ClickHouseClient[S, P, Q]) InsertBatch(
+func (client *Clickhouse[S, P, Q]) InsertBatch(
 	ctx context.Context,
 	batch []S,
 	tag string,
 ) error {
 	zap.S().Debug("inserting a batch to the database")
-	query := fmt.Sprintf("INSERT INTO %s", client.insertionTableName)
+	query := fmt.Sprintf("INSERT INTO %s", client.insertTableName)
 	zap.S().Debugw(
 		"sending query to the database",
 		"query", query,
 	)
-	batchBuilder, err := client.Connection.PrepareBatch(ctx, query)
+	batchBuilder, err := client.Conn.PrepareBatch(ctx, query)
 	if err != nil {
 		return err
 	}
@@ -95,7 +94,7 @@ func (client *ClickHouseClient[S, P, Q]) InsertBatch(
 	return nil
 }
 
-func (client *ClickHouseClient[S, P, Q]) SelectNextBatch(
+func (client *Clickhouse[S, P, Q]) SelectNextBatch(
 	ctx context.Context,
 	queryBuilder Q,
 ) (result []P, err error) {
@@ -105,27 +104,16 @@ func (client *ClickHouseClient[S, P, Q]) SelectNextBatch(
 		"selecting a new batch from the database",
 		"query", query,
 	)
-	err = client.Connection.Select(ctx, &result, query)
+	err = client.Conn.Select(ctx, &result, query)
 	return result, err
 }
 
-func (r *Runner[S, R, P, Q]) initTable(
+func (client *Clickhouse[S, P, Q]) InitTable(
 	ctx context.Context,
-) {
-	if r.cfg.Mode == config.ContinuousMode {
-		zap.S().
-			Infow("running in continuous mode, skipping table initialization")
-		return
-	}
+) error {
 	var nilInstance S
-	err := r.clickHouseClient.Connection.Exec(
+	return client.Conn.Exec(
 		ctx,
-		nilInstance.GetCreateQuery(r.cfg.Writer.InsertionTableName),
+		nilInstance.GetCreateQuery(client.insertTableName),
 	)
-
-	if err != nil {
-		zap.S().Warnw("table creation script has failed", "error", err)
-	} else {
-		zap.S().Infow("successfully initialized table for the Runner results")
-	}
 }
