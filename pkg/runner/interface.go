@@ -29,6 +29,7 @@ type (
 			attemptNumber int,
 			status int,
 			timeElapsed time.Duration,
+			saveTag string,
 		) S
 	}
 

@@ -155,6 +155,7 @@ type WriterConfig struct {
 	InsertionTableName string     `env:"INSERT_TABLE"`
 	Sink               SinkConfig `env:"SINK"`
 	InsertSQLPath      string     `env:"INSERT_SQL, default=insert.sql"`
+	SaveTag            string     `env:"TAG"`
 }
 
 type LogConfig struct {
