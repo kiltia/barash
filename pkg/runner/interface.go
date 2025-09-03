@@ -32,7 +32,7 @@ type (
 	}
 
 	QueryBuilder[P StoredParams] interface {
-		GetSelectQuery() string
+		FormatQuery(sql string) string
 
 		UpdateState(
 			batch []P,

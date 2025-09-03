@@ -20,7 +20,7 @@ func (r *Runner[S, R, P, Q]) startProvider(
 	var p *P
 	var mutator BodyMutator
 	if _, ok := any(p).(IncludeBodyFromFile); ok {
-		mutator = NewBodyMutator(r.cfg)
+		mutator = NewBodyMutator(r.cfg.API.BodyFilePath)
 	}
 
 	var requestsCh chan ServiceRequest[P]

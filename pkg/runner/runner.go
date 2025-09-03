@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 
 	"github.com/kiltia/barash/pkg/config"
@@ -19,10 +20,10 @@ const (
 	ContextKeyFetcherNum ContextKey = iota
 )
 
-type Source[P any, Q QueryBuilder[P]] interface {
+type Source[P any] interface {
 	GetNextBatch(
 		ctx context.Context,
-		queryBuilder Q,
+		qb QueryBuilder[P],
 	) (result []P, err error)
 }
 
@@ -41,11 +42,14 @@ var _ Sink[StoredResult] = &Clickhouse[StoredResult, StoredParams, QueryBuilder[
 
 type Runner[S StoredResult, R Response[S, P], P StoredParams, Q QueryBuilder[P]] struct {
 	sinks          []Sink[S]
-	src            Source[P, Q]
+	src            Source[P]
 	httpClient     *resty.Client
-	queryBuilder   Q
 	cfg            *config.Config
 	circuitBreaker *gobreaker.CircuitBreaker[*resty.Response]
+	queryBuilder   Q
+
+	selectSql string
+	insertSql string
 }
 
 func New[
@@ -55,7 +59,6 @@ func New[
 	Q QueryBuilder[P],
 ](
 	cfg *config.Config,
-	qb Q,
 ) (*Runner[S, R, P, Q], error) {
 	ch, version, err := NewClickHouseClient[S, P, Q](
 		cfg.ClickHouse.Host,
@@ -101,11 +104,21 @@ func New[
 			return false
 		}).SetLogger(zap.S())
 
+	selectSql, err := os.ReadFile(cfg.Provider.Source.SelectSQLPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading select sql statement: %w", err)
+	}
+	insertSql, err := os.ReadFile(cfg.Writer.Sink.InsertSQLPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading insert sql statement: %w", err)
+	}
+
 	runner := Runner[S, R, P, Q]{
-		httpClient:   httpClient,
-		queryBuilder: qb,
-		cfg:          cfg,
-		sinks:        []Sink[S]{ch},
+		httpClient: httpClient,
+		cfg:        cfg,
+		sinks:      []Sink[S]{ch},
+		selectSql:  string(selectSql),
+		insertSql:  string(insertSql),
 	}
 
 	runner.circuitBreaker = gobreaker.NewCircuitBreaker[*resty.Response](

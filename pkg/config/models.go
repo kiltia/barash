@@ -119,18 +119,44 @@ type ShutdownConfig struct {
 	DBSaveTimeout time.Duration `env:"DB_SAVE_TIMEOUT, default=30s"`
 }
 
+type SourceBackend = string
+
+const (
+	SourceBackendClickhouse SourceBackend = "ch"
+	SourceBackendPostgres   SourceBackend = "pg"
+)
+
+type SourceConfig struct {
+	Backend       SourceBackend `env:"BACKEND"`
+	SelectSQLPath string        `env:"SELECT_SQL, default=select.sql"`
+}
+
 type ProviderConfig struct {
 	SleepTime          time.Duration `env:"SLEEP_TIME, default=1m"`
 	SelectionBatchSize int           `env:"SELECTION_BATCH_SIZE, default=40000"`
 	SelectionTableName string        `env:"SELECTION_TABLE"`
 	SelectRetries      int           `env:"SELECT_RETRIES, default=5"`
-	Sinks              []string      `env:"SINKS"`
+
+	Source SourceConfig `env:"SOURCE"`
+}
+
+type SinkBackend = string
+
+const (
+	SinkBackendClickhouse SinkBackend = "ch"
+	SinkBackendPostgres   SinkBackend = "postgres"
+)
+
+type SinkConfig struct {
+	Backend       SinkBackend `env:"BACKEND"`
+	InsertSQLPath string      `env:"INSERT_SQL, default=insert.sql"`
 }
 
 type WriterConfig struct {
-	InsertionBatchSize int    `env:"INSERT_BATCH_SIZE, default=10000"`
-	InsertionTableName string `env:"INSERT_TABLE"`
-	InsertTag          string `env:"TAG"`
+	InsertionBatchSize int        `env:"INSERT_BATCH_SIZE, default=10000"`
+	InsertionTableName string     `env:"INSERT_TABLE"`
+	InsertTag          string     `env:"TAG"`
+	Sink               SinkConfig `env:"SINK"`
 }
 
 type LogConfig struct {

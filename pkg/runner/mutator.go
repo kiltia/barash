@@ -3,8 +3,6 @@ package runner
 import (
 	"encoding/json"
 	"os"
-
-	"github.com/kiltia/barash/pkg/config"
 )
 
 type IncludeBodyFromFile interface {
@@ -16,9 +14,9 @@ type BodyMutator struct {
 }
 
 func NewBodyMutator(
-	cfg *config.Config,
+	bodyPath string,
 ) BodyMutator {
-	filePath := cfg.API.BodyFilePath
+	filePath := bodyPath
 	// read the file
 
 	file, err := os.ReadFile(filePath)

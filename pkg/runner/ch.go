@@ -94,12 +94,13 @@ func (client *Clickhouse[S, P, Q]) InsertBatch(
 	return nil
 }
 
-func (client *Clickhouse[S, P, Q]) SelectNextBatch(
+func (client *Clickhouse[S, P, Q]) GetNextBatch(
 	ctx context.Context,
+	sql string,
 	queryBuilder Q,
 ) (result []P, err error) {
 	zap.S().Debug("retrieving a new batch from the database")
-	query := queryBuilder.GetSelectQuery()
+	query := queryBuilder.FormatQuery(sql)
 	zap.S().Debugw(
 		"selecting a new batch from the database",
 		"query", query,
