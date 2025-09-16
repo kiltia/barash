@@ -20,7 +20,7 @@ const (
 	ContextKeyFetcherNum ContextKey = iota
 )
 
-var _ Sink[StoredResult] = &Clickhouse[StoredResult, StoredParams, QueryBuilder[StoredParams]]{}
+var _ Sink[StoredResult] = &Clickhouse[StoredResult, StoredParams]{}
 
 type Runner[S StoredResult, R Response[S, P], P StoredParams, Q QueryBuilder[P]] struct {
 	sinks          []Sink[S]
@@ -43,14 +43,18 @@ func New[
 	cfg *config.Config,
 	qb Q,
 ) (*Runner[S, R, P, Q], error) {
-	ch, version, err := NewClickHouseClient[S, P, Q](
+	chSource, version, err := NewClickHouseClient[S, P](
 		cfg.Provider.Source.Credentials,
 	)
 	if err != nil {
-		zap.S().Errorw(
-			"creating a new clickhouse client",
-			"error", err,
-		)
+		return nil, err
+	}
+
+	chSink, version, err := NewClickHouseClient[S, P](
+		cfg.Writer.Sink.Credentials,
+	)
+
+	if err != nil {
 		return nil, err
 	}
 
@@ -93,10 +97,12 @@ func New[
 
 	runner := Runner[S, R, P, Q]{
 		httpClient: httpClient,
+		src:        chSource,
 		cfg:        cfg,
-		sinks:      []Sink[S]{ch},
-		selectSQL:  string(selectSQL),
-		insertSQL:  string(insertSQL),
+		// TODO(nrydanov): Remove hardcode when others backends become available
+		sinks:        []Sink[S]{chSink},
+		selectSQL:    string(selectSQL),
+		insertSQL:    string(insertSQL),
 		queryBuilder: qb,
 	}
 

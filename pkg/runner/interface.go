@@ -52,6 +52,7 @@ type (
 	Source[P any] interface {
 		GetNextBatch(
 			ctx context.Context,
+			sql string,
 			qb QueryBuilder[P],
 		) (result []P, err error)
 	}

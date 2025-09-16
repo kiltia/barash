@@ -147,7 +147,8 @@ const (
 )
 
 type SinkConfig struct {
-	Backend SinkBackend `env:"BACKEND"`
+	Backend     SinkBackend    `env:"BACKEND"`
+	Credentials DatabaseConfig `env:"CREDENTIALS"`
 }
 
 type WriterConfig struct {

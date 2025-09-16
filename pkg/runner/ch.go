@@ -11,15 +11,15 @@ import (
 	"go.uber.org/zap"
 )
 
-type Clickhouse[S StoredResult, P StoredParams, Q QueryBuilder[P]] struct {
+type Clickhouse[S StoredResult, P StoredParams] struct {
 	Conn            driver.Conn
 	insertTableName string
 }
 
-func NewClickHouseClient[S StoredResult, P StoredParams, Q QueryBuilder[P]](
+func NewClickHouseClient[S StoredResult, P StoredParams](
 	cfg config.DatabaseConfig,
 ) (
-	client *Clickhouse[S, P, Q],
+	client *Clickhouse[S, P],
 	version *proto.ServerHandshake,
 	err error,
 ) {
@@ -56,12 +56,12 @@ func NewClickHouseClient[S StoredResult, P StoredParams, Q QueryBuilder[P]](
 		)
 		return nil, nil, err
 	}
-	return &Clickhouse[S, P, Q]{
+	return &Clickhouse[S, P]{
 		Conn: conn,
 	}, version, err
 }
 
-func (client *Clickhouse[S, P, Q]) InsertBatch(
+func (client *Clickhouse[S, P]) InsertBatch(
 	ctx context.Context,
 	batch []S,
 ) error {
@@ -85,10 +85,10 @@ func (client *Clickhouse[S, P, Q]) InsertBatch(
 	return batchBuilder.Send()
 }
 
-func (client *Clickhouse[S, P, Q]) GetNextBatch(
+func (client *Clickhouse[S, P]) GetNextBatch(
 	ctx context.Context,
 	sql string,
-	queryBuilder Q,
+	queryBuilder QueryBuilder[P],
 ) (result []P, err error) {
 	zap.S().Debug("retrieving a new batch from the database")
 	query := queryBuilder.FormatQuery(sql)
@@ -99,7 +99,7 @@ func (client *Clickhouse[S, P, Q]) GetNextBatch(
 	return result, client.Conn.Select(ctx, &result, query)
 }
 
-func (client *Clickhouse[S, P, Q]) InitTable(
+func (client *Clickhouse[S, P]) InitTable(
 	ctx context.Context,
 ) error {
 	var nilInstance S

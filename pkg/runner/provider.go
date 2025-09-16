@@ -135,6 +135,7 @@ func (r *Runner[S, R, P, Q]) fetchParams(
 			default:
 				params, err = r.src.GetNextBatch(
 					ctx,
+					r.selectSQL,
 					r.queryBuilder,
 				)
 				if err != nil {
