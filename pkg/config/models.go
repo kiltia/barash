@@ -125,7 +125,7 @@ const (
 )
 
 type SourceConfig struct {
-	Backend     SourceBackend  `env:", prefix=BACKEND"`
+	Backend     SourceBackend  `env:"BACKEND, default=ch"`
 	Credentials DatabaseConfig `env:", prefix=CREDENTIALS"`
 }
 
