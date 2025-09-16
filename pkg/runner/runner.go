@@ -31,7 +31,6 @@ type Runner[S StoredResult, R Response[S, P], P StoredParams, Q QueryBuilder[P]]
 	queryBuilder   Q
 
 	selectSQL string
-	insertSQL string
 }
 
 func New[
@@ -90,10 +89,6 @@ func New[
 	if err != nil {
 		return nil, fmt.Errorf("reading select sql statement: %w", err)
 	}
-	insertSQL, err := os.ReadFile(cfg.Writer.InsertSQLPath)
-	if err != nil {
-		return nil, fmt.Errorf("reading insert sql statement: %w", err)
-	}
 
 	runner := Runner[S, R, P, Q]{
 		httpClient: httpClient,
@@ -102,7 +97,6 @@ func New[
 		// TODO(nrydanov): Remove hardcode when others backends become available
 		sinks:        []Sink[S]{chSink},
 		selectSQL:    string(selectSQL),
-		insertSQL:    string(insertSQL),
 		queryBuilder: qb,
 	}
 
