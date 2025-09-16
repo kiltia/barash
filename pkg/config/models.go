@@ -84,11 +84,11 @@ type DatabaseConfig struct {
 
 type CircuitBreakerConfig struct {
 	Enabled                 bool          `env:"ENABLE, default=false"`
-	MaxRequests             uint32        `env:"MAX_REQUESTS, default=100"`
+	MaxRequests             uint32        `env:"MAX_REQUESTS, default=10"`
 	ConsecutiveFailure      uint32        `env:"CONSECUTIVE_FAILURE, default=10"`
 	TotalFailurePerInterval uint32        `env:"TOTAL_FAILURE_PER_INTERVAL, default=900"`
 	Interval                time.Duration `env:"INTERVAL, default=60s"`
-	Timeout                 time.Duration `env:"TIMEOUT, default=60s"`
+	Timeout                 time.Duration `env:"TIMEOUT, default=360s"`
 }
 
 type FetcherConfig struct {

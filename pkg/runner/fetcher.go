@@ -30,6 +30,17 @@ func (r *Runner[S, R, P, Q]) fetcher(
 
 	ctx = context.WithValue(ctx, ContextKeyFetcherNum, fetcherNum)
 
+	activeRequests := atomic.Int32{}
+	go func() {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Second * 10):
+			zap.S().
+				Debugf("%d active requests are currently running", activeRequests.Load())
+		}
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -45,7 +56,9 @@ func (r *Runner[S, R, P, Q]) fetcher(
 				logger := logger.With("request", task.GetRequestLink())
 				logger.
 					Debugw("pulling a new task", "task_count", len(input))
+				activeRequests.Add(1)
 				storedValues, err := r.performRequest(ctx, task, logger)
+				activeRequests.Add(-1)
 				if errors.Is(err, gobreaker.ErrOpenState) || errors.Is(err, gobreaker.ErrTooManyRequests) {
 					zap.S().
 						Warnw("fetcher is paused after too many client/server errors")
@@ -221,9 +234,10 @@ func (r *Runner[S, R, P, Q]) performRequest(
 	}
 	lastResp, err := r.circuitBreaker.Execute(toBeExecuted)
 	if err != nil {
-		zap.S().Warn(fmt.Errorf("request is finished with error: %w", err))
 		if errors.Is(err, gobreaker.ErrOpenState) || errors.Is(err, gobreaker.ErrTooManyRequests) {
 			return nil, err
+		} else {
+			zap.S().Warn(fmt.Errorf("request is finished with error: %w", err))
 		}
 	}
 	if lastResp != nil {
