@@ -46,7 +46,7 @@ func (r *Runner[S, R, P, Q]) fetcher(
 				logger.
 					Debugw("pulling a new task", "task_count", len(input))
 				storedValues, err := r.performRequest(ctx, task, logger)
-				if errors.Is(err, gobreaker.ErrOpenState) {
+				if errors.Is(err, gobreaker.ErrOpenState) || errors.Is(err, gobreaker.ErrTooManyRequests) {
 					zap.S().
 						Warnw("fetcher is paused after too many client/server errors")
 					select {
