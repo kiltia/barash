@@ -19,8 +19,8 @@ import (
 
 func (r *Runner[S, R, P, Q]) fetcher(
 	ctx context.Context,
-	input chan ServiceRequest[P],
-	output chan S,
+	input <-chan ServiceRequest[P],
+	output chan<- S,
 	fetcherNum int,
 ) {
 	logger := zap.S().
