@@ -221,7 +221,7 @@ func (r *Runner[S, R, P, Q]) performRequest(
 	lastResp, err := r.circuitBreaker.Execute(toBeExecuted)
 	if err != nil {
 		zap.S().Warn(fmt.Errorf("request is finished with error: %w", err))
-		if errors.Is(err, gobreaker.ErrOpenState) {
+		if errors.Is(err, gobreaker.ErrOpenState) || errors.Is(err, gobreaker.ErrTooManyRequests) {
 			return nil, err
 		}
 	}
