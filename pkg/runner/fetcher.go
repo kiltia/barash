@@ -54,6 +54,7 @@ func (r *Runner[S, R, P, Q]) fetcher(
 					case <-ctx.Done():
 						return
 					}
+					continue
 				}
 				// It's expected that err is ignored here
 				for _, value := range storedValues {
