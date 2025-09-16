@@ -125,8 +125,8 @@ const (
 )
 
 type SourceConfig struct {
-	Backend     SourceBackend  `env:"BACKEND"`
-	Credentials DatabaseConfig `env:"CREDENTIALS"`
+	Backend     SourceBackend  `env:", prefix=BACKEND"`
+	Credentials DatabaseConfig `env:", prefix=CREDENTIALS"`
 }
 
 type ProviderConfig struct {
@@ -136,7 +136,7 @@ type ProviderConfig struct {
 	SelectRetries      int           `env:"SELECT_RETRIES, default=5"`
 	SelectSQLPath      string        `env:"SELECT_SQL, default=select.sql"`
 
-	Source SourceConfig `env:"SOURCE"`
+	Source SourceConfig `env:", prefix=SOURCE"`
 }
 
 type SinkBackend = string
