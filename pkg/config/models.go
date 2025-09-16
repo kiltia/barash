@@ -126,7 +126,7 @@ const (
 
 type SourceConfig struct {
 	Backend     SourceBackend  `env:"BACKEND, default=ch"`
-	Credentials DatabaseConfig `env:", prefix=CREDENTIALS"`
+	Credentials DatabaseConfig `env:", prefix=CREDENTIALS_"`
 }
 
 type ProviderConfig struct {
@@ -136,7 +136,7 @@ type ProviderConfig struct {
 	SelectRetries      int           `env:"SELECT_RETRIES, default=5"`
 	SelectSQLPath      string        `env:"SELECT_SQL, default=select.sql"`
 
-	Source SourceConfig `env:", prefix=SOURCE"`
+	Source SourceConfig `env:", prefix=SOURCE_"`
 }
 
 type SinkBackend = string
@@ -148,13 +148,13 @@ const (
 
 type SinkConfig struct {
 	Backend     SinkBackend    `env:"BACKEND, default=ch"`
-	Credentials DatabaseConfig `env:", prefix=CREDENTIALS"`
+	Credentials DatabaseConfig `env:", prefix=CREDENTIALS_"`
 }
 
 type WriterConfig struct {
 	InsertionBatchSize int        `env:"INSERT_BATCH_SIZE, default=10000"`
 	InsertionTableName string     `env:"INSERT_TABLE"`
-	Sink               SinkConfig `env:"SINK"`
+	Sink               SinkConfig `env:", prefix=SINK_"`
 	InsertSQLPath      string     `env:"INSERT_SQL, default=insert.sql"`
 	SaveTag            string     `env:"TAG"`
 }
