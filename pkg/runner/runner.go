@@ -103,6 +103,7 @@ func New[
 	runner.circuitBreaker = gobreaker.NewCircuitBreaker[*resty.Response](
 		gobreaker.Settings{
 			Name:     "outgoing_requests",
+			MaxRequests: cfg.CircuitBreaker.MaxRequests,
 			Interval: cfg.CircuitBreaker.Interval,
 			ReadyToTrip: func(counts gobreaker.Counts) bool {
 				if cfg.CircuitBreaker.Enabled {
