@@ -1,10 +1,10 @@
-package runner
+package barash
 
 import (
 	"fmt"
 	"net/url"
 
-	"github.com/kiltia/barash/pkg/config"
+	"github.com/kiltia/barash/config"
 )
 
 type ServiceRequest[P StoredParams] struct {

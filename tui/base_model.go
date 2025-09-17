@@ -1,9 +1,10 @@
+// Package tui provides a code that allows to run the application in the TUI mode.
 package tui
 
 import (
 	"strings"
 
-	"github.com/kiltia/barash/pkg/config"
+	"github.com/kiltia/barash/config"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

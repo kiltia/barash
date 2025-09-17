@@ -1,4 +1,5 @@
-package runner
+// Package barash provides a generic framework for creating HTTP workload.
+package barash
 
 import (
 	"context"

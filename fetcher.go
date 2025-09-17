@@ -1,4 +1,4 @@
-package runner
+package barash
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/kiltia/barash/pkg/config"
+	"github.com/kiltia/barash/config"
 	"github.com/sony/gobreaker/v2"
 
 	"go.uber.org/zap"

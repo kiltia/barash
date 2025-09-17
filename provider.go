@@ -1,4 +1,4 @@
-package runner
+package barash
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/avast/retry-go/v4"
-	"github.com/kiltia/barash/pkg/config"
+	"github.com/kiltia/barash/config"
 
 	"go.uber.org/zap"
 )
