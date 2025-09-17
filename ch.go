@@ -1,8 +1,10 @@
 package barash
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"text/template"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
@@ -88,10 +90,22 @@ func (client *Clickhouse[S, P]) InsertBatch(
 func (client *Clickhouse[S, P]) GetNextBatch(
 	ctx context.Context,
 	sql string,
-	queryBuilder QueryBuilder[P],
+	queryBuilder QueryState[P],
 ) (result []P, err error) {
 	zap.S().Debug("retrieving a new batch from the database")
-	query := queryBuilder.FormatQuery(sql)
+	tmpl, err := template.New("query").Parse(sql)
+	if err != nil {
+		return nil, fmt.Errorf("parsing sql: %w", err)
+	}
+
+	var buf bytes.Buffer
+
+	if err = tmpl.Execute(&buf, queryBuilder); err != nil {
+		return nil, fmt.Errorf("executing template: %w", err)
+	}
+
+	query := buf.String()
+
 	zap.S().Debugw(
 		"selecting a new batch from the database",
 		"query", query,

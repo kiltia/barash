@@ -22,7 +22,7 @@ const (
 
 var _ Sink[StoredResult] = &Clickhouse[StoredResult, StoredParams]{}
 
-type Runner[S StoredResult, R Response[S, P], P StoredParams, Q QueryBuilder[P]] struct {
+type Runner[S StoredResult, R Response[S, P], P StoredParams, Q QueryState[P]] struct {
 	sinks          []Sink[S]
 	src            Source[P]
 	httpClient     *resty.Client
@@ -37,7 +37,7 @@ func New[
 	S StoredResult,
 	R Response[S, P],
 	P StoredParams,
-	Q QueryBuilder[P],
+	Q QueryState[P],
 ](
 	cfg *config.Config,
 	qb Q,
