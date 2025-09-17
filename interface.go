@@ -34,12 +34,8 @@ type (
 		) S
 	}
 
-	// QueryBuilder interface represents an object which abstract SQL generation
-	// logic.
-	QueryBuilder[P StoredParams] interface {
-		// FormatQuery formats SQL template using QueryBuilder's inner state.
-		FormatQuery(sql string) string
-
+	// QueryState interface represents an object which holds query state
+	QueryState[P StoredParams] interface {
 		// UpdateState updates inner state based on batch data.
 		UpdateState(
 			batch []P,
@@ -54,7 +50,7 @@ type (
 		GetNextBatch(
 			ctx context.Context,
 			sql string,
-			qb QueryBuilder[P],
+			qb QueryState[P],
 		) (result []P, err error)
 	}
 
