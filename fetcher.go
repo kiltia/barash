@@ -59,7 +59,8 @@ func (r *Runner[S, R, P, Q]) fetcher(
 				activeRequests.Add(1)
 				storedValues, err := r.performRequest(ctx, task, logger)
 				activeRequests.Add(-1)
-				if errors.Is(err, gobreaker.ErrOpenState) || errors.Is(err, gobreaker.ErrTooManyRequests) {
+				if errors.Is(err, gobreaker.ErrOpenState) ||
+					errors.Is(err, gobreaker.ErrTooManyRequests) {
 					zap.S().
 						Warnw("fetcher is paused after too many client/server errors")
 					select {
@@ -234,7 +235,8 @@ func (r *Runner[S, R, P, Q]) performRequest(
 	}
 	lastResp, err := r.circuitBreaker.Execute(toBeExecuted)
 	if err != nil {
-		if errors.Is(err, gobreaker.ErrOpenState) || errors.Is(err, gobreaker.ErrTooManyRequests) {
+		if errors.Is(err, gobreaker.ErrOpenState) ||
+			errors.Is(err, gobreaker.ErrTooManyRequests) {
 			return nil, err
 		} else {
 			zap.S().Warn(fmt.Errorf("request is finished with error: %w", err))

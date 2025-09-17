@@ -5,8 +5,8 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/kiltia/barash/tui"
 	"github.com/kiltia/barash/config"
+	"github.com/kiltia/barash/tui"
 )
 
 func Run() (*config.Config, error) {
