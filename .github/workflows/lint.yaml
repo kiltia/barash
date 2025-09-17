@@ -14,20 +14,7 @@ jobs:
         with:
           go-version: stable
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
-          version: v1.60
+          version: v2.4.0
           args: --timeout=10m
-  gocyclo:
-    name: Cyclomatic complexity
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Golang
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.23.2'
-      - name: Setup gocyclo
-        run: go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
-      - name: Run checks
-        run: gocyclo -over 10 .

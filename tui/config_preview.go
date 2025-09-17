@@ -3,7 +3,7 @@ package tui
 import (
 	"fmt"
 
-	"github.com/kiltia/barash/pkg/config"
+	"github.com/kiltia/barash/config"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

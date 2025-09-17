@@ -1,4 +1,4 @@
-package runner
+package barash
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/kiltia/barash/pkg/config"
+	"github.com/kiltia/barash/config"
 
 	"github.com/sony/gobreaker/v2"
 	"go.uber.org/zap"
@@ -45,6 +45,10 @@ func New[
 	chSource, version, err := NewClickHouseClient[S, P](
 		cfg.Provider.Source.Credentials,
 	)
+	zap.S().Infow(
+		"created a new clickhouse client (source)",
+		"version", fmt.Sprintf("%v", version),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -52,13 +56,12 @@ func New[
 	chSink, version, err := NewClickHouseClient[S, P](
 		cfg.Writer.Sink.Credentials,
 	)
-
 	if err != nil {
 		return nil, err
 	}
 
 	zap.S().Infow(
-		"created a new clickhouse client",
+		"created a new clickhouse client (sink)",
 		"version", fmt.Sprintf("%v", version),
 	)
 	httpClient := resty.New().
@@ -102,9 +105,9 @@ func New[
 
 	runner.circuitBreaker = gobreaker.NewCircuitBreaker[*resty.Response](
 		gobreaker.Settings{
-			Name:     "outgoing_requests",
+			Name:        "outgoing_requests",
 			MaxRequests: cfg.CircuitBreaker.MaxRequests,
-			Interval: cfg.CircuitBreaker.Interval,
+			Interval:    cfg.CircuitBreaker.Interval,
 			ReadyToTrip: func(counts gobreaker.Counts) bool {
 				if cfg.CircuitBreaker.Enabled {
 					tooManyTotal := counts.TotalFailures > cfg.CircuitBreaker.TotalFailurePerInterval
