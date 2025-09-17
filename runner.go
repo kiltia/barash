@@ -45,6 +45,10 @@ func New[
 	chSource, version, err := NewClickHouseClient[S, P](
 		cfg.Provider.Source.Credentials,
 	)
+	zap.S().Infow(
+		"created a new clickhouse client (source)",
+		"version", fmt.Sprintf("%v", version),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +61,7 @@ func New[
 	}
 
 	zap.S().Infow(
-		"created a new clickhouse client",
+		"created a new clickhouse client (sink)",
 		"version", fmt.Sprintf("%v", version),
 	)
 	httpClient := resty.New().
