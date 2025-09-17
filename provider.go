@@ -17,12 +17,6 @@ func (r *Runner[S, R, P, Q]) startProvider(
 ) chan ServiceRequest[P] {
 	out := make(chan ServiceRequest[P], 2*r.cfg.Provider.SelectionBatchSize)
 
-	var p *P
-	var mutator BodyMutator
-	if _, ok := any(p).(IncludeBodyFromFile); ok {
-		mutator = NewBodyMutator(r.cfg.API.BodyFilePath)
-	}
-
 	var requestsCh chan ServiceRequest[P]
 	wg.Go(func() {
 		defer close(out)
@@ -37,7 +31,7 @@ func (r *Runner[S, R, P, Q]) startProvider(
 				}
 			default:
 				var err error
-				requestsCh, err = r.gatherRequests(ctx, mutator)
+				requestsCh, err = r.gatherRequests(ctx)
 				if err != nil {
 					zap.S().Errorw("gathering requests", "error", err)
 					return
@@ -76,7 +70,6 @@ func (r *Runner[S, R, P, Q]) startProvider(
 
 func (r *Runner[S, R, P, Q]) gatherRequests(
 	ctx context.Context,
-	mutator BodyMutator,
 ) (chan ServiceRequest[P], error) {
 	zap.S().Debug("trying to get more tasks for fetchers")
 	params, err := r.fetchParams(
@@ -84,6 +77,7 @@ func (r *Runner[S, R, P, Q]) gatherRequests(
 	)
 	for i := range params {
 		if p, ok := any(&params[i]).(IncludeBodyFromFile); ok {
+			mutator := NewBodyMutator(r.cfg.API.BodyFilePath)
 			mutator.Mutate(p)
 		}
 	}
