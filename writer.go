@@ -51,7 +51,7 @@ func (r *Runner[S, R, P, Q]) writer(
 			batch,
 			result,
 		)
-		if len(batch) >= r.cfg.Writer.InsertionBatchSize {
+		if len(batch) >= r.cfg.Writer.InsertBatchSize {
 			zap.S().Infow(
 				"have enough results, saving to the database",
 			)
