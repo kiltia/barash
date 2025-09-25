@@ -100,7 +100,7 @@ func (r *Runner[S, R, P, Q]) startFetchers(
 	ctx context.Context,
 	input chan ServiceRequest[P],
 ) chan S {
-	outputCh := make(chan S, 2*r.cfg.Writer.InsertionBatchSize+1)
+	outputCh := make(chan S, 2*r.cfg.Writer.InsertBatchSize+1)
 	wg := sync.WaitGroup{}
 	fetcherCnt := atomic.Int32{}
 	for i := range r.cfg.Fetcher.MaxFetcherWorkers {
