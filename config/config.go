@@ -136,11 +136,11 @@ type SourceConfig struct {
 }
 
 type ProviderConfig struct {
-	SleepTime          time.Duration `env:"SLEEP_TIME, default=1m"`
-	SelectionBatchSize int           `env:"SELECTION_BATCH_SIZE, default=40000"`
-	SelectionTableName string        `env:"SELECTION_TABLE"`
-	SelectRetries      int           `env:"SELECT_RETRIES, default=5"`
-	SelectSQLPath      string        `env:"SELECT_SQL, default=select.sql"`
+	SleepTime       time.Duration `env:"SLEEP_TIME, default=1m"`
+	SelectBatchSize int           `env:"SELECTION_BATCH_SIZE, default=40000"`
+	SelectTable     string        `env:"SELECTION_TABLE"`
+	SelectRetries   int           `env:"SELECT_RETRIES, default=5"`
+	SelectSQLPath   string        `env:"SELECT_SQL, default=select.sql"`
 
 	Source SourceConfig `env:", prefix=SOURCE_"`
 }
@@ -158,11 +158,11 @@ type SinkConfig struct {
 }
 
 type WriterConfig struct {
-	InsertionBatchSize int        `env:"INSERT_BATCH_SIZE, default=10000"`
-	InsertionTableName string     `env:"INSERT_TABLE"`
-	Sink               SinkConfig `env:", prefix=SINK_"`
-	InsertSQLPath      string     `env:"INSERT_SQL, default=insert.sql"`
-	SaveTag            string     `env:"TAG"`
+	InsertBatchSize int        `env:"INSERT_BATCH_SIZE, default=10000"`
+	InsertTable     string     `env:"INSERT_TABLE"`
+	Sink            SinkConfig `env:", prefix=SINK_"`
+	InsertSQLPath   string     `env:"INSERT_SQL, default=insert.sql"`
+	SaveTag         string     `env:"TAG"`
 }
 
 type LogConfig struct {
