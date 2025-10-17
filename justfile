@@ -1,7 +1,7 @@
 format:
-    goimports -l -w .
-    gofumpt -l -w .
-    golines -w -m 80 .
+    go tool goimports -l -w .
+    go tool gofumpt -l -w .
+    go tool golines -w -m 80 .
 
 lint:
     golangci-lint run ./...
