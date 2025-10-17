@@ -10,10 +10,10 @@ import (
 
 const (
 	QueryTag = "query"
-	JsonTag  = "json"
+	JSONTag  = "json"
 )
 
-// Converts an object to a map of query parameters.
+// ObjectToParams converts an object to a map of query parameters.
 //
 // Can work with both concrete and pointer types.
 // If the object implements StoredParamsToQuery interface,
@@ -29,7 +29,7 @@ func ObjectToParams(obj any) (
 	query = url.Values{}
 
 	val := reflect.ValueOf(obj)
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		val = val.Elem()
 	}
 	typ := val.Type()
@@ -54,7 +54,7 @@ func ObjectToParams(obj any) (
 	return query
 }
 
-// Converts an object to a JSON body.
+// ObjectToBody converts an object to a JSON body.
 //
 // Can work with both concrete and pointer types.
 // If the object implements StoredParamsToBody interface,
@@ -77,7 +77,7 @@ func ObjectToBody(obj any) (
 
 	for i := range val.NumField() {
 		field := typ.Field(i)
-		jsonKey := field.Tag.Get(JsonTag)
+		jsonKey := field.Tag.Get(JSONTag)
 		fieldValue := val.Field(i)
 
 		if jsonKey != "" && jsonKey != "-" {

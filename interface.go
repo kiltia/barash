@@ -25,7 +25,7 @@ type (
 
 	Response[S StoredResult, P StoredParams] interface {
 		IntoStored(
-			request ServiceRequest[P],
+			request APIRequest[P],
 			err error,
 			attemptNumber int,
 			status int,

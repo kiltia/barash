@@ -16,10 +16,10 @@ import (
 func (r *Runner[S, R, P, Q]) startProvider(
 	wg *sync.WaitGroup,
 	ctx context.Context,
-) chan ServiceRequest[P] {
-	out := make(chan ServiceRequest[P], 2*r.cfg.Provider.SelectBatchSize)
+) chan APIRequest[P] {
+	out := make(chan APIRequest[P], 2*r.cfg.Provider.SelectBatchSize)
 
-	var requestsCh chan ServiceRequest[P]
+	var requestsCh chan APIRequest[P]
 	wg.Go(func() {
 		defer close(out)
 		for {
@@ -72,7 +72,7 @@ func (r *Runner[S, R, P, Q]) startProvider(
 
 func (r *Runner[S, R, P, Q]) gatherRequests(
 	ctx context.Context,
-) (chan ServiceRequest[P], error) {
+) (chan APIRequest[P], error) {
 	zap.S().Debug("trying to get more tasks for fetchers")
 	params, err := r.fetchParams(
 		ctx,
@@ -106,11 +106,11 @@ func (r *Runner[S, R, P, Q]) gatherRequests(
 func (r *Runner[S, R, P, Q]) createRequestStream(
 	params []P,
 	requestURL *url.URL,
-) chan ServiceRequest[P] {
-	ch := make(chan ServiceRequest[P], len(params))
+) chan APIRequest[P] {
+	ch := make(chan APIRequest[P], len(params))
 	for i := range params {
 		p := &params[i]
-		ch <- ServiceRequest[P]{
+		ch <- APIRequest[P]{
 			RequestURL: *requestURL,
 			Method:     r.cfg.API.Method,
 			Params:     *p,

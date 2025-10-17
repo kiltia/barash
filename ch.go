@@ -13,11 +13,18 @@ import (
 	"go.uber.org/zap"
 )
 
+var (
+	_ Sink[StoredResult]   = &ClickhouseSink[StoredResult]{}
+	_ Source[StoredParams] = &ClickhouseSource[StoredParams]{}
+)
+
 type ClickhouseWrapper struct {
 	Conn driver.Conn
 }
 
-func NewClickhouseWrapper(cfg config.DatabaseConfig) (*ClickhouseWrapper, error) {
+func NewClickhouseWrapper(
+	cfg config.DatabaseConfig,
+) (*ClickhouseWrapper, error) {
 	conn, err := getConn(cfg)
 	if err != nil {
 		return nil, err
@@ -50,7 +57,6 @@ func getConn(cfg config.DatabaseConfig) (driver.Conn, error) {
 	}
 
 	version, err := conn.ServerVersion()
-
 	if err != nil {
 		zap.S().Errorw(
 			"retrieving ClickHouse server version",
@@ -64,7 +70,7 @@ func getConn(cfg config.DatabaseConfig) (driver.Conn, error) {
 		"version", fmt.Sprintf("%v", version),
 	)
 
-	return conn, err
+	return conn, nil
 }
 
 type ClickhouseSink[S StoredResult] struct {

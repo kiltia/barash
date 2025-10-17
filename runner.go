@@ -23,9 +23,6 @@ const (
 	ContextKeyFetcherNum ContextKey = iota
 )
 
-var _ Sink[StoredResult] = &ClickhouseSink[StoredResult]{}
-var _ Source[StoredParams] = &ClickhouseSource[StoredParams]{}
-
 type Runner[S StoredResult, R Response[S, P], P StoredParams, Q QueryState[P]] struct {
 	sinks          []Sink[S]
 	src            Source[P]
@@ -37,89 +34,6 @@ type Runner[S StoredResult, R Response[S, P], P StoredParams, Q QueryState[P]] s
 	selectSQL string
 }
 
-func loadCreds(backend string) (*config.DatabaseCredentials, error) {
-	userEnv := fmt.Sprintf("%s_USER", strings.ToUpper(backend))
-	passwordEnv := fmt.Sprintf("%s_PASSWORD", strings.ToUpper(backend))
-	zap.S().Infow("loading credentials", "userEnv", userEnv, "passwordEnv", passwordEnv)
-	user := os.Getenv(fmt.Sprintf("%s_USER", strings.ToUpper(backend)))
-	password := os.Getenv(fmt.Sprintf("%s_PASSWORD", strings.ToUpper(backend)))
-	decodedUser, err := base64.StdEncoding.DecodeString(user)
-	if err != nil {
-		return nil, fmt.Errorf("decoding username: %w", err)
-	}
-	decodedPassword, err := base64.StdEncoding.DecodeString(password)
-	if err != nil {
-		return nil, fmt.Errorf("decoding password: %w", err)
-	}
-	creds := &config.DatabaseCredentials{
-		Username: string(decodedUser),
-		Password: string(decodedPassword),
-	}
-	zap.S().Infow("loaded credentials", "creds", creds)
-	return creds, nil
-}
-
-func initSinks[S StoredResult](cfgs []config.SinkConfig) ([]Sink[S], error) {
-	var clients []Sink[S]
-	var errs []error
-	for _, cfg := range cfgs {
-		creds, err := loadCreds(cfg.Backend)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("loading credentials for backend %s: %w", cfg.Backend, err))
-			continue
-		}
-		var client Sink[S]
-		cfg.Credentials = *creds
-		switch cfg.Backend {
-		case config.BackendClickhouse:
-			var err error
-			var version *proto.ServerHandshake
-			client, version, err = NewClickhouseSink[S](
-				cfg,
-			)
-			if err != nil {
-				errs = append(errs, fmt.Errorf("initializing %s sink: %w", cfg.Backend, err))
-				continue
-			}
-			zap.S().Infow(
-				"created a new clickhouse client",
-				"version", fmt.Sprintf("%v", version),
-			)
-		default:
-			zap.S().Fatalw("unknown source backend", "backend", cfg)
-		}
-		clients = append(clients, client)
-	}
-	return clients, errors.Join(errs...)
-}
-
-func initSource[P StoredParams](cfg config.SourceConfig) (Source[P], error) {
-	creds, err := loadCreds(cfg.Backend)
-	if err != nil {
-		return nil, fmt.Errorf("initializing %s source: %w", cfg.Backend, err)
-	}
-	var client Source[P]
-	cfg.Credentials = *creds
-	switch cfg.Backend {
-	case config.BackendClickhouse:
-		var err error
-		var version *proto.ServerHandshake
-		client, version, err = NewClickhouseSource[P](
-			cfg,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("initializing %s source: %w", cfg.Backend, err)
-		}
-		zap.S().Infow(
-			"created a new clickhouse client",
-			"version", fmt.Sprintf("%v", version),
-		)
-	default:
-		zap.S().Fatalw("unknown source backend", "backend", cfg)
-	}
-	return client, nil
-}
-
 func New[
 	S StoredResult,
 	R Response[S, P],
@@ -129,7 +43,6 @@ func New[
 	cfg *config.Config,
 	qb Q,
 ) (*Runner[S, R, P, Q], error) {
-
 	sinks, err := initSinks[S](cfg.Writer.Sinks)
 	if err != nil {
 		return nil, fmt.Errorf("initializing sinks: %w", err)
@@ -232,4 +145,102 @@ func (r *Runner[S, R, P, Q]) initTable(
 	}
 
 	return errors.Join(errs...)
+}
+
+func loadCreds(backend string) (*config.DatabaseCredentials, error) {
+	userEnv := fmt.Sprintf("%s_USER", strings.ToUpper(backend))
+	passwordEnv := fmt.Sprintf("%s_PASSWORD", strings.ToUpper(backend))
+	zap.S().
+		Infow("loading credentials", "userEnv", userEnv, "passwordEnv", passwordEnv)
+	user := os.Getenv(fmt.Sprintf("%s_USER", strings.ToUpper(backend)))
+	password := os.Getenv(fmt.Sprintf("%s_PASSWORD", strings.ToUpper(backend)))
+	decodedUser, err := base64.StdEncoding.DecodeString(user)
+	if err != nil {
+		return nil, fmt.Errorf("decoding username: %w", err)
+	}
+	decodedPassword, err := base64.StdEncoding.DecodeString(password)
+	if err != nil {
+		return nil, fmt.Errorf("decoding password: %w", err)
+	}
+	creds := &config.DatabaseCredentials{
+		Username: string(decodedUser),
+		Password: string(decodedPassword),
+	}
+	zap.S().Infow("loaded credentials", "creds", creds)
+	return creds, nil
+}
+
+func initSinks[S StoredResult](cfgs []config.SinkConfig) ([]Sink[S], error) {
+	var clients []Sink[S]
+	var errs []error
+	for _, cfg := range cfgs {
+		creds, err := loadCreds(cfg.Backend)
+		if err != nil {
+			errs = append(
+				errs,
+				fmt.Errorf(
+					"loading credentials for backend %s: %w",
+					cfg.Backend,
+					err,
+				),
+			)
+			continue
+		}
+		var client Sink[S]
+		cfg.Credentials = *creds
+		switch cfg.Backend {
+		case config.BackendClickhouse:
+			var err error
+			var version *proto.ServerHandshake
+			client, version, err = NewClickhouseSink[S](
+				cfg,
+			)
+			if err != nil {
+				errs = append(
+					errs,
+					fmt.Errorf("initializing %s sink: %w", cfg.Backend, err),
+				)
+				continue
+			}
+			zap.S().Infow(
+				"created a new clickhouse client",
+				"version", fmt.Sprintf("%v", version),
+			)
+		default:
+			zap.S().Fatalw("unknown source backend", "backend", cfg)
+		}
+		clients = append(clients, client)
+	}
+	return clients, errors.Join(errs...)
+}
+
+func initSource[P StoredParams](cfg config.SourceConfig) (Source[P], error) {
+	creds, err := loadCreds(cfg.Backend)
+	if err != nil {
+		return nil, fmt.Errorf("initializing %s source: %w", cfg.Backend, err)
+	}
+	var client Source[P]
+	cfg.Credentials = *creds
+	switch cfg.Backend {
+	case config.BackendClickhouse:
+		var err error
+		var version *proto.ServerHandshake
+		client, version, err = NewClickhouseSource[P](
+			cfg,
+		)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"initializing %s source: %w",
+				cfg.Backend,
+				err,
+			)
+		}
+		zap.S().Infow(
+			"created a new clickhouse client",
+			"version", fmt.Sprintf("%v", version),
+		)
+	default:
+		zap.S().Fatalw("unknown source backend", "backend", cfg)
+	}
+	return client, nil
 }

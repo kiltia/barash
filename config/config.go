@@ -29,15 +29,15 @@ const (
 
 type Config struct {
 	// Configuration of interaction between the runner and the API
-	API APIConfig `yaml:"api" env:", prefix=API_"`
+	API APIConfig `yaml:"api"      env:", prefix=API_"`
 	// Settings related to the provider - the component that retrieves data from database
 	Provider ProviderConfig `yaml:"provider" env:", prefix=PROVIDER_"`
 	// Settings related to the fetcher - the component that fetches data from the API
-	Fetcher FetcherConfig `yaml:"fetcher" env:", prefix=FETCHER_"`
+	Fetcher FetcherConfig `yaml:"fetcher"  env:", prefix=FETCHER_"`
 	// Settings related to the writer - the component that saves results to the database
-	Writer WriterConfig `yaml:"writer" env:", prefix=WRITER_"`
+	Writer WriterConfig `yaml:"writer"   env:", prefix=WRITER_"`
 	// Logger configuration
-	Log LogConfig `yaml:"log" env:", prefix=LOG_"`
+	Log LogConfig `yaml:"log"      env:", prefix=LOG_"`
 	// Graceful shutdown logic configuration
 	Shutdown ShutdownConfig `yaml:"shutdown" env:", prefix=SHUTDOWN_"`
 
@@ -51,14 +51,14 @@ type Config struct {
 }
 
 type APIConfig struct {
-	RequestURL string           `yaml:"request_url" env:"REQUEST_URL"`
-	Method     RunnerHTTPMethod `yaml:"method" env:"METHOD"`
+	RequestURL string           `yaml:"request_url"    env:"REQUEST_URL"`
+	Method     RunnerHTTPMethod `yaml:"method"         env:"METHOD"`
 	// Timeout
-	APITimeout time.Duration `yaml:"api_timeout" env:"TIMEOUT"`
+	APITimeout time.Duration `yaml:"api_timeout"    env:"TIMEOUT"`
 	// Retries
-	NumRetries  int           `yaml:"num_retries" env:"N_RETRIES"`
-	MinWaitTime time.Duration `yaml:"min_wait_time" env:"MIN_WAIT_TIME"`
-	MaxWaitTime time.Duration `yaml:"max_wait_time" env:"MAX_WAIT_TIME"`
+	NumRetries  int           `yaml:"num_retries"    env:"N_RETRIES"`
+	MinWaitTime time.Duration `yaml:"min_wait_time"  env:"MIN_WAIT_TIME"`
+	MaxWaitTime time.Duration `yaml:"max_wait_time"  env:"MAX_WAIT_TIME"`
 	// Request extension
 	BodyFilePath string `yaml:"body_file_path" env:"BODY_FILE_PATH"`
 }
@@ -69,22 +69,22 @@ type DatabaseCredentials struct {
 }
 
 type CircuitBreakerConfig struct {
-	Enabled                 bool          `yaml:"enabled" env:"ENABLE"`
-	MaxRequests             uint32        `yaml:"max_requests" env:"MAX_REQUESTS"`
-	ConsecutiveFailure      uint32        `yaml:"consecutive_failure" env:"CONSECUTIVE_FAILURE"`
+	Enabled                 bool          `yaml:"enabled"                    env:"ENABLE"`
+	MaxRequests             uint32        `yaml:"max_requests"               env:"MAX_REQUESTS"`
+	ConsecutiveFailure      uint32        `yaml:"consecutive_failure"        env:"CONSECUTIVE_FAILURE"`
 	TotalFailurePerInterval uint32        `yaml:"total_failure_per_interval" env:"TOTAL_FAILURE_PER_INTERVAL"`
-	Interval                time.Duration `yaml:"interval" env:"INTERVAL"`
-	Timeout                 time.Duration `yaml:"timeout" env:"TIMEOUT"`
+	Interval                time.Duration `yaml:"interval"                   env:"INTERVAL"`
+	Timeout                 time.Duration `yaml:"timeout"                    env:"TIMEOUT"`
 }
 
 type FetcherConfig struct {
 	MinFetcherWorkers int `yaml:"min_fetcher_workers" env:"N_WORKERS"`
 	MaxFetcherWorkers int `yaml:"max_fetcher_workers" env:"MAX_WORKERS"`
 	// Warmup parameters
-	Duration     time.Duration `yaml:"duration" env:"WARMUP_TIME"`
-	EnableWarmup bool          `yaml:"enable_warmup" env:"ENABLE_WARMUP"`
-	IdleTime     time.Duration `yaml:"idle_time" env:"IDLE_TIME"`
-	Timeout      time.Duration `yaml:"timeout" env:"TIMEOUT"`
+	Duration     time.Duration `yaml:"duration"            env:"WARMUP_TIME"`
+	EnableWarmup bool          `yaml:"enable_warmup"       env:"ENABLE_WARMUP"`
+	IdleTime     time.Duration `yaml:"idle_time"           env:"IDLE_TIME"`
+	Timeout      time.Duration `yaml:"timeout"             env:"TIMEOUT"`
 
 	// Circuit breaker can be configured to prevent Runner from overloading
 	// the API or sending too much bad responses to Clickhouse.
@@ -95,7 +95,7 @@ type CorrectionConfig struct {
 	EnableErrorsCorrection   bool          `yaml:"enable_errors_correction"`
 	ErrorCorrection          time.Duration `yaml:"error_correction"`
 	EnableTimeoutsCorrection bool          `yaml:"enable_timeouts_correction" env:"ENABLE_TIMEOUTS"`
-	MaxTimeoutCorrection     time.Duration `yaml:"max_timeout_correction" env:"TIMEOUTS"`
+	MaxTimeoutCorrection     time.Duration `yaml:"max_timeout_correction"     env:"TIMEOUTS"`
 }
 
 type ContinuousModeConfig struct {
@@ -103,7 +103,7 @@ type ContinuousModeConfig struct {
 }
 
 type ShutdownConfig struct {
-	GracePeriod   time.Duration `yaml:"grace_period" env:"GRACE_PERIOD"`
+	GracePeriod   time.Duration `yaml:"grace_period"    env:"GRACE_PERIOD"`
 	DBSaveTimeout time.Duration `yaml:"db_save_timeout" env:"DB_SAVE_TIMEOUT"`
 }
 
@@ -113,26 +113,26 @@ type DatabaseConfig struct {
 	Backend string `yaml:"backend"`
 	// Should be set with env vars
 	Credentials DatabaseCredentials
-	Host        string `yaml:"host" env:"HOST"`
-	Port        string `yaml:"port" env:"PORT"`
+	Host        string `yaml:"host"     env:"HOST"`
+	Port        string `yaml:"port"     env:"PORT"`
 	Database    string `yaml:"database" env:"DB"`
 }
 
 type SourceConfig struct {
-	DatabaseConfig `yaml:",inline"`
-	SelectTable    string `yaml:"table" env:"TABLE"`
+	DatabaseConfig `       yaml:",inline"`
+	SelectTable    string `yaml:"table"           env:"TABLE"`
 	SelectSQLPath  string `yaml:"select_sql_path" env:"SELECT_SQL"`
 }
 
 type SinkConfig struct {
-	DatabaseConfig `yaml:",inline"`
-	InsertTable    string `yaml:"table" env:"TABLE"`
+	DatabaseConfig `       yaml:",inline"`
+	InsertTable    string `yaml:"table"   env:"TABLE"`
 }
 
 type ProviderConfig struct {
-	SleepTime       time.Duration `yaml:"sleep_time" env:"SLEEP_TIME"`
+	SleepTime       time.Duration `yaml:"sleep_time"        env:"SLEEP_TIME"`
 	SelectBatchSize int           `yaml:"select_batch_size" env:"SELECTION_BATCH_SIZE"`
-	SelectRetries   int           `yaml:"select_retries" env:"SELECT_RETRIES"`
+	SelectRetries   int           `yaml:"select_retries"    env:"SELECT_RETRIES"`
 
 	Source SourceConfig `yaml:"source"`
 
@@ -148,7 +148,7 @@ const (
 type WriterConfig struct {
 	InsertBatchSize int          `yaml:"insert_batch_size" env:"INSERT_BATCH_SIZE"`
 	Sinks           []SinkConfig `yaml:"sinks"`
-	SaveTag         string       `yaml:"save_tag" env:"TAG"`
+	SaveTag         string       `yaml:"save_tag"          env:"TAG"`
 
 	// Runner uses corr_ts to generate "virtual" timestamp for the results.
 	// This can be used to postpone, shuffle, retry new requests with the
@@ -157,16 +157,23 @@ type WriterConfig struct {
 }
 
 type LogConfig struct {
-	Level    zapcore.Level `yaml:"level" env:"LEVEL"`
+	Level    zapcore.Level `yaml:"level"    env:"LEVEL"`
 	Encoding string        `yaml:"encoding" env:"ENCODING"`
 }
 
-var configPath string
-var envOnly bool
+var (
+	configPath string
+	envOnly    bool
+)
 
 func init() {
 	flag.StringVar(&configPath, "config", "", "Path to YAML configuration file")
-	flag.BoolVar(&envOnly, "env", false, "Use only environment variables for configuration")
+	flag.BoolVar(
+		&envOnly,
+		"env",
+		false,
+		"Use only environment variables for configuration",
+	)
 	_ = godotenv.Load() // load the user-defined `.env` file
 }
 

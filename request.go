@@ -6,7 +6,7 @@ import (
 	"github.com/kiltia/barash/config"
 )
 
-type ServiceRequest[P StoredParams] struct {
+type APIRequest[P StoredParams] struct {
 	RequestURL url.URL
 	Method     config.RunnerHTTPMethod
 	Params     P
@@ -15,7 +15,7 @@ type ServiceRequest[P StoredParams] struct {
 	cachedRequestBody []byte
 }
 
-func (req *ServiceRequest[P]) GetRequestLink() string {
+func (req *APIRequest[P]) GetRequestLink() string {
 	if req.cachedRequestLink != "" {
 		return req.cachedRequestLink
 	}
@@ -37,7 +37,7 @@ func (req *ServiceRequest[P]) GetRequestLink() string {
 	return urlString
 }
 
-func (req *ServiceRequest[P]) GetRequestBody() []byte {
+func (req *APIRequest[P]) GetRequestBody() []byte {
 	if req.cachedRequestBody != nil {
 		return req.cachedRequestBody
 	}
