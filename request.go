@@ -1,20 +1,15 @@
 package barash
 
 import (
-	"fmt"
 	"net/url"
 
 	"github.com/kiltia/barash/config"
 )
 
 type ServiceRequest[P StoredParams] struct {
-	Host        string
-	Port        string
-	Endpoint    string
-	Scheme      string
-	Method      config.RunnerHTTPMethod
-	Params      P
-	ExtraParams map[string]string
+	RequestURL url.URL
+	Method     config.RunnerHTTPMethod
+	Params     P
 
 	cachedRequestLink string
 	cachedRequestBody []byte
@@ -25,15 +20,14 @@ func (req *ServiceRequest[P]) GetRequestLink() string {
 		return req.cachedRequestLink
 	}
 
-	baseURL := &url.URL{
-		Scheme: req.Scheme,
-		Host:   fmt.Sprintf("%s:%s", req.Host, req.Port),
-		Path:   req.Endpoint,
-	}
+	baseURL := req.RequestURL
 
+	query := baseURL.Query()
 	params := ObjectToParams(req.Params)
-	for field, value := range req.ExtraParams {
-		params.Add(field, value)
+	for k, v := range params {
+		for _, vv := range v {
+			query.Add(k, vv)
+		}
 	}
 
 	baseURL.RawQuery = params.Encode()

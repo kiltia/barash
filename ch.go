@@ -13,21 +13,23 @@ import (
 	"go.uber.org/zap"
 )
 
-type Clickhouse[S StoredResult, P StoredParams] struct {
-	Conn            driver.Conn
-	insertTableName string
+type ClickhouseWrapper struct {
+	Conn driver.Conn
 }
 
-func NewClickHouseClient[S StoredResult, P StoredParams](
-	cfg config.DatabaseConfig,
-) (
-	client *Clickhouse[S, P],
-	version *proto.ServerHandshake,
-	err error,
-) {
-	var conn driver.Conn
+func NewClickhouseWrapper(cfg config.DatabaseConfig) (*ClickhouseWrapper, error) {
+	conn, err := getConn(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &ClickhouseWrapper{
+		Conn: conn,
+	}, err
+}
+
+func getConn(cfg config.DatabaseConfig) (driver.Conn, error) {
 	zap.S().Debug("opening connection to the ClickHouse")
-	conn, err = clickhouse.Open(
+	conn, err := clickhouse.Open(
 		&clickhouse.Options{
 			Addr: []string{
 				fmt.Sprintf(
@@ -38,42 +40,81 @@ func NewClickHouseClient[S StoredResult, P StoredParams](
 			},
 			Auth: clickhouse.Auth{
 				Database: cfg.Database,
-				Username: cfg.Username,
-				Password: cfg.Password,
+				Username: cfg.Credentials.Username,
+				Password: cfg.Credentials.Password,
 			},
 		},
 	)
 	if err != nil {
-		zap.S().Errorw(
-			"opening connection to the ClickHouse",
-			"error", err,
-		)
-		return nil, nil, err
+		return nil, err
 	}
-	version, err = conn.ServerVersion()
+
+	version, err := conn.ServerVersion()
+
 	if err != nil {
 		zap.S().Errorw(
 			"retrieving ClickHouse server version",
 			"error", err,
 		)
-		return nil, nil, err
+		return nil, err
 	}
-	return &Clickhouse[S, P]{
-		Conn: conn,
+
+	zap.S().Debugw(
+		"opened connection to the ClickHouse",
+		"version", fmt.Sprintf("%v", version),
+	)
+
+	return conn, err
+}
+
+type ClickhouseSink[S StoredResult] struct {
+	ClickhouseWrapper
+	insertTable string
+}
+
+type ClickhouseSource[P StoredParams] struct {
+	ClickhouseWrapper
+	selectTable string
+}
+
+func NewClickhouseSink[S StoredResult](
+	cfg config.SinkConfig,
+) (
+	client *ClickhouseSink[S],
+	version *proto.ServerHandshake,
+	err error,
+) {
+	w, err := NewClickhouseWrapper(cfg.DatabaseConfig)
+	return &ClickhouseSink[S]{
+		insertTable:       cfg.InsertTable,
+		ClickhouseWrapper: *w,
 	}, version, err
 }
 
-func (client *Clickhouse[S, P]) InsertBatch(
+func NewClickhouseSource[P StoredParams](
+	cfg config.SourceConfig,
+) (
+	client *ClickhouseSource[P],
+	version *proto.ServerHandshake,
+	err error,
+) {
+	w, err := NewClickhouseWrapper(cfg.DatabaseConfig)
+	return &ClickhouseSource[P]{
+		selectTable:       cfg.SelectTable,
+		ClickhouseWrapper: *w,
+	}, version, err
+}
+
+func (s *ClickhouseSink[S]) InsertBatch(
 	ctx context.Context,
 	batch []S,
 ) error {
 	zap.S().Debug("inserting a batch to the database")
-	query := fmt.Sprintf("INSERT INTO %s", client.insertTableName)
+	query := fmt.Sprintf("INSERT INTO %s", s.insertTable)
 	zap.S().Debugw(
-		"sending query to the database",
-		"query", query,
+		"Sending query to the database",
 	)
-	batchBuilder, err := client.Conn.PrepareBatch(ctx, query)
+	batchBuilder, err := s.Conn.PrepareBatch(ctx, query)
 	if err != nil {
 		return err
 	}
@@ -87,7 +128,7 @@ func (client *Clickhouse[S, P]) InsertBatch(
 	return batchBuilder.Send()
 }
 
-func (client *Clickhouse[S, P]) GetNextBatch(
+func (client *ClickhouseSource[P]) GetNextBatch(
 	ctx context.Context,
 	sql string,
 	queryBuilder QueryState[P],
@@ -113,12 +154,12 @@ func (client *Clickhouse[S, P]) GetNextBatch(
 	return result, client.Conn.Select(ctx, &result, query)
 }
 
-func (client *Clickhouse[S, P]) InitTable(
+func (s *ClickhouseSink[S]) InitTable(
 	ctx context.Context,
 ) error {
 	var nilInstance S
-	return client.Conn.Exec(
+	return s.Conn.Exec(
 		ctx,
-		nilInstance.GetCreateQuery(client.insertTableName),
+		nilInstance.GetCreateQuery(s.insertTable),
 	)
 }

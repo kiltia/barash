@@ -2,6 +2,8 @@ package barash
 
 import (
 	"context"
+	"fmt"
+	"net/url"
 	"sync"
 	"time"
 
@@ -86,8 +88,13 @@ func (r *Runner[S, R, P, Q]) gatherRequests(
 		return nil, err
 	}
 
+	requestURL, err := url.Parse(r.cfg.API.RequestURL)
+	if err != nil {
+		return nil, fmt.Errorf("parsing request url: %w", err)
+	}
+
 	if len(params) > 0 {
-		requestsCh := r.createRequestStream(params)
+		requestsCh := r.createRequestStream(params, requestURL)
 		return requestsCh, nil
 	}
 
@@ -98,18 +105,15 @@ func (r *Runner[S, R, P, Q]) gatherRequests(
 // file) and a set of request parameters fetched from the database.
 func (r *Runner[S, R, P, Q]) createRequestStream(
 	params []P,
+	requestURL *url.URL,
 ) chan ServiceRequest[P] {
 	ch := make(chan ServiceRequest[P], len(params))
 	for i := range params {
 		p := &params[i]
 		ch <- ServiceRequest[P]{
-			Host:        r.cfg.API.Host,
-			Port:        r.cfg.API.Port,
-			Endpoint:    r.cfg.API.Endpoint,
-			Scheme:      r.cfg.API.Scheme,
-			Method:      r.cfg.API.Method,
-			Params:      *p,
-			ExtraParams: r.cfg.API.ExtraParams,
+			RequestURL: *requestURL,
+			Method:     r.cfg.API.Method,
+			Params:     *p,
 		}
 
 	}
