@@ -2,14 +2,15 @@
 package config
 
 import (
-	"context"
+	"errors"
+	"flag"
 	"log"
 	"os"
 	"time"
 
 	"github.com/joho/godotenv"
-	"github.com/sethvargo/go-envconfig"
 	"go.uber.org/zap/zapcore"
+	"gopkg.in/yaml.v3"
 )
 
 type RunnerMode string
@@ -28,29 +29,17 @@ const (
 
 type Config struct {
 	// Configuration of interaction between the runner and the API
-	API APIConfig `env:", prefix=API_"`
+	API APIConfig `yaml:"api"      env:", prefix=API_"`
+	// Settings related to the provider - the component that retrieves data from database
+	Provider ProviderConfig `yaml:"provider" env:", prefix=PROVIDER_"`
+	// Settings related to the fetcher - the component that fetches data from the API
+	Fetcher FetcherConfig `yaml:"fetcher"  env:", prefix=FETCHER_"`
+	// Settings related to the writer - the component that saves results to the database
+	Writer WriterConfig `yaml:"writer"   env:", prefix=WRITER_"`
 	// Logger configuration
-	Log LogConfig `env:", prefix=LOG_"`
-	// Circuit breaker can be configured to prevent Runner from overloading
-	// the API or sending too much bad responses to Clickhouse.
-	CircuitBreaker CircuitBreakerConfig `env:", prefix=CB_"`
-	// Continuous mode specific configuration
-	ContinuousMode ContinuousModeConfig `env:", prefix=CONTINUOUS_"`
+	Log LogConfig `yaml:"log"      env:", prefix=LOG_"`
 	// Graceful shutdown logic configuration
-	Shutdown ShutdownConfig `env:", prefix=SHUTDOWN_"`
-	// Settings related to the provider - the component that retrieves data
-	// from database
-	Provider ProviderConfig `env:", prefix=PROVIDER_"`
-	// Settings related to the fetcher - the component that fetches data
-	// from the API
-	Fetcher FetcherConfig `env:", prefix=FETCHER_"`
-	// Settings related to the writer - the component that saves results to
-	// the database
-	Writer WriterConfig `env:", prefix=WRITER_"`
-	// Runner uses corr_ts to generate "virtual" timestamp for the results.
-	// This can be used to postpone, shuffle, retry new requests with the
-	// same data. This is useful for the continuous mode.
-	Correction CorrectionConfig `env:", prefix=CORRECTION_"`
+	Shutdown ShutdownConfig `yaml:"shutdown" env:", prefix=SHUTDOWN_"`
 
 	// It can be two-table or continuous mode.
 	// Two-table mode allows to get data from one table and save it to another.
@@ -58,143 +47,167 @@ type Config struct {
 	// runner will be stopped.
 	// Continuous mode allows to get data from the table and save it to the
 	// same table.
-	Mode RunnerMode `env:"RUN_MODE"`
+	Mode RunnerMode `yaml:"mode" env:"RUN_MODE"`
 }
 
 type APIConfig struct {
-	// Connection data
-	Type     string           `env:"TYPE"`
-	Host     string           `env:"HOST"`
-	Port     string           `env:"PORT, default=80"`
-	Scheme   string           `env:"SCHEME, default=http"`
-	Endpoint string           `env:"ENDPOINT"`
-	Method   RunnerHTTPMethod `env:"METHOD, default=GET"`
+	RequestURL string           `yaml:"request_url"    env:"REQUEST_URL"`
+	Method     RunnerHTTPMethod `yaml:"method"         env:"METHOD"`
 	// Timeout
-	APITimeout time.Duration `env:"TIMEOUT, default=3m"`
+	APITimeout time.Duration `yaml:"api_timeout"    env:"TIMEOUT"`
 	// Retries
-	NumRetries  int               `env:"N_RETRIES, default=3"`
-	MinWaitTime time.Duration     `env:"MIN_WAIT_TIME, default=2s"`
-	MaxWaitTime time.Duration     `env:"MAX_WAIT_TIME, default=16s"`
-	ExtraParams map[string]string `env:"EXTRA_PARAMS"`
-
-	BodyFilePath string `env:"BODY_FILE_PATH"`
+	NumRetries  int           `yaml:"num_retries"    env:"N_RETRIES"`
+	MinWaitTime time.Duration `yaml:"min_wait_time"  env:"MIN_WAIT_TIME"`
+	MaxWaitTime time.Duration `yaml:"max_wait_time"  env:"MAX_WAIT_TIME"`
+	// Request extension
+	BodyFilePath string `yaml:"body_file_path" env:"BODY_FILE_PATH"`
 }
 
-type DatabaseConfig struct {
-	Database string `env:"DB"`
-	Username string `env:"USER"`
-	Password string `env:"PASSWORD"`
-	Host     string `env:"HOST, default=127.0.0.1"`
-	Port     string `env:"PORT, default=9000"`
+type DatabaseCredentials struct {
+	Username string `yaml:"username" env:"USER"`
+	Password string `yaml:"password" env:"PASSWORD"`
 }
 
 type CircuitBreakerConfig struct {
-	Enabled                 bool          `env:"ENABLE, default=false"`
-	MaxRequests             uint32        `env:"MAX_REQUESTS, default=10"`
-	ConsecutiveFailure      uint32        `env:"CONSECUTIVE_FAILURE, default=10"`
-	TotalFailurePerInterval uint32        `env:"TOTAL_FAILURE_PER_INTERVAL, default=900"`
-	Interval                time.Duration `env:"INTERVAL, default=60s"`
-	Timeout                 time.Duration `env:"TIMEOUT, default=360s"`
+	Enabled                 bool          `yaml:"enabled"                    env:"ENABLE"`
+	MaxRequests             uint32        `yaml:"max_requests"               env:"MAX_REQUESTS"`
+	ConsecutiveFailure      uint32        `yaml:"consecutive_failure"        env:"CONSECUTIVE_FAILURE"`
+	TotalFailurePerInterval uint32        `yaml:"total_failure_per_interval" env:"TOTAL_FAILURE_PER_INTERVAL"`
+	Interval                time.Duration `yaml:"interval"                   env:"INTERVAL"`
+	Timeout                 time.Duration `yaml:"timeout"                    env:"TIMEOUT"`
 }
 
 type FetcherConfig struct {
-	MinFetcherWorkers int `env:"N_WORKERS, default=400"`
-	MaxFetcherWorkers int `env:"MAX_WORKERS, default=800"`
+	MinFetcherWorkers int `yaml:"min_fetcher_workers" env:"N_WORKERS"`
+	MaxFetcherWorkers int `yaml:"max_fetcher_workers" env:"MAX_WORKERS"`
 	// Warmup parameters
-	Duration     time.Duration `env:"WARMUP_TIME, default=60s"`
-	EnableWarmup bool          `env:"ENABLE_WARMUP, default=false"`
-	IdleTime     time.Duration `env:"IDLE_TIME, default=10s"`
-	Timeout      time.Duration `env:"TIMEOUT, default=40s"`
+	Duration     time.Duration `yaml:"duration"            env:"WARMUP_TIME"`
+	EnableWarmup bool          `yaml:"enable_warmup"       env:"ENABLE_WARMUP"`
+	IdleTime     time.Duration `yaml:"idle_time"           env:"IDLE_TIME"`
+	Timeout      time.Duration `yaml:"timeout"             env:"TIMEOUT"`
+
+	// Circuit breaker can be configured to prevent Runner from overloading
+	// the API or sending too much bad responses to Clickhouse.
+	CircuitBreaker CircuitBreakerConfig `yaml:"circuit_breaker" env:", prefix=CB_"`
 }
 
 type CorrectionConfig struct {
-	EnableErrorsCorrection   bool          `env:"ENABLE_ERRORS, default=false"`
-	ErrorCorrection          time.Duration `env:"ERRORS, default=24h"`
-	EnableTimeoutsCorrection bool          `env:"ENABLE_TIMEOUTS, default=true"`
-	MaxTimeoutCorrection     time.Duration `env:"TIMEOUTS, default=504h"`
+	EnableErrorsCorrection   bool          `yaml:"enable_errors_correction"`
+	ErrorCorrection          time.Duration `yaml:"error_correction"`
+	EnableTimeoutsCorrection bool          `yaml:"enable_timeouts_correction" env:"ENABLE_TIMEOUTS"`
+	MaxTimeoutCorrection     time.Duration `yaml:"max_timeout_correction"     env:"TIMEOUTS"`
 }
 
 type ContinuousModeConfig struct {
-	Freshness time.Duration `env:"FRESHNESS, default=168h"`
+	Freshness time.Duration `yaml:"freshness" env:"FRESHNESS"`
 }
 
 type ShutdownConfig struct {
-	GracePeriod   time.Duration `env:"GRACE_PERIOD, default=60s"`
-	DBSaveTimeout time.Duration `env:"DB_SAVE_TIMEOUT, default=30s"`
+	GracePeriod   time.Duration `yaml:"grace_period"    env:"GRACE_PERIOD"`
+	DBSaveTimeout time.Duration `yaml:"db_save_timeout" env:"DB_SAVE_TIMEOUT"`
 }
 
 type SourceBackend = string
 
-const (
-	SourceBackendClickhouse SourceBackend = "ch"
-	SourceBackendPostgres   SourceBackend = "pg"
-)
+type DatabaseConfig struct {
+	Backend string `yaml:"backend"`
+	// Should be set with env vars
+	Credentials DatabaseCredentials
+	Host        string `yaml:"host"     env:"HOST"`
+	Port        string `yaml:"port"     env:"PORT"`
+	Database    string `yaml:"database" env:"DB"`
+}
 
 type SourceConfig struct {
-	Backend     SourceBackend  `env:"BACKEND, default=ch"`
-	Credentials DatabaseConfig `env:", prefix=CREDENTIALS_"`
+	DatabaseConfig `       yaml:",inline"`
+	SelectTable    string `yaml:"table"           env:"TABLE"`
+	SelectSQLPath  string `yaml:"select_sql_path" env:"SELECT_SQL"`
+}
+
+type SinkConfig struct {
+	DatabaseConfig `       yaml:",inline"`
+	InsertTable    string `yaml:"table"   env:"TABLE"`
 }
 
 type ProviderConfig struct {
-	SleepTime       time.Duration `env:"SLEEP_TIME, default=1m"`
-	SelectBatchSize int           `env:"SELECTION_BATCH_SIZE, default=40000"`
-	SelectTable     string        `env:"SELECTION_TABLE"`
-	SelectRetries   int           `env:"SELECT_RETRIES, default=5"`
-	SelectSQLPath   string        `env:"SELECT_SQL, default=select.sql"`
+	SleepTime       time.Duration `yaml:"sleep_time"        env:"SLEEP_TIME"`
+	SelectBatchSize int           `yaml:"select_batch_size" env:"SELECTION_BATCH_SIZE"`
+	SelectRetries   int           `yaml:"select_retries"    env:"SELECT_RETRIES"`
 
-	Source SourceConfig `env:", prefix=SOURCE_"`
+	Source SourceConfig `yaml:"source"`
+
+	// Continuous mode specific configuration
+	ContinuousMode ContinuousModeConfig `yaml:"continuous_mode" env:", prefix=CONTINUOUS_"`
 }
-
-type SinkBackend = string
 
 const (
-	SinkBackendClickhouse SinkBackend = "ch"
-	SinkBackendPostgres   SinkBackend = "postgres"
+	BackendClickhouse string = "clickhouse"
+	BackendPostgres   string = "postgres"
 )
 
-type SinkConfig struct {
-	Backend     SinkBackend    `env:"BACKEND, default=ch"`
-	Credentials DatabaseConfig `env:", prefix=CREDENTIALS_"`
-}
-
 type WriterConfig struct {
-	InsertBatchSize int        `env:"INSERT_BATCH_SIZE, default=10000"`
-	InsertTable     string     `env:"INSERT_TABLE"`
-	Sink            SinkConfig `env:", prefix=SINK_"`
-	InsertSQLPath   string     `env:"INSERT_SQL, default=insert.sql"`
-	SaveTag         string     `env:"TAG"`
+	InsertBatchSize int          `yaml:"insert_batch_size" env:"INSERT_BATCH_SIZE"`
+	Sinks           []SinkConfig `yaml:"sinks"`
+	SaveTag         string       `yaml:"save_tag"          env:"TAG"`
+
+	// Runner uses corr_ts to generate "virtual" timestamp for the results.
+	// This can be used to postpone, shuffle, retry new requests with the
+	// same data. This is useful for the continuous mode.
+	Correction CorrectionConfig `yaml:"correction" env:", prefix=CORRECTION_"`
 }
 
 type LogConfig struct {
-	Level    zapcore.Level `env:"LEVEL, default=debug"`
-	Encoding string        `env:"ENCODING, default=console"`
+	Level    zapcore.Level `yaml:"level"    env:"LEVEL"`
+	Encoding string        `yaml:"encoding" env:"ENCODING"`
 }
 
-const configFileEnvVar = "CONFIG_FILE"
+var (
+	configPath string
+	envOnly    bool
+)
 
-func Init() {
+func init() {
+	flag.StringVar(&configPath, "config", "", "Path to YAML configuration file")
+	flag.BoolVar(
+		&envOnly,
+		"env",
+		false,
+		"Use only environment variables for configuration",
+	)
 	_ = godotenv.Load() // load the user-defined `.env` file
-	var baseEnvPath string
-	if value, exists := os.LookupEnv(configFileEnvVar); exists {
-		log.Printf(
-			"Using the %s env variable to retrieve the config path\n",
-			configFileEnvVar,
-		)
-		baseEnvPath = value
-	} else {
-		log.Printf("Base configuration file haven't been specified. "+
-			"It will not be loaded. You can specify the path to the base configuration file "+
-			"via the %s env variable or using the CLI arguments.\n", configFileEnvVar)
-		return
-	}
-
-	if err := godotenv.Load(baseEnvPath); err != nil {
-		log.Fatalf("reading the base configuration file: %v", err)
-	}
 }
 
-func Load(i *Config) {
-	if err := envconfig.Process(context.Background(), i); err != nil {
-		log.Fatal(err)
+func Load() (*Config, error) {
+	flag.Parse()
+	var cfg *Config
+	var err error
+	if configPath == "" {
+		return nil, errors.New("config path is empty")
 	}
+	// Load configuration
+	if envOnly || configPath == "" {
+		// Load from environment variables only
+		cfg = &Config{}
+	} else {
+		// Load from YAML file with environment variable overrides
+		cfg, err = LoadFromYAML(configPath)
+		if err != nil {
+			log.Fatalf("loading configuration from %s: %v", configPath, err)
+		}
+	}
+	return cfg, err
+}
+
+func LoadFromYAML(path string) (*Config, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var cfg Config
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return nil, err
+	}
+
+	return &cfg, nil
 }

@@ -19,7 +19,7 @@ import (
 
 func (r *Runner[S, R, P, Q]) fetcher(
 	ctx context.Context,
-	input <-chan ServiceRequest[P],
+	input <-chan APIRequest[P],
 	output chan<- S,
 	fetcherNum int,
 ) {
@@ -64,7 +64,7 @@ func (r *Runner[S, R, P, Q]) fetcher(
 					zap.S().
 						Warnw("fetcher is paused after too many client/server errors")
 					select {
-					case <-time.After(r.cfg.CircuitBreaker.Timeout):
+					case <-time.After(r.cfg.Fetcher.CircuitBreaker.Timeout):
 					case <-ctx.Done():
 						return
 					}
@@ -98,7 +98,7 @@ func (r *Runner[S, R, P, Q]) fetcher(
 func (r *Runner[S, R, P, Q]) startFetchers(
 	globalWg *sync.WaitGroup,
 	ctx context.Context,
-	input chan ServiceRequest[P],
+	input chan APIRequest[P],
 ) chan S {
 	outputCh := make(chan S, 2*r.cfg.Writer.InsertBatchSize+1)
 	wg := sync.WaitGroup{}
@@ -140,7 +140,7 @@ func (r *Runner[S, R, P, Q]) startFetchers(
 }
 
 func (r *Runner[S, R, P, Q]) convertToStored(
-	req ServiceRequest[P],
+	req APIRequest[P],
 	attempt AttemptData,
 	attemptNumber int,
 	logger *zap.SugaredLogger,
@@ -166,7 +166,7 @@ func (r *Runner[S, R, P, Q]) convertToStored(
 					"status_code",
 					statusCode,
 					"body",
-					string(body[min(100, len(body)):]),
+					string(body[min(10, len(body)):]),
 				)
 		} else {
 			result = tmpResult
@@ -190,13 +190,35 @@ var (
 	ErrServerError = errors.New("server error from subject API")
 )
 
+type AttemptData struct {
+	Response *resty.Response
+	Error    error
+}
+
+type RetryTracker struct {
+	attempts []AttemptData
+}
+
+func (r *RetryTracker) Add(resp *resty.Response, err error) {
+	r.attempts = append(r.attempts, AttemptData{
+		Response: resp,
+		Error:    err,
+	})
+}
+
+func (r *RetryTracker) Attempts() []AttemptData {
+	attempts := make([]AttemptData, len(r.attempts))
+	copy(attempts, r.attempts)
+	return attempts
+}
+
 // NOTE(nrydanov): This function is too complex, I've been thinking about it
 // for a while and I'm not sure how to simplify it, sooo...
 //
 //gocyclo:ignore
 func (r *Runner[S, R, P, Q]) performRequest(
 	ctx context.Context,
-	req ServiceRequest[P],
+	req APIRequest[P],
 	logger *zap.SugaredLogger,
 ) ([]S, error) {
 	requestURL := req.GetRequestLink()

@@ -1,39 +1,33 @@
 package barash
 
 import (
-	"fmt"
 	"net/url"
 
 	"github.com/kiltia/barash/config"
 )
 
-type ServiceRequest[P StoredParams] struct {
-	Host        string
-	Port        string
-	Endpoint    string
-	Scheme      string
-	Method      config.RunnerHTTPMethod
-	Params      P
-	ExtraParams map[string]string
+type APIRequest[P StoredParams] struct {
+	RequestURL url.URL
+	Method     config.RunnerHTTPMethod
+	Params     P
 
 	cachedRequestLink string
 	cachedRequestBody []byte
 }
 
-func (req *ServiceRequest[P]) GetRequestLink() string {
+func (req *APIRequest[P]) GetRequestLink() string {
 	if req.cachedRequestLink != "" {
 		return req.cachedRequestLink
 	}
 
-	baseURL := &url.URL{
-		Scheme: req.Scheme,
-		Host:   fmt.Sprintf("%s:%s", req.Host, req.Port),
-		Path:   req.Endpoint,
-	}
+	baseURL := req.RequestURL
 
+	query := baseURL.Query()
 	params := ObjectToParams(req.Params)
-	for field, value := range req.ExtraParams {
-		params.Add(field, value)
+	for k, v := range params {
+		for _, vv := range v {
+			query.Add(k, vv)
+		}
 	}
 
 	baseURL.RawQuery = params.Encode()
@@ -43,7 +37,7 @@ func (req *ServiceRequest[P]) GetRequestLink() string {
 	return urlString
 }
 
-func (req *ServiceRequest[P]) GetRequestBody() []byte {
+func (req *APIRequest[P]) GetRequestBody() []byte {
 	if req.cachedRequestBody != nil {
 		return req.cachedRequestBody
 	}
