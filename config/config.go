@@ -51,6 +51,7 @@ type Config struct {
 }
 
 type APIConfig struct {
+	Type       string           `yaml:"type"           env:"TYPE"`
 	RequestURL string           `yaml:"request_url"    env:"REQUEST_URL"`
 	Method     RunnerHTTPMethod `yaml:"method"         env:"METHOD"`
 	// Timeout
@@ -161,19 +162,10 @@ type LogConfig struct {
 	Encoding string        `yaml:"encoding" env:"ENCODING"`
 }
 
-var (
-	configPath string
-	envOnly    bool
-)
+var configPath string
 
 func init() {
 	flag.StringVar(&configPath, "config", "", "Path to YAML configuration file")
-	flag.BoolVar(
-		&envOnly,
-		"env",
-		false,
-		"Use only environment variables for configuration",
-	)
 	_ = godotenv.Load() // load the user-defined `.env` file
 }
 
@@ -182,10 +174,13 @@ func Load() (*Config, error) {
 	var cfg *Config
 	var err error
 	if configPath == "" {
-		return nil, errors.New("config path is empty")
+		configPath = os.Getenv("CONFIG_PATH")
+		if configPath == "" {
+			return nil, errors.New("config path is empty")
+		}
 	}
 	// Load configuration
-	if envOnly || configPath == "" {
+	if configPath == "" {
 		// Load from environment variables only
 		cfg = &Config{}
 	} else {
