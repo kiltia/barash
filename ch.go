@@ -91,10 +91,13 @@ func NewClickhouseSink[S StoredResult](
 	err error,
 ) {
 	w, err := NewClickhouseWrapper(cfg.DatabaseConfig)
+	if err != nil {
+		return nil, nil, err
+	}
 	return &ClickhouseSink[S]{
 		insertTable:       cfg.InsertTable,
 		ClickhouseWrapper: *w,
-	}, version, err
+	}, version, nil
 }
 
 func NewClickhouseSource[P StoredParams](
@@ -105,10 +108,13 @@ func NewClickhouseSource[P StoredParams](
 	err error,
 ) {
 	w, err := NewClickhouseWrapper(cfg.DatabaseConfig)
+	if err != nil {
+		return nil, nil, err
+	}
 	return &ClickhouseSource[P]{
 		selectTable:       cfg.SelectTable,
 		ClickhouseWrapper: *w,
-	}, version, err
+	}, version, nil
 }
 
 func (s *ClickhouseSink[S]) InsertBatch(
