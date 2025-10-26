@@ -227,10 +227,10 @@ func (r *Runner[S, R, P, Q]) performRequest(
 	processResp := func(resp *resty.Response, err error) error {
 		lastStatus := resp.StatusCode()
 		if lastStatus > 399 && lastStatus < 500 {
-			return fmt.Errorf("%w: %v", ErrClientError, err)
+			return fmt.Errorf("%w: %v", ErrClientError, resp.Error())
 		}
 		if lastStatus > 499 {
-			return fmt.Errorf("%w: %v", ErrServerError, err)
+			return fmt.Errorf("%w: %v", ErrServerError, resp.Error())
 		}
 		return err
 	}
