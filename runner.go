@@ -166,7 +166,7 @@ func loadCreds(backend string) (*config.DatabaseCredentials, error) {
 		Username: string(decodedUser),
 		Password: string(decodedPassword),
 	}
-	zap.S().Infow("loaded credentials", "creds", creds)
+	zap.S().Infow("loaded credentials")
 	return creds, nil
 }
 
