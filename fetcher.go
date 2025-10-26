@@ -25,21 +25,10 @@ func (r *Runner[S, R, P, Q]) fetcher(
 ) {
 	logger := zap.S().
 		With("fetcher_num", fetcherNum)
-	logger.
-		Debugw("fetcher instance is starting up")
 
 	ctx = context.WithValue(ctx, ContextKeyFetcherNum, fetcherNum)
 
 	activeRequests := atomic.Int32{}
-	go func() {
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(time.Second * 10):
-			zap.S().
-				Debugf("%d active requests are currently running", activeRequests.Load())
-		}
-	}()
 
 	for {
 		select {
@@ -227,10 +216,10 @@ func (r *Runner[S, R, P, Q]) performRequest(
 	processResp := func(resp *resty.Response, err error) error {
 		lastStatus := resp.StatusCode()
 		if lastStatus > 399 && lastStatus < 500 {
-			return fmt.Errorf("%w: %v", ErrClientError, resp.Error())
+			return fmt.Errorf("%w: %v, status_code: %d", ErrClientError, resp.Error(), resp.StatusCode())
 		}
 		if lastStatus > 499 {
-			return fmt.Errorf("%w: %v", ErrServerError, resp.Error())
+			return fmt.Errorf("%w: %v, status_code: %d", ErrServerError, resp.Error(), resp.StatusCode())
 		}
 		return err
 	}

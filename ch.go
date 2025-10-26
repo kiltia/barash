@@ -8,7 +8,6 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
-	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 	"github.com/kiltia/barash/config"
 	"go.uber.org/zap"
 )
@@ -87,34 +86,32 @@ func NewClickhouseSink[S StoredResult](
 	cfg config.SinkConfig,
 ) (
 	client *ClickhouseSink[S],
-	version *proto.ServerHandshake,
 	err error,
 ) {
 	w, err := NewClickhouseWrapper(cfg.DatabaseConfig)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	return &ClickhouseSink[S]{
 		insertTable:       cfg.InsertTable,
 		ClickhouseWrapper: *w,
-	}, version, nil
+	}, nil
 }
 
 func NewClickhouseSource[P StoredParams](
 	cfg config.SourceConfig,
 ) (
 	client *ClickhouseSource[P],
-	version *proto.ServerHandshake,
 	err error,
 ) {
 	w, err := NewClickhouseWrapper(cfg.DatabaseConfig)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	return &ClickhouseSource[P]{
 		selectTable:       cfg.SelectTable,
 		ClickhouseWrapper: *w,
-	}, version, nil
+	}, nil
 }
 
 func (s *ClickhouseSink[S]) InsertBatch(

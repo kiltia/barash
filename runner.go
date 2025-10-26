@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 	"github.com/kiltia/barash/config"
 
 	"github.com/sony/gobreaker/v2"
@@ -191,8 +190,7 @@ func initSinks[S StoredResult](cfgs []config.SinkConfig) ([]Sink[S], error) {
 		switch cfg.Backend {
 		case config.BackendClickhouse:
 			var err error
-			var version *proto.ServerHandshake
-			client, version, err = NewClickhouseSink[S](
+			client, err = NewClickhouseSink[S](
 				cfg,
 			)
 			if err != nil {
@@ -204,7 +202,6 @@ func initSinks[S StoredResult](cfgs []config.SinkConfig) ([]Sink[S], error) {
 			}
 			zap.S().Infow(
 				"created a new clickhouse client",
-				"version", fmt.Sprintf("%v", version.Version),
 			)
 		default:
 			zap.S().Fatalw("unknown source backend", "backend", cfg)
@@ -224,8 +221,7 @@ func initSource[P StoredParams](cfg config.SourceConfig) (Source[P], error) {
 	switch cfg.Backend {
 	case config.BackendClickhouse:
 		var err error
-		var version *proto.ServerHandshake
-		client, version, err = NewClickhouseSource[P](
+		client, err = NewClickhouseSource[P](
 			cfg,
 		)
 		if err != nil {
@@ -237,7 +233,6 @@ func initSource[P StoredParams](cfg config.SourceConfig) (Source[P], error) {
 		}
 		zap.S().Infow(
 			"created a new clickhouse client",
-			"version", fmt.Sprintf("%v", version.Version),
 		)
 	default:
 		zap.S().Fatalw("unknown source backend", "backend", cfg)
