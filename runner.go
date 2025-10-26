@@ -204,7 +204,7 @@ func initSinks[S StoredResult](cfgs []config.SinkConfig) ([]Sink[S], error) {
 			}
 			zap.S().Infow(
 				"created a new clickhouse client",
-				"version", fmt.Sprintf("%v", version),
+				"version", fmt.Sprintf("%v", version.Version),
 			)
 		default:
 			zap.S().Fatalw("unknown source backend", "backend", cfg)
@@ -237,7 +237,7 @@ func initSource[P StoredParams](cfg config.SourceConfig) (Source[P], error) {
 		}
 		zap.S().Infow(
 			"created a new clickhouse client",
-			"version", fmt.Sprintf("%v", version),
+			"version", fmt.Sprintf("%v", version.Version),
 		)
 	default:
 		zap.S().Fatalw("unknown source backend", "backend", cfg)
