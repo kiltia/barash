@@ -226,9 +226,12 @@ func (r *Runner[S, R, P, Q]) performRequest(
 
 	var tracker RetryTracker
 
-	client := r.httpClient.AddRetryHooks(tracker.Add)
-
-	request := client.R().WithContext(ctx)
+	// Attach the per-request retry tracker to the Request, NOT the shared client.
+	// r.httpClient.AddRetryHooks mutates the shared client's retryHooks slice on
+	// every request: it grows unboundedly and client.R() clones the ever-growing
+	// slice on each call (slices.Clone[RetryHookFunc]) — O(N^2) memory, OOM within
+	// minutes under load. Request-scoped hooks are honoured during retries too.
+	request := r.httpClient.R().WithContext(ctx).AddRetryHooks(tracker.Add)
 	var toBeExecuted func() (*resty.Response, error)
 	switch req.Method {
 	case config.RunnerHTTPMethodGet:
