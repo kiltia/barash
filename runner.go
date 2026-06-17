@@ -95,6 +95,11 @@ func New[
 			Name:        "outgoing_requests",
 			MaxRequests: cfg.Fetcher.CircuitBreaker.MaxRequests,
 			Interval:    cfg.Fetcher.CircuitBreaker.Interval,
+			// Honour the configured open duration. Previously this was unset, so
+			// gobreaker silently used its 60s default while fetchers slept the
+			// (much larger) configured Timeout — a 6x mismatch that stretched
+			// every trip into a multi-minute stall.
+			Timeout: cfg.Fetcher.CircuitBreaker.Timeout,
 			ReadyToTrip: func(counts gobreaker.Counts) bool {
 				if cfg.Fetcher.CircuitBreaker.Enabled {
 					tooManyTotal := counts.TotalFailures > cfg.Fetcher.CircuitBreaker.TotalFailurePerInterval
@@ -103,6 +108,21 @@ func New[
 				} else {
 					return false
 				}
+			},
+			// 4xx client errors (bad/expired URLs, 404s) are not a
+			// downstream-overload signal — they must not trip the breaker and
+			// stall every other request. Only 5xx and transport/timeout errors
+			// count as failures.
+			IsSuccessful: func(err error) bool {
+				return err == nil || errors.Is(err, ErrClientError)
+			},
+			OnStateChange: func(name string, from, to gobreaker.State) {
+				zap.S().Warnw(
+					"circuit breaker state change",
+					"breaker", name,
+					"from", from.String(),
+					"to", to.String(),
+				)
 			},
 		})
 	return &runner, nil

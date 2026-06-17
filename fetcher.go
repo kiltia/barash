@@ -17,6 +17,11 @@ import (
 	"resty.dev/v3"
 )
 
+// breakerPollInterval bounds how often a paused fetcher re-checks the circuit
+// breaker state while it is open. Small enough to resume within seconds of the
+// breaker's open timeout elapsing, large enough to avoid a hot spin loop.
+const breakerPollInterval = 2 * time.Second
+
 func (r *Runner[S, R, P, Q]) fetcher(
 	ctx context.Context,
 	input <-chan APIRequest[P],
@@ -35,51 +40,82 @@ func (r *Runner[S, R, P, Q]) fetcher(
 		case <-ctx.Done():
 			return
 		default:
+		}
+
+		// When the breaker is OPEN, stop consuming from the input channel
+		// entirely. Leaving tasks unread applies backpressure to the provider
+		// (it blocks on the full channel and stops advancing its select cursor),
+		// so no DUNS is silently skipped while the subject API is unavailable.
+		// We poll the breaker state so workers resume within breakerPollInterval
+		// of it half-opening/closing. Previously each worker slept the full
+		// CircuitBreaker.Timeout AND dropped the already-pulled task, collapsing
+		// throughput to ~zero and skipping large swaths of the corpus for the
+		// whole open period.
+		if r.circuitBreaker.State() == gobreaker.StateOpen {
 			select {
-			case task, opened := <-input:
-				if !opened {
-					logger.
-						Debugw("fetcher has no work left")
-					return
-				}
-				logger := logger.With("request", task.GetRequestLink())
+			case <-time.After(breakerPollInterval):
+			case <-ctx.Done():
+				return
+			}
+			continue
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case task, opened := <-input:
+			if !opened {
 				logger.
-					Debugw("pulling a new task", "task_count", len(input))
-				activeRequests.Add(1)
-				storedValues, err := r.performRequest(ctx, task, logger)
-				activeRequests.Add(-1)
-				if errors.Is(err, gobreaker.ErrOpenState) ||
-					errors.Is(err, gobreaker.ErrTooManyRequests) {
-					zap.S().
-						Warnw("fetcher is paused after too many client/server errors")
+					Debugw("fetcher has no work left")
+				return
+			}
+			logger := logger.With("request", task.GetRequestLink())
+			logger.
+				Debugw("pulling a new task", "task_count", len(input))
+			activeRequests.Add(1)
+			storedValues, err := r.performRequest(ctx, task, logger)
+			activeRequests.Add(-1)
+			if errors.Is(err, gobreaker.ErrTooManyRequests) {
+				// Half-open: gobreaker admitted its MaxRequests probes and
+				// rejected this call. Park until the half-open window resolves
+				// instead of hot-looping — pulling and skipping tasks — while
+				// the in-flight probes decide whether the breaker closes.
+				for r.circuitBreaker.State() == gobreaker.StateHalfOpen {
 					select {
-					case <-time.After(r.cfg.Fetcher.CircuitBreaker.Timeout):
+					case <-time.After(breakerPollInterval):
 					case <-ctx.Done():
 						return
 					}
-					continue
 				}
-				// It's expected that err is ignored here
-				for _, value := range storedValues {
-					output <- value
-				}
-				if err != nil {
-					zap.S().Error(
-						fmt.Errorf(
-							"performing request: %w",
-							err,
-						),
-					)
-				}
-			case <-time.After(r.cfg.Fetcher.IdleTime):
-				logger.
-					Debugw(
-						"no tasks recieved in fetcher idle time, exiting fetcher",
-						"idle_time",
-						r.cfg.Fetcher.IdleTime,
-					)
-				return
+				continue
 			}
+			if errors.Is(err, gobreaker.ErrOpenState) {
+				// Breaker opened between the top-of-loop state check and
+				// execution; the next iteration's check parks us. Skip this
+				// task — in continuous mode the DUNS keeps its stale corr_ts
+				// and is re-selected on the next pass.
+				continue
+			}
+			// It's expected that err is ignored here
+			for _, value := range storedValues {
+				output <- value
+			}
+			if err != nil {
+				zap.S().Error(
+					fmt.Errorf(
+						"performing request: %w",
+						err,
+					),
+				)
+			}
+		case <-time.After(r.cfg.Fetcher.IdleTime):
+			logger.
+				Debugw(
+					"no tasks recieved in fetcher idle time, exiting fetcher",
+					"idle_time",
+					r.cfg.Fetcher.IdleTime,
+				)
+			return
 		}
 	}
 }
